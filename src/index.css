@@ -1,5 +1,25 @@
 @import "tailwindcss";
 
+@keyframes snapkeep-filter-in {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes snapkeep-filter-from-left {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
 div:has(> header .font-serif) {
   font-family: Inter, Pretendard, sans-serif;
 }
@@ -15,33 +35,14 @@ div:has(> header .font-serif) * {
 }
 
 div:has(> header .font-serif) {
+  width: 1440px;
+  min-height: 900px;
   border-radius: 20px !important;
 }
 
 div:has(> header .font-serif) > header {
-  height: 78px;
-  padding: 0 62px;
+  padding: 14px 40px;
   border-bottom: 1px solid #e2e3e0;
-}
-
-div:has(> header .font-serif) > header > div {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-div:has(> header .font-serif) > header > div::before {
-  display: grid;
-  width: 32px;
-  height: 32px;
-  place-items: center;
-  border-radius: 4px;
-  background: #1d1c1c;
-  color: #fff;
-  content: "</>";
-  font-family: Inter, sans-serif;
-  font-size: 13px;
-  font-weight: 700;
 }
 
 div:has(> header .font-serif) > header > div > p + p {
@@ -49,5 +50,730 @@ div:has(> header .font-serif) > header > div > p + p {
 }
 
 div:has(> header .font-serif) > header > button {
-  margin-right: 56px;
+  display: none;
+}
+
+div:has(> header .font-serif) > header .font-serif {
+  font-size: 28px;
+  letter-spacing: -2px;
+}
+
+div:has(> header .font-serif) > main {
+  padding-left: 40px;
+  padding-right: 40px;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] > div:first-child {
+  width: 100%;
+  height: 50px;
+  position: relative;
+  border-radius: 9999px;
+  background-color: #fff;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] {
+  margin: 18px 0;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] > div:first-child > svg {
+  display: none;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] > div:first-child > button {
+  width: 24px;
+  height: 24px;
+  background: url("./assets/search-outline.svg") center / 24px 24px no-repeat;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] > div:first-child > button > svg {
+  display: none;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] > div:first-child:has(input:placeholder-shown)::before {
+  content: "키워드 또는 질문으로 검색";
+  position: absolute;
+  left: 22px;
+  color: #9a9e9d;
+  font-size: 16px;
+  pointer-events: none;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] > div:first-child > input::placeholder {
+  color: transparent;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > button {
+  background-image: url("./assets/filter-options.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 24px 24px;
+  filter: none;
+  opacity: 0.8;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > button > span {
+  visibility: hidden;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > div {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 1px solid #e7e6e3;
+  border-radius: 9999px;
+  background: #fff url("./assets/bookmark.svg") center / 32px 32px no-repeat !important;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > div > button {
+  display: none;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] {
+  left: 0;
+  right: auto;
+  animation: snapkeep-filter-from-left 240ms ease-out;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] > div[class*="border-b"] {
+  display: none;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] > header h2 {
+  font-size: 0;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] > header h2::after {
+  content: "필터";
+  font-size: 20px;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] section > p {
+  font-size: 0;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] section > p::after {
+  font-size: 12px;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"]:has(nav > button:nth-child(1)[class*="bg-[#e1f2ec]"]) section > p::after {
+  content: "사용 환경과 화면 크기에 맞는 레퍼런스를 찾아보세요.";
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"]:has(nav > button:nth-child(2)[class*="bg-[#e1f2ec]"]) section > p::after {
+  content: "서비스 성격에 따라 필요한 화면 사례를 골라보세요.";
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"]:has(nav > button:nth-child(3)[class*="bg-[#e1f2ec]"]) section > p::after {
+  content: "찾고 있는 화면의 목적과 구조를 선택해 보세요.";
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"]:has(nav > button:nth-child(4)[class*="bg-[#e1f2ec]"]) section > p::after {
+  content: "참고하고 싶은 인터페이스 요소를 골라보세요.";
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"]:has(nav > button:nth-child(5)[class*="bg-[#e1f2ec]"]) section > p::after {
+  content: "원하는 시각적 분위기와 톤을 선택해 보세요.";
+}
+
+div:has(> header .font-serif) {
+  --snapkeep-surface: #f7f7f5;
+  --snapkeep-border: #e7e6e3;
+  --snapkeep-text: #1d1c1c;
+  --snapkeep-accent: #017c6e;
+  --snapkeep-muted: #474646;
+  background-color: var(--snapkeep-surface) !important;
+  color: var(--snapkeep-text) !important;
+}
+
+div:has(> header .font-serif) :where(header, main, nav) {
+  border-color: var(--snapkeep-border) !important;
+}
+
+div:has(> header .font-serif) :where(aside, input, button, section) {
+  border-color: var(--snapkeep-border) !important;
+}
+
+div:has(> header .font-serif) :where(p, h2, h3, span, input, button) {
+  color: var(--snapkeep-text);
+}
+
+div:has(> header .font-serif) :where(input, nav, [class*="bg-[#f"], [class*="bg-[#e"]):not([class*="bg-[#017c6e]"]) {
+  background-color: var(--snapkeep-surface) !important;
+}
+
+div:has(> header .font-serif) [class*="bg-[#e7e6e3"] {
+  background-color: var(--snapkeep-border) !important;
+}
+
+div:has(> header .font-serif) [class*="bg-[#017c6e"] {
+  background-color: var(--snapkeep-accent) !important;
+  color: #fff !important;
+}
+
+div:has(> header .font-serif) [class*="bg-[#017c6e"] :where(span, p) {
+  color: #fff !important;
+}
+
+div:has(> header .font-serif) [class*="text-[#"]:not([class*="text-white"]) {
+  color: var(--snapkeep-muted) !important;
+}
+
+div:has(> header .font-serif) [class*="text-[#017c6e"] {
+  color: var(--snapkeep-accent) !important;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] nav > button {
+  display: flex;
+  min-height: 51px;
+  align-items: center;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] nav > button[class*="bg-[#e1f2ec"] {
+  background-color: rgb(1 124 110 / 40%) !important;
+  color: #1d1c1c !important;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] nav > button:first-child[class*="bg-[#e1f2ec"] {
+  position: relative;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] nav > button:first-child[class*="bg-[#e1f2ec"]::before {
+  position: absolute;
+  top: -14px;
+  right: 0;
+  left: 0;
+  height: 14px;
+  background: rgb(1 124 110 / 40%);
+  content: "";
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] > footer {
+  display: none;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] > footer > :not(:last-child) {
+  display: none;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] section button[class*="bg-[#e1f2ec"] {
+  background-color: #f7f7f5 !important;
+  border-color: #1d1c1c !important;
+  color: #1d1c1c !important;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] section button > span {
+  display: none;
+}
+
+div:has(> header .font-serif) [class*="bg-[#017c6e"] :where(p, span) {
+  color: #fff !important;
+}
+
+div:has(> header .font-serif) > main > div[class*="grid-cols-3"] > button > div:last-child > div:last-child > span,
+div:has(> header .font-serif) > main > div[class*="mt-[18px]"] > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: 1px solid #e7e6e3 !important;
+  border-radius: 50px;
+  background-color: #fff !important;
+  padding: 6px 12px;
+  color: #1d1c1c !important;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  line-height: normal;
+}
+
+div:has(> header .font-serif) aside {
+  background-color: #f7f7f5 !important;
+}
+
+button[aria-label="스냅킵 닫기"],
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] > header > button,
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:first-child > .snapkeep-detail-close {
+  background: #f7f7f5 url("./assets/close.svg") center / 14px 14px no-repeat !important;
+  color: transparent !important;
+  font-size: 0;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] > div:first-child {
+  background-color: #fff !important;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] > div:first-child > input {
+  background-color: transparent !important;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] > div:nth-child(2) > div:first-child {
+  display: none;
+}
+
+div:has(> header .font-serif) > main > [class~="relative"][class~="z-10"] > div:nth-child(2) > p {
+  margin-top: 0;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] {
+  background-color: #fff !important;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] > header h2::after {
+  content: "Filters";
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > button {
+  width: 32px;
+  height: 32px;
+  border-color: transparent !important;
+  border-radius: 0;
+  background-color: transparent !important;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > div {
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 0;
+  cursor: pointer;
+  background: transparent url("./assets/bookmark-unsaved.svg") center / 24px 24px no-repeat !important;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > div[data-saved="true"] {
+  background-image: url("./assets/bookmark-saved.svg") !important;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > div[data-saved="false"] {
+  background-color: transparent !important;
+  background-image: url("./assets/bookmark-unsaved.svg") !important;
+  background-size: 19px 24px !important;
+}
+
+/* Original / structure view toggle */
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > div {
+  display: flex;
+  width: auto;
+  height: auto;
+  align-items: center;
+  order: 0;
+  margin-right: auto;
+  padding: 3px;
+  border: 0;
+  border-radius: 50px;
+  background: #e7e6e3 !important;
+  cursor: default;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > div > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+  border: 0;
+  border-radius: 100px;
+  background: transparent;
+  color: #474646;
+  font-family: Inter, Pretendard, sans-serif;
+  font-size: 14px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.28px;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > div > button[class*="bg-white"] {
+  background: #fff;
+  color: #1d1c1c;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > div > button[data-active="true"] {
+  background: #fff;
+  color: #1d1c1c;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > button:not([data-snapkeep-save]) {
+  order: 2;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > button[data-snapkeep-save] {
+  display: block;
+  width: 24px;
+  height: 24px;
+  order: 3;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent url("./assets/bookmark-unsaved.svg") center / 19px 24px no-repeat !important;
+  cursor: pointer;
+  filter: none;
+  opacity: 1;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > button[data-snapkeep-save][data-saved="true"] {
+  background-image: url("./assets/bookmark-saved.svg") !important;
+  background-size: 19px 24px !important;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] {
+  justify-content: flex-end;
+  gap: 24px;
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"]::before {
+  content: none;
+}
+
+div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > button {
+  width: 24px;
+  height: 24px;
+}
+
+div:has(> header .font-serif) > main > div[class*="grid-cols-3"] > button img[src$="bookmark.svg"] {
+  width: 24px;
+  height: 24px;
+}
+
+div:has(> header .font-serif) > main > div[class*="grid-cols-3"] > button {
+  padding: 0;
+}
+
+div:has(> header .font-serif) > main > div[class*="grid-cols-3"] > button > div:first-child {
+  border-radius: 0;
+}
+
+div:has(> header .font-serif) > main > div[class*="grid-cols-3"] > button > div:first-child > span {
+  border-radius: 0;
+  background-color: transparent !important;
+  padding: 0;
+}
+
+div:has(> header .font-serif) > main > div[class*="grid-cols-3"] > button > div:first-child > span {
+  top: 10px;
+  right: 10px;
+  width: 24px;
+  height: 24px;
+  background: transparent url("./assets/bookmark-unsaved.svg") center / 19px 24px no-repeat !important;
+  cursor: pointer;
+}
+
+div:has(> header .font-serif) > main > div[class*="grid-cols-3"] > button > div:first-child > span > img {
+  display: none;
+}
+
+div:has(> header .font-serif) > main > div[class*="grid-cols-3"] > button > div:first-child > span[data-saved="true"] {
+  background-image: url("./assets/bookmark-saved.svg") !important;
+}
+
+div:has(> header .font-serif) > main > div[class*="grid-cols-3"][data-saved-only="true"] > button:not(:has(> div:first-child > span[data-saved="true"])) {
+  display: none;
+}
+
+/* Reference detail modal */
+div:has(> header .font-serif) .snapkeep-detail-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  border: 0;
+  background: rgb(29 28 28 / 20%);
+  cursor: default;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) {
+  top: 50%;
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  width: min(720px, calc(100% - 80px));
+  height: min(800px, calc(100% - 80px));
+  max-height: calc(100% - 80px);
+  overflow-y: auto;
+  border: 0;
+  border-radius: 20px;
+  background-color: #fff !important;
+  padding: 40px 28px 28px;
+  transform: translate(-50%, -50%);
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:first-child {
+  height: 0;
+  min-height: 0;
+  justify-content: flex-end;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:first-child > div:first-child {
+  display: none;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:nth-of-type(2) {
+  position: relative;
+  top: auto;
+  left: auto;
+  align-self: flex-start;
+  width: auto;
+  height: auto;
+  margin-top: 0;
+  padding: 3px;
+  border-radius: 50px;
+  background: #e7e6e3;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:nth-of-type(2) > button {
+  flex: 0 0 auto;
+  padding: 10px;
+  border-radius: 100px;
+  font-family: Inter, Pretendard, sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.24px;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:nth-of-type(3)[class*="h-[265px]"] {
+  height: 360px;
+  margin-top: 18px;
+  border: 1px solid #e7e6e3;
+  border-radius: 12px;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div[class*="mt-[21px]"] {
+  gap: 8px;
+  padding: 0 10px;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div[class*="mt-auto"] {
+  margin-top: 18px;
+  border: 1px solid #e7e6e3;
+  border-radius: 10px;
+  background: #f7f7f5 !important;
+  padding: 14px;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > .snapkeep-detail-meta {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 0 10px;
+}
+
+div:has(> header .font-serif) .snapkeep-detail-meta-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+div:has(> header .font-serif) .snapkeep-detail-meta-label {
+  color: #1d1c1c;
+  font-family: Pretendard, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.24px;
+}
+
+div:has(> header .font-serif) .snapkeep-detail-meta-row > span:not(.snapkeep-detail-meta-label) {
+  justify-self: start;
+  margin: 0;
+  border-color: #e7e6e3;
+  background: #fff;
+  color: #1d1c1c;
+  font-size: 14px;
+}
+
+div:has(> header .font-serif) .snapkeep-detail-meta-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+div:has(> header .font-serif) .snapkeep-detail-meta-tags > span {
+  margin: 0;
+  border-color: #e7e6e3;
+  background: #fff;
+  color: #1d1c1c;
+  font-size: 14px;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div[class*="space-y"] p {
+  font-size: 17px;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div[class*="space-y"] p + p {
+  font-size: 15px;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div[class*="mt-auto"] > p:first-child {
+  font-size: 14px;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div[class*="mt-auto"] > p:last-child {
+  min-height: calc(1.5em * 3);
+  font-size: 17px;
+}
+
+div:has(> header .font-serif) .snapkeep-detail-tag-add {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #e7e6e3;
+  border-radius: 50px;
+  background: #fff url("./assets/tag-plus.svg") center / 12px 12px no-repeat;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] > header > button {
+  border-radius: 0;
+  background: transparent url("./assets/close.svg") center / 14px 14px no-repeat !important;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] > header > button:hover {
+  background: transparent url("./assets/close.svg") center / 14px 14px no-repeat !important;
+}
+
+div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] section > h3 {
+  font-size: 18px;
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:first-child > .snapkeep-detail-close {
+  position: absolute;
+  top: 40px;
+  right: 28px;
+  border-radius: 0;
+  background: transparent url("./assets/close.svg") center / 14px 14px no-repeat !important;
+}
+
+div:has(> header .font-serif) .snapkeep-detail-delete {
+  position: absolute;
+  top: 40px;
+  right: 76px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #474646;
+  font-family: Pretendard, sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Scan / add reference modal */
+.snapkeep-scan-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  border: 0;
+  background: rgb(29 28 28 / 20%);
+}
+
+.snapkeep-scan-modal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 60;
+  width: min(720px, calc(100% - 80px));
+  padding: 40px 28px 28px;
+  border: 0;
+  border-radius: 20px;
+  background: #fff;
+  color: #1d1c1c;
+  transform: translate(-50%, -50%);
+}
+
+.snapkeep-scan-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.snapkeep-scan-header h2 {
+  margin: 0;
+  color: #1d1c1c;
+  font-family: Pretendard, sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+.snapkeep-scan-close {
+  position: absolute;
+  top: 40px;
+  right: 28px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent url("./assets/close.svg") center / 16px 16px no-repeat;
+}
+
+.snapkeep-scan-dropzone {
+  display: flex;
+  min-height: 127px;
+  margin-top: 18px;
+  padding: 100px 16px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px dashed #e7e6e3;
+  border-radius: 8px;
+  background: #f7f7f5;
+  color: #474646;
+  cursor: pointer;
+  text-align: center;
+}
+
+.snapkeep-scan-dropzone.is-selected {
+  border-style: solid;
+  border-color: #017c6e;
+  background: #fff;
+}
+
+.snapkeep-scan-dropzone.is-analyzing {
+  pointer-events: none;
+}
+
+.snapkeep-scan-dropzone.is-analyzing::before {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #e7e6e3;
+  border-top-color: #017c6e;
+  border-radius: 50%;
+  content: "";
+  animation: snapkeep-analyzing 800ms linear infinite;
+}
+
+.snapkeep-scan-backdrop:has(+ .snapkeep-scan-modal[aria-busy="true"]),
+.snapkeep-scan-modal[aria-busy="true"] .snapkeep-scan-close {
+  pointer-events: none;
+}
+
+.snapkeep-scan-modal[aria-busy="true"] .snapkeep-scan-close {
+  opacity: 0.4;
+}
+
+@keyframes snapkeep-analyzing {
+  to { transform: rotate(360deg); }
+}
+
+.snapkeep-scan-dropzone input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.snapkeep-scan-dropzone strong {
+  color: #1d1c1c;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.snapkeep-scan-dropzone span:last-child {
+  font-size: 14px;
+  line-height: 1.4;
 }
