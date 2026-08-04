@@ -659,6 +659,32 @@ div:has(> header .font-serif) .snapkeep-detail-delete {
   font-weight: 600;
 }
 
+/* Analysis record — nested inside the AI DESCRIPTION paragraph, so it inherits
+   that paragraph's 17px sizing and has to reset it. */
+div:has(> header .font-serif) .snapkeep-analysis-record {
+  display: block;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #dfe5e1;
+}
+
+div:has(> header .font-serif) .snapkeep-analysis-source {
+  display: block;
+  color: #4d5751;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+div:has(> header .font-serif) .snapkeep-analysis-basis {
+  display: block;
+  margin-top: 3px;
+  color: #6b746e;
+  font-size: 13px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
 /* Scan / add reference modal */
 .snapkeep-scan-backdrop {
   position: absolute;
