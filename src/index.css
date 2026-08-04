@@ -1,1 +1,53 @@
 @import "tailwindcss";
+
+div:has(> header .font-serif) {
+  font-family: Inter, Pretendard, sans-serif;
+}
+
+div:has(> header .font-serif) .font-serif,
+div:has(> header .font-serif) [class*="Plus_Jakarta_Sans"] {
+  font-family: Inter, sans-serif;
+}
+
+div:has(> header .font-serif),
+div:has(> header .font-serif) * {
+  box-shadow: none !important;
+}
+
+div:has(> header .font-serif) {
+  border-radius: 20px !important;
+}
+
+div:has(> header .font-serif) > header {
+  height: 78px;
+  padding: 0 62px;
+  border-bottom: 1px solid #e2e3e0;
+}
+
+div:has(> header .font-serif) > header > div {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+div:has(> header .font-serif) > header > div::before {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 4px;
+  background: #1d1c1c;
+  color: #fff;
+  content: "</>";
+  font-family: Inter, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+div:has(> header .font-serif) > header > div > p + p {
+  display: none;
+}
+
+div:has(> header .font-serif) > header > button {
+  margin-right: 56px;
+}
