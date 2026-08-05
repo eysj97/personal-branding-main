@@ -28,13 +28,12 @@ const cardSize = () => ({
 // enter    — the folder is still exactly where the card was on the cube
 // center   — it has slid right so its spine sits on the middle of the screen
 // open     — the cover is swinging left, uncovering the right-hand page
-// facing   — the cover has landed; it dissolves off the left-hand page
+// facing   — the cover has landed; it cuts out off the left-hand page
 // expand   — the spread blooms out of the folder up to full size
 // settled  — animation over, the page is just a scrollable document
 const PHASES = ["enter", "center", "open", "facing", "expand", "settled"];
 const MOVE_MS = 620;
 const FLIP_MS = 720;
-const UNCOVER_MS = 220;
 const BLOOM_MS = 750;
 const CLOSE_MS = 300;
 
@@ -125,12 +124,17 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
       // the left-hand page is already written by the time it lands. Its box is
       // the cover's, whose right edge is the spine, and it is not mirrored —
       // the cover's -180deg and the back face's +180deg cancel out.
+      //
+      // The outer box is the size of the visible left page and clips by
+      // overflow, rather than being the full 1779px spread under a clip-path.
+      // Same picture, but the browser only has to rasterise this half of it —
+      // which matters, because this whole subtree is rotating in 3D.
       back: {
         left: card3d.w - half,
         top: (card3d.h - spreadH * scale) / 2,
-        width: SPREAD_W,
-        transform: `scale(${scale})`,
-        clipPath: `inset(0px ${SPREAD_W - BOOK_W / 2}px 0px 0px)`,
+        width: half,
+        height: spreadH * scale,
+        inner: { width: SPREAD_W, transform: `scale(${scale})` },
       },
     });
   }, [fit, spreadH, card3d]);
@@ -357,8 +361,17 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
               transform: `rotateY(${opened ? -180 : 0}deg)`,
               // Once it has landed it is the same picture as the page it came
               // to rest on, so it can simply stop being there.
+              // Switched, never faded — and do not add will-change here either.
+              // `opacity` is a grouping property, so any value between 0 and 1
+              // forces this element's `preserve-3d` to compute as `flat`, which
+              // collapses the 3D context and stops backface-visibility from
+              // culling the front face. Fading it would therefore flash the
+              // card's cover across the left-hand page for the length of the
+              // fade. There is nothing to smooth over anyway: the back face is
+              // carrying the same picture the page underneath shows, so cutting
+              // it out in one frame is invisible.
               opacity: facing ? 0 : 1,
-              transition: `transform ${FLIP_MS}ms ${EASE_TURN}, opacity ${UNCOVER_MS}ms ease-out`,
+              transition: `transform ${FLIP_MS}ms ${EASE_TURN}`,
             }}
           >
             {/* Closed, this is a card and is rounded all the way round. The
@@ -379,14 +392,55 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
                 180deg cancels the cover's, so it is NOT mirrored: its left edge
                 really is the outer one and its right edge is the fold. */}
             <div
-              className="absolute inset-0"
+              className="absolute inset-0 overflow-hidden"
               style={{
                 backgroundColor: pageColor,
                 borderRadius: "15px 0 0 15px",
                 backfaceVisibility: "hidden",
                 transform: "rotateY(180deg)",
               }}
-            />
+            >
+              {/* The left-hand page is written on the back of the cover, so it
+                  arrives *with* the turn instead of appearing once the turn is
+                  over. It is a second copy of the same spread, cropped to the
+                  half left of the spine — see folded.back for the geometry.
+
+                  Dropped at `expand`, which costs nothing visually: the cover
+                  is cut out at FACING_AT, well before the bloom starts, so by
+                  then this is already invisible. Keeping it through the bloom
+                  would leave a second full spread mounted underneath the one
+                  clip-path is animating — and clip-path repaints every frame. */}
+              {folded && !expanded && (
+                <div
+                  className="absolute overflow-hidden"
+                  style={{
+                    left: folded.back.left,
+                    top: folded.back.top,
+                    width: folded.back.width,
+                    height: folded.back.height,
+                    // The folder frame above this animates left/top/width/height
+                    // for MOVE_MS (see FRAME_MOVE) — layout properties, so every
+                    // frame of the slide dirties this whole subtree, and this
+                    // subtree is now an entire spread. `strict` walls it off:
+                    // its box is fully described by the explicit width/height
+                    // here, so nothing outside can change its layout and nothing
+                    // inside escapes.
+                    contain: "strict",
+                  }}
+                >
+                  <div
+                    className="absolute left-0 top-0"
+                    style={{
+                      width: folded.back.inner.width,
+                      transformOrigin: "0 0",
+                      transform: folded.back.inner.transform,
+                    }}
+                  >
+                    <Spread />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

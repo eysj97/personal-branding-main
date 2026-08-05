@@ -14,7 +14,50 @@ const smoothstep = (from, to, x) => {
 
 // Back-to-front stacking order — the last one in this list paints on top
 // and sits at the front (leftmost) of the stack.
-const CARDS = [card1, card2, card3, card4, card5, card6]
+//
+// `href` is where the card opens, in a new tab. Two ways to fill it in:
+//
+//   1. Already hosted somewhere — use the full URL.
+//   2. A local build — drop the self-contained folder into
+//      public/learn/<slug>/ and point at '/learn/<slug>/index.html'.
+//      Vite copies public/ into dist/ *untouched*, so the piece's own CSS and
+//      JS keep working as-is. Two things follow from "untouched": it must not
+//      live under src/ (the bundler would rewrite it), and Vite will not fix
+//      up paths inside it — so keep its assets in the same folder and
+//      reference them relatively ('./app.js') or from the root
+//      ('/learn/<slug>/app.js').
+//
+// `slug: null` leaves a card as a plain div: visible, not clickable. That is
+// what an unfinished one should be, rather than a link that goes nowhere.
+//
+// The slugs are the folder names exactly as they sit on disk. They still carry
+// their original numbering, which runs opposite to the card order and is why
+// the two columns below disagree — renaming them is pending (see the note in
+// the commit/notes), and when it happens only these strings change.
+const learnHref = (slug) => `/learn/${encodeURIComponent(slug)}/index.html`
+
+// Two things decide this list, and they pull in opposite directions:
+//
+//   - Each image is that site's own screenshot, so image and slug are a fixed
+//     pair. card-1 is the chemical site, card-6 is Musign, and so on — the
+//     numbering in the image filenames is unrelated to the running order.
+//     Verified against each page's <title> and hero copy.
+//   - The array is back-to-front (see above), so it reads bottom-up: the LAST
+//     entry is the card the viewer meets first.
+//
+// So this list is the intended running order — 뮤자인, 대방산업, 크루어라모드,
+// 와이스튜디오, 한화케미컬, 한국소비자원 — written in reverse. The slug numbers
+// run with that order, which is why they count down here.
+//
+// Labels are each site's own <title>, which is not always the folder name.
+const CARDS = [
+  { image: card2, slug: '6-kca', label: '한국소비자원 매거진' },
+  { image: card1, slug: '5-hanwha-chemical', label: '한화케미컬' },
+  { image: card3, slug: '4-y-studio', label: '와이스튜디오' },
+  { image: card4, slug: '3-crew-alamode', label: '크루 어 라 모드' },
+  { image: card5, slug: '2-daebang', label: '대방산업' },
+  { image: card6, slug: '1-mujain', label: '뮤자인' },
+]
 
 const CARD_WIDTH = 'clamp(220px,29vw,554px)'
 const CARD_ASPECT = 446.5 / 554
@@ -121,17 +164,45 @@ export default function LearnSection() {
         {/* Positioned at the same left offset ratio as Figma (690/1986 of
             the frame width) so the gap to the title matches the design. */}
         <div className="absolute top-0 h-full left-[34.74%] right-0">
-          {CARDS.map((card, i) => (
-            <div
-              key={i}
-              ref={(el) => { cardRefs.current[i] = el }}
-              className="absolute top-1/2 -translate-y-1/2 left-0 will-change-transform"
-              style={{ width: CARD_WIDTH, aspectRatio: `1 / ${CARD_ASPECT}` }}
-            >
-              <img src={card} alt="" className="absolute inset-0 w-full h-full object-cover" />
-              <div className="absolute right-0 top-[2.5%] h-[28.7%] w-[7.2%] translate-x-full rounded-r-[10px] bg-[#0492bd]" />
-            </div>
-          ))}
+          {CARDS.map(({ image, slug, label }, i) => {
+            // An anchor only when there is somewhere to go — otherwise the card
+            // stays the plain div it has always been, with no pointer cursor
+            // promising a click that does nothing.
+            const Card = slug ? 'a' : 'div'
+            const linkProps = slug
+              ? {
+                  href: learnHref(slug),
+                  target: '_blank',
+                  rel: 'noopener noreferrer',
+                  'aria-label': label ? `${label} — 새 탭에서 열기` : undefined,
+                }
+              : {}
+
+            return (
+              <Card
+                key={i}
+                ref={(el) => { cardRefs.current[i] = el }}
+                {...linkProps}
+                className={`group absolute top-1/2 -translate-y-1/2 left-0 will-change-transform ${slug ? 'cursor-pointer' : ''}`}
+                style={{ width: CARD_WIDTH, aspectRatio: `1 / ${CARD_ASPECT}` }}
+              >
+                {/* Drawn out of the row on hover, a third of the card's width
+                    to the right — the direction the stack files backwards in,
+                    so the card slides out from under the ones overlapping it.
+                    No scale, no turn, and no z-index: it stays in its place in
+                    the row and simply protrudes, the way pulling one file out
+                    of a drawer looks.
+
+                    It has to be an inner wrapper. The scroll loop writes the
+                    outer element's transform every frame, so a hover transform
+                    on that same element would be wiped on the next scroll. */}
+                <div className="relative h-full w-full transition-transform duration-300 ease-out group-hover:translate-x-1/3">
+                  <img src={image} alt={label ?? ''} className="absolute inset-0 w-full h-full object-cover" />
+                  <div className="absolute right-0 top-[2.5%] h-[28.7%] w-[7.2%] translate-x-full rounded-r-[10px] bg-[#0492bd]" />
+                </div>
+              </Card>
+            )
+          })}
         </div>
       </div>
     </section>

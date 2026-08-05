@@ -194,6 +194,82 @@ const CHANGE_CHAPTER = CHAPTERS.find((c) => c.ridesWipe)
 const CHANGE_PARA_LINE_HEIGHT = 24 * 1.3
 const CHANGE_PARA_WINDOW_HEIGHT = CHANGE_PARA_LINE_HEIGHT * 8
 
+// Each chapter's subtitle sharpens from its left edge to its right rather
+// than simply fading in.
+//
+// The mask is three times the subtitle's own width: solid across its left
+// third, clear across its right third, with the fade in between. Sliding it
+// from `100%` (the text sampling the clear end, so it is invisible) to `0%`
+// (the solid end) walks that fade across the line, left to right. Position is
+// the only thing that animates, which keeps it a compositor-side job.
+const SUBTITLE_MASK_IMAGE = 'linear-gradient(90deg, #000 0%, #000 34%, rgba(0,0,0,0) 66%, rgba(0,0,0,0) 100%)'
+const SUBTITLE_MASK_STYLE = {
+  maskImage: SUBTITLE_MASK_IMAGE,
+  WebkitMaskImage: SUBTITLE_MASK_IMAGE,
+  maskSize: '300% 100%',
+  WebkitMaskSize: '300% 100%',
+  maskRepeat: 'no-repeat',
+  WebkitMaskRepeat: 'no-repeat',
+  maskPosition: '100% 0',
+  WebkitMaskPosition: '100% 0',
+}
+
+// reveal 0 = not yet arrived (fully masked), 1 = fully sharp.
+function applySubtitleReveal(el, reveal) {
+  if (!el) return
+  const position = `${(1 - reveal) * 100}% 0`
+  el.style.maskPosition = position
+  el.style.webkitMaskPosition = position
+}
+
+// Paragraphs type themselves out a character at a time.
+//
+// Every character is rendered up front, each in its own span, and only its
+// opacity changes — so the text is laid out in full from the start and lines
+// never reflow as it "types". Swapping textContent instead would re-wrap the
+// paragraph on almost every frame.
+//
+// The spans are hidden from assistive tech and the whole string is put back
+// on the paragraph as a label, so a screen reader reads one sentence rather
+// than several hundred single letters.
+function TypedParagraph({ text, className, pRef, charsRef }) {
+  return (
+    <p ref={pRef} className={className} aria-label={text}>
+      {Array.from(text).map((character, i) => (
+        <span
+          key={i}
+          aria-hidden="true"
+          ref={(el) => { charsRef.current[i] = el }}
+          style={{ opacity: 0 }}
+        >
+          {character}
+        </span>
+      ))}
+    </p>
+  )
+}
+
+// Only the characters that actually changed state get touched — walking all
+// of them every frame is what makes this kind of effect stutter.
+function applyTyping(charsRef, typedRef, reveal, total) {
+  const next = Math.round(clamp01(reveal) * total)
+  const previous = typedRef.current
+  if (next === previous) return
+
+  if (next > previous) {
+    for (let i = previous; i < next; i += 1) {
+      const el = charsRef.current[i]
+      if (el) el.style.opacity = '1'
+    }
+  } else {
+    for (let i = next; i < previous; i += 1) {
+      const el = charsRef.current[i]
+      if (el) el.style.opacity = '0'
+    }
+  }
+  typedRef.current = next
+}
+
 // CHANGE's copy, at its plain design-canvas coordinates — identical
 // markup to what every other chapter puts on the canvas, except the color
 // is left to the caller. Rendered twice, into the two layers that ride
@@ -201,7 +277,7 @@ const CHANGE_PARA_WINDOW_HEIGHT = CHANGE_PARA_LINE_HEIGHT * 8
 // the one clipped to the covered side. Neither copy ever changes color;
 // each is simply cut off at the wipe's edge, and the two cuts are the
 // same line, so the two halves always meet exactly.
-function ChangeCopy({ tone, paraRef }) {
+function ChangeCopy({ tone, paraRef, subtitleRef, charsRef }) {
   return (
     <>
       <p
@@ -214,16 +290,20 @@ function ChangeCopy({ tone, paraRef }) {
         className="absolute flex flex-col gap-[42px] items-start"
         style={{ left: CHANGE_CHAPTER.box.x, top: CHANGE_CHAPTER.box.y, width: CHANGE_CHAPTER.box.width }}
       >
-        <p className={`font-['Pretendard'] font-bold text-[50px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${tone}`}>
+        <p
+          ref={subtitleRef}
+          className={`font-['Pretendard'] font-bold text-[50px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${tone}`}
+          style={SUBTITLE_MASK_STYLE}
+        >
           {CHANGE_CHAPTER.title}
         </p>
         <div className="w-full overflow-hidden" style={{ height: CHANGE_PARA_WINDOW_HEIGHT }}>
-          <p
-            ref={paraRef}
+          <TypedParagraph
+            text={CHANGE_CHAPTER.paragraph}
+            pRef={paraRef}
+            charsRef={charsRef}
             className={`font-['Pretendard'] text-[24px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${tone}`}
-          >
-            {CHANGE_CHAPTER.paragraph}
-          </p>
+          />
         </div>
       </div>
     </>
@@ -307,6 +387,19 @@ export default function CareerSection() {
   const changeBlackParaRef = useRef(null)
   const chapterTitleRef = useRef(null)
   const chapterRefs = useRef([])
+  // Subtitle (masked sweep) and paragraph characters (typing) per canvas
+  // chapter, so both run independently of the wrapper's own fade. CHANGE
+  // lives on the wipe instead and keeps its own pair below — one set per
+  // colour copy, driven from the same number so they stay identical.
+  const subtitleRefs = useRef([])
+  const paraCharRefs = useRef(CHAPTERS.map(() => ({ current: [] })))
+  const paraTypedRefs = useRef(CHAPTERS.map(() => ({ current: 0 })))
+  const changeWhiteSubtitleRef = useRef(null)
+  const changeBlackSubtitleRef = useRef(null)
+  const changeWhiteCharsRef = useRef([])
+  const changeBlackCharsRef = useRef([])
+  const changeWhiteTypedRef = useRef(0)
+  const changeBlackTypedRef = useRef(0)
   const contactRef = useRef(null)
   const [scale, setScale] = useState(1)
   const scaleRef = useRef(1)
@@ -553,9 +646,28 @@ export default function CareerSection() {
         // block spinning in place like its own little pinwheel.
         const clampedDist = Math.min(1, Math.max(-1, signedDist))
         const spin = clampedDist * ROTATE_SPIN
-        el.style.opacity = String(1 - smoothstep(clamp01(dist / CHAPTER_REVEAL_WINDOW)))
+        const reveal = 1 - smoothstep(clamp01(dist / CHAPTER_REVEAL_WINDOW))
+        el.style.opacity = String(reveal)
         el.style.transform = `rotate(${spin}deg)`
+        applySubtitleReveal(subtitleRefs.current[i], reveal)
+        applyTyping(paraCharRefs.current[i], paraTypedRefs.current[i], reveal, chapter.paragraph.length)
       })
+
+      // CHANGE never touches the canvas above — it rides the wipe — so it is
+      // driven here, off its own step distance. Both colour copies get the
+      // identical numbers, or the white/black halves would arrive at
+      // different rates and the seam between them would show.
+      const changeDist = Math.abs(
+        stepPos < CHANGE_CHAPTER.anchorStart ? stepPos - CHANGE_CHAPTER.anchorStart
+        : stepPos > CHANGE_CHAPTER.anchorEnd ? stepPos - CHANGE_CHAPTER.anchorEnd
+        : 0,
+      )
+      const changeReveal = 1 - smoothstep(clamp01(changeDist / CHAPTER_REVEAL_WINDOW))
+      const changeChars = CHANGE_CHAPTER.paragraph.length
+      applySubtitleReveal(changeWhiteSubtitleRef.current, changeReveal)
+      applySubtitleReveal(changeBlackSubtitleRef.current, changeReveal)
+      applyTyping(changeWhiteCharsRef, changeWhiteTypedRef, changeReveal, changeChars)
+      applyTyping(changeBlackCharsRef, changeBlackTypedRef, changeReveal, changeChars)
 
       const contactDist = Math.abs(stepPos - 11)
       contactRef.current.style.opacity = String(1 - smoothstep(clamp01(contactDist / REVEAL_WINDOW)))
@@ -708,12 +820,12 @@ export default function CareerSection() {
             and swings out, and the edge decides what's what. */}
         <div ref={changeWhiteLayerRef} className="absolute overflow-hidden pointer-events-none" style={{ width: 0, height: 0, opacity: 0, zIndex: 3 }}>
           <div ref={changeWhiteCanvasRef} className="absolute" style={{ width: DESIGN_WIDTH, height: DESIGN_HEIGHT, transformOrigin: '0 0' }}>
-            <ChangeCopy tone="text-white" paraRef={changeWhiteParaRef} />
+            <ChangeCopy tone="text-white" paraRef={changeWhiteParaRef} subtitleRef={changeWhiteSubtitleRef} charsRef={changeWhiteCharsRef} />
           </div>
         </div>
         <div ref={changeBlackLayerRef} className="absolute overflow-hidden pointer-events-none" style={{ width: 0, height: 0, opacity: 0, zIndex: 4 }}>
           <div ref={changeBlackCanvasRef} className="absolute" style={{ width: DESIGN_WIDTH, height: DESIGN_HEIGHT, transformOrigin: '0 0' }}>
-            <ChangeCopy tone="text-black" paraRef={changeBlackParaRef} />
+            <ChangeCopy tone="text-black" paraRef={changeBlackParaRef} subtitleRef={changeBlackSubtitleRef} charsRef={changeBlackCharsRef} />
           </div>
         </div>
 
@@ -844,12 +956,18 @@ export default function CareerSection() {
                   className="absolute flex flex-col gap-[42px] items-start"
                   style={{ left: chapter.box.x, top: chapter.box.y, width: chapter.box.width }}
                 >
-                  <p className={`font-['Pretendard'] font-bold text-[50px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${chapter.dark ? 'text-white' : 'text-black'}`}>
+                  <p
+                    ref={(el) => { subtitleRefs.current[i] = el }}
+                    className={`font-['Pretendard'] font-bold text-[50px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${chapter.dark ? 'text-white' : 'text-black'}`}
+                    style={SUBTITLE_MASK_STYLE}
+                  >
                     {chapter.title}
                   </p>
-                  <p className={`font-['Pretendard'] text-[24px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${chapter.dark ? 'text-white' : 'text-black'}`}>
-                    {chapter.paragraph}
-                  </p>
+                  <TypedParagraph
+                    text={chapter.paragraph}
+                    charsRef={paraCharRefs.current[i]}
+                    className={`font-['Pretendard'] text-[24px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${chapter.dark ? 'text-white' : 'text-black'}`}
+                  />
                 </div>
               </div>
             ))}

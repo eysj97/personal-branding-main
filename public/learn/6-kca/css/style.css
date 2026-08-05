@@ -1,0 +1,152 @@
+@charset "utf-8";
+@import url('https://fonts.googleapis.com/css2?family=Nanum+Gothic:wght@400;700&display=swap');
+
+/* reset */
+* {margin: 0;padding: 0; box-sizing: border-box;}
+html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, font, img, ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i, center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, tbody, tfoot, thead, tr, th, td{margin:0;padding:0;}
+h1, h2, h3, h4, h5, h6 {font-weight: 700; font-size: inherit;}
+a {color: inherit; text-decoration: inherit;}
+img {vertical-align: middle;}
+a img {border: none;}
+li {list-style: none;}
+address, em, i {font-style: normal;}
+a:focus {outline: none}
+button:focus {outline: none}
+
+/* layout */
+body{font-family: 'Nanum Gothic', sans-serif; color: #333; line-height: 1.25;}
+.wrap{position: relative; margin: 0 auto; overflow: hidden;}
+/* header */
+.innerHeader{width: 90%; margin: 0 auto; display: flex; justify-content: space-between; height: 90px; align-items: center;}
+.innerHeader .icon{width: 218px; display: flex; justify-content: space-between;}
+.innerHeader .icon li a{display: block; width: 100%; height: 100%; cursor: pointer;}
+.innerHeader .logo a{display: block; width: 100%; height: 100%; cursor: pointer;}
+.innerHeader .right{width: 245px; display: flex; justify-content: space-between;}
+.innerHeader .right li{width: 46%; border: 1px solid #ddd; text-align: center; height: 45px; line-height: 45px;}
+/* visual */
+.visual {background: red; position: relative; height: 90vb;}
+.visual img{width: 100%; height: 100%;}
+.visual .inner{position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%);  width: 1280px; display: flex; justify-content: space-between;}
+.visual .inner .leftBox{width: 55%; }
+.visual .inner .leftBox h2{font-size: 50px; margin-bottom: 50px;}
+.visual .inner .leftBox p{font-size: 22px; margin-bottom: 50px;}
+.visual .inner .leftBox .btn{display: block; width: 160px; background: #000; color: #fff; text-align: center; padding: 20px 0;}
+.visual .inner .rightBox{width: 20%; }
+.visual .inner .rightBox .may{width: 145px; height: 145px; border-radius: 50%; background: #f57454; text-align: center; margin-bottom: 10px;}
+.visual .inner .rightBox .may .title{font-size: 55px; font-weight: 700; font-style: italic; padding-top: 15px; }
+.visual .inner .rightBox ul{margin-bottom: 30px;}
+.visual .inner .rightBox ul li{border-bottom: 1px solid #000;}
+.visual .inner .rightBox ul li a{font-size: 12px; letter-spacing: 5px; line-height: 50px;}
+.visual .inner .rightBox .date{font-size: 54px; font-weight: bold;}
+
+/* 공통요소 */
+.inner{width: 1400px; margin: 0 auto;}
+.mainTitle{font-size: 40px; text-align: center; margin-bottom: 50px;}
+
+/* happy */
+.happy{padding: 120px 0 100px;}
+.happy .mainTitle span{color: #f57260;}
+.happy ul{display: flex; justify-content: space-between;}
+.happy ul li{width: 32.3%; background:#c5cdbe}
+.happy ul li:nth-child(2){background: #e89b90;}
+.happy ul li:nth-child(3){background: #dfcdc0;}
+.happy ul li a{display: block; width: 100%; height: 100%; cursor: pointer; padding: 50px 0 50px 30px; position: relative;}
+.happy ul li a:after{content: ""; width: 63%; height: 2px; background: rgba(237, 237, 237, 0.2); position: absolute; right: 0; top: 63px;}
+.happy ul li:nth-child(2) a:after{width: 60%;}
+.happy ul li:nth-child(3) a:after{width: 43%;}
+.happy ul li a p{font-size: 19px; margin-bottom: 30px; overflow: hidden;}
+.happy ul li a h3{font-size: 26px; margin-bottom: 70px;}
+.happy ul li a p.img{width: 380px; float: right;}
+.happy ul li a p.img img{width: 100%; transition: all 0.3s;}
+
+/* hover */
+.happy ul li a:hover p.img img{transform: scale(1.2); transition: all 0.8s;}
+
+/* smart */
+.smart{background: url(../img/section.jpg)no-repeat center/cover; padding: 80px 0;}
+.smart .mainTitle span{color: #425ca6;}
+.smart .bottom{display: flex; justify-content: space-between;}
+.smart .bottom .left{width: 30%; }
+.smart .bottom .left li:nth-child(1){margin-bottom: 10px;}
+.smart .bottom .left li a{display: block; width: 100%; height: 100%; position: relative;}
+.smart .bottom .left li a::before{content: '상품테스트'; position: absolute; font-size: 16px; left: 40px; bottom: 40px; color: #fff; border-bottom: 5px solid #fff; padding-bottom: 25px;}
+.smart .bottom .left li a img{width: 100%;}
+.smart .bottom .left li a h3{position: absolute; left: 40%; top: 55%; color: #fff; font-size: 22px; line-height: 1.5;}
+.smart .bottom .right{width: 68.5%; }
+.smart .bottom .right{display: flex; justify-content: space-between;}
+.smart .bottom .right li{width: 50%; background: #fff; border-right: 1px solid #ddd; text-align: center; padding: 50px 0;}
+.smart .bottom .right li:last-child{border: 0px solid #ddd;}
+.smart .bottom .right li>p{font-size: 19px; border-top: 1px solid #ddd; border-bottom: 1px solid #ddd; width: 30%; margin: 0 auto 20px; padding: 10px 0;}
+.smart .bottom .right li a{display: block; width: 100%; height: 100%;}
+.smart .bottom .right li p.img{width: 200px; height: 200px; border-radius: 50%; overflow: hidden; margin: 0 auto 30px;}
+.smart .bottom .right li p.img img{width: 100%; transition: all 0.5s;}
+
+/* hover */
+.smart .bottom .right li a:hover p.img img{transform: scale(1.2); transition: all 0.2s;}
+
+/* news */
+.news{padding: 50px 0 200px;}
+.news .issu{display: flex; justify-content: space-between;}
+.news .issu li{width: 48%; background-image: url(../img/img_08.jpg); background-repeat: no-repeat; background-position: center; background-size: cover; padding: 80px 0 80px 50px;}
+.news .issu li:nth-child(2){background-image: url(../img/img_09.jpg);}
+.news .issu li h3{font-size: 24px; margin-bottom: 20px;}
+.news .issu li p{margin-bottom: 10px;}
+.news .issu li p .num{display: inline-block; font-size: 14px; background: #7f8c97; padding: 3px 7px; border-radius: 50%; margin-right: 5px;}
+
+.topBtn {display: block; width: 80px; height: 80px; background: #454554; border-radius: 50%; color: #fff; display: flex; justify-content: center; align-items: center; background-image: url(../img/arrow.JPG); background-repeat: no-repeat; background-position: 50% 13%; position: fixed; right: 5%; bottom: 27%;}
+
+/* footer */
+footer{background: #454545; color: #adadad; padding: 60px 0;}
+footer .inner{display: flex; justify-content: space-between;}
+footer .inner .adress{width: 70%; line-height: 1.8;}
+footer .inner .adress sapn.copy{font-size: 14px; }
+footer .inner .flogo{margin-top: 30px;}
+
+/* animation */
+@keyframes slidUp{
+    0% {transform: translateY(70px); opacity: 0;}
+    40% {transform: translateY(70px); opacity: 0;}
+}
+.visual .inner.motion .leftBox h2{animation-name: slidUp; animation-duration: 1s;}
+.visual .inner.motion .leftBox p{animation-name: slidUp; animation-duration: 0.2s;}
+.visual .inner.motion .leftBox .btn{animation-name: slidUp; animation-duration: 0.4s;}
+.visual .inner.motion .rightBox .date{animation-name: slidUp; animation-duration: 1.6s;}
+
+@keyframes scaleAni {
+    0% {opacity: 0; transform: scale(0);}
+    100%{opacity: 1; transform: scale(1);}
+}
+.visual .inner.motion .rightBox .may{animation-name: scaleAni; animation-duration: 1s;}
+
+@keyframes letterspacing {
+    0%{opacity: 0; letter-spacing: -5px;}
+    40%{opacity: 0; letter-spacing: -5px;}
+}
+
+.visual .inner.motion .rightBox ul li a{animation-name:letterspacing; animation-duration: 1s;}
+.visual .inner.motion .rightBox ul li:nth-child(2) a{animation-duration: 1.2s;}
+.visual .inner.motion .rightBox ul li:nth-child(3) a{animation-duration: 1.4s;}
+
+@keyframes border {
+    0%{opacity: 0;}
+    40%{opacity: 0;}
+}
+
+.visual .inner.motion .rightBox ul li{animation-name: border; animation-duration: 1s;}
+.visual .inner.motion .rightBox ul li:nth-child(2){animation-duration: 1.2s;}
+.visual .inner.motion .rightBox ul li:nth-child(3){animation-duration: 1.4s;}
+
+.inner.motion .mainTitle{animation-name: slidUp; animation-duration: 1s;}
+.happy .inner.motion ul li{animation-name: slidUp; animation-duration: 1.2s;}
+.happy .inner.motion ul li:nth-child(2){animation-duration: 1.4s;}
+.happy .inner.motion ul li:nth-child(3){animation-duration: 1.6s;}
+
+.smart .inner.motion .bottom .left li:nth-child(1){animation-name: slidUp; animation-duration: 1.2s;}
+.smart .inner.motion .bottom .left li:nth-child(2){animation-name: slidUp; animation-duration: 1.4s;}
+
+.smart .inner.motion .bottom .right li:nth-child(1){animation-name: slidUp; animation-duration: 1.2s;}
+.smart .inner.motion .bottom .right li:nth-child(2){animation-name: slidUp; animation-duration: 1.4s;}
+
+.news .inner.motion .issu li:nth-child(1){animation-name: slidUp; animation-duration: 1.2s;}
+.news .inner.motion .issu li:nth-child(2){animation-name: slidUp; animation-duration: 1.4s;}
+
