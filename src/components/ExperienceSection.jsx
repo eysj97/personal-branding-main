@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import SnapkeepSpread from "./detail/SnapkeepSpread";
 
@@ -48,16 +48,25 @@ const DESIGN_HEIGHT = 1080;
 const PANELS = [1920, 1920, 3031, 2545, 1920];
 const TOTAL_WIDTH = PANELS.reduce((sum, w) => sum + w, 0);
 
-// The section's own scroll range is what the horizontal travel is spent
-// against: roughly one viewport of vertical scroll per viewport of strip, plus
-// one to hold the sticky stage in place while the last panel finishes.
-const TRAVEL_VH = Math.round((TOTAL_WIDTH / PANELS[0]) * 100);
-// A beat at the top where the strip does not move yet, so the first panel
-// lands, holds still long enough to be read, and plays its own entrance before
-// the horizontal travel takes over.
-const HOLD_VH = 50;
-const TRACK_VH = TRAVEL_VH + HOLD_VH + 100;
-const HOLD_FRACTION = HOLD_VH / (TRACK_VH - 100);
+// One wheel tick moves the strip one screenful, rather than the strip tracking
+// the scrollbar continuously. Every panel gets a stop; the two wide ones get a
+// second so they can be read all the way across before the section moves on.
+// Positions are the design-px the viewport's left edge lands on.
+const STOPS = PANELS.reduce(
+  (acc, width) => {
+    acc.stops.push(acc.at);
+    if (width > PANELS[0] * 1.2) acc.stops.push(acc.at + width - PANELS[0]);
+    acc.at += width;
+    return acc;
+  },
+  { stops: [], at: 0 },
+).stops;
+
+// The section only needs enough range to park each stop at a distinct scroll
+// position — the travel itself is driven by the wheel, not by this height.
+const TRACK_VH = 200;
+const STEP_RAW = STOPS.map((_, i) => i / Math.max(1, STOPS.length - 1));
+const TWEEN_MS = 520;
 
 // ---------------------------------------------------------------------------
 // Entrance animations.
@@ -84,46 +93,55 @@ const ENTER_MARGIN = 0.85;
 const RESET_MARGIN = 0.15;
 
 const DURATIONS = {
-  sweep: 1000,
-  wipe: 800,
-  popup: 520,
-  pop: 700,
-  tint: 500,
-  type: 1100,
+  sweep: 600,
+  wipe: 460,
+  popup: 340,
+  pop: 420,
+  tint: 300,
+  type: 650,
 };
 
 // Left-to-right sharpen for headlines. The mask is three times the text's own
-// width — solid on the left, near-clear on the right — so sliding it from
-// `100%` to `0%` walks the boundary across the line. The clear end is 0.2, not
-// 0: the line is always faintly there and the sweep lifts it to full, which
-// reads as coming into focus rather than being written in from nothing.
-const SWEEP_MASK =
-  "linear-gradient(90deg, #000 0%, #000 45%, rgba(0,0,0,0.2) 55%, rgba(0,0,0,0.2) 100%)";
+// width — solid on the left, clear on the right — so sliding it from `100%` to
+// `0%` walks the boundary across the line.
+//
+// `floor` is how visible the line is *before* the sweep reaches it. 0 means it
+// starts from nothing, which is the default: a headline that is already
+// legible before its own entrance has nothing left to reveal.
+const sweepStyleFrom = (floor) => {
+  const mask = `linear-gradient(90deg, #000 0%, #000 45%, rgba(0,0,0,${floor}) 55%, rgba(0,0,0,${floor}) 100%)`;
+  return {
+    maskImage: mask,
+    WebkitMaskImage: mask,
+    maskSize: "300% 100%",
+    WebkitMaskSize: "300% 100%",
+    maskRepeat: "no-repeat",
+    WebkitMaskRepeat: "no-repeat",
+    maskPosition: "100% 0",
+    WebkitMaskPosition: "100% 0",
+  };
+};
+const sweepStyle = sweepStyleFrom(0);
+// The opening title is the exception: it is meant to sit faintly on screen and
+// come into focus, rather than being written in from blank.
+const sweepStyleGhosted = sweepStyleFrom(0.2);
+
 // A mask clips to the element's own box, and `leading-none` makes that box
 // exactly the font size — so descenders (g, p, y) hang outside it and get
 // sliced off flat. The padding grows the box the mask is measured against;
 // the matching negative margin puts the text back where the design has it.
 const SWEEP_BOX = "py-[0.22em] -my-[0.22em]";
-const sweepStyle = {
-  maskImage: SWEEP_MASK,
-  WebkitMaskImage: SWEEP_MASK,
-  maskSize: "300% 100%",
-  WebkitMaskSize: "300% 100%",
-  maskRepeat: "no-repeat",
-  WebkitMaskRepeat: "no-repeat",
-  maskPosition: "100% 0",
-  WebkitMaskPosition: "100% 0",
-};
 
 /** Text that types itself out. Every character is rendered up front in its own
     span and only its opacity changes, so the line is laid out in full from the
     start and never reflows as it "types" — the same approach CareerSection's
     paragraphs use. The spans are hidden from assistive tech and the whole
     string is put back as a label, so a screen reader reads one sentence. */
-function TypedText({ lines, className, x, delay = 0 }) {
+function TypedText({ lines, className, style, x, delay = 0 }) {
   return (
     <p
       className={className}
+      style={style}
       aria-label={lines.join(" ")}
       data-anim="type"
       data-x={x}
@@ -230,7 +248,7 @@ function IntroPanel() {
           data-anim="sweep"
           data-x={0}
           data-delay={0}
-          style={sweepStyle}
+          style={sweepStyleGhosted}
         >
           Experience It
         </p>
@@ -238,7 +256,7 @@ function IntroPanel() {
           lines={["말보다 먼저, 만든 걸 보여드릴게요."]}
           className="font-['Pretendard'] text-[22px] tracking-[-0.44px]"
           x={0}
-          delay={700}
+          delay={400}
         />
       </div>
     </div>
@@ -337,7 +355,7 @@ function SavedPanel({ start }) {
         lines={["Saved it,", "But can’t find it"]}
         className="absolute left-[708px] top-[339px] -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[50px] font-bold leading-none text-[#0492bd]"
         x={start + 1386}
-        delay={520}
+        delay={300}
       />
     </div>
   );
@@ -392,7 +410,7 @@ function ProblemPanel({ start }) {
         <span
           data-anim="tint"
           data-x={start + 2592}
-          data-delay={650}
+          data-delay={400}
           style={{ color: "#0492bd" }}
         >
           getting it back out.
@@ -455,7 +473,8 @@ function FilterChip({ label, left, top, x, delay }) {
  *  graphics then hang off that same trigger on a delay rather than their own
  *  positions, which is what keeps each row's pieces together. */
 const ROW_TEXT_X = [396, 804, 1498];
-const POP_STEP = 130; // ms between graphics inside one row
+const POP_STEP = 85; // ms between graphics inside one row
+const ROW_LEAD = 200; // ms from a row's headline to its first graphic
 const headlineClass =
   "absolute -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[70px] font-bold leading-none tracking-[-1.4px] text-white whitespace-nowrap";
 
@@ -480,7 +499,7 @@ function SolutionPanel({ start }) {
         className="absolute left-[146px] top-[174px] h-[117.907px] w-[157.907px] max-w-none"
         data-anim="pop"
         data-x={row(0)}
-        data-delay={320}
+        data-delay={ROW_LEAD}
         style={{ opacity: 0 }}
       />
       <img
@@ -489,7 +508,7 @@ function SolutionPanel({ start }) {
         className="absolute left-[11.47%] right-[83.04%] top-[299.66px] h-[96.671px] max-w-none"
         data-anim="pop"
         data-x={row(0)}
-        data-delay={320 + POP_STEP}
+        data-delay={ROW_LEAD + POP_STEP}
         style={{ opacity: 0 }}
       />
       <img
@@ -498,7 +517,7 @@ function SolutionPanel({ start }) {
         className="absolute left-[15.83%] right-[78.38%] top-[154px] h-[95.861px] max-w-none"
         data-anim="pop"
         data-x={row(0)}
-        data-delay={320 + POP_STEP * 2}
+        data-delay={ROW_LEAD + POP_STEP * 2}
         style={{ opacity: 0 }}
       />
       <img
@@ -507,7 +526,7 @@ function SolutionPanel({ start }) {
         className="absolute left-[1317px] top-[143px] h-[129.291px] w-[161.633px] max-w-none"
         data-anim="pop"
         data-x={row(0)}
-        data-delay={320 + POP_STEP * 3}
+        data-delay={ROW_LEAD + POP_STEP * 3}
         style={{ opacity: 0 }}
       />
 
@@ -520,17 +539,17 @@ function SolutionPanel({ start }) {
       >
         Search in design language
       </p>
-      <FilterChip label="Screen" left={702} top={465} x={row(1)} delay={320} />
-      <FilterChip label="Platform" left={641} top={523} x={row(1)} delay={320 + POP_STEP} />
-      <FilterChip label="Mood" left={1633} top={465} x={row(1)} delay={320 + POP_STEP * 2} />
-      <FilterChip label="Service" left={1686} top={529} x={row(1)} delay={320 + POP_STEP * 3} />
+      <FilterChip label="Screen" left={702} top={465} x={row(1)} delay={ROW_LEAD} />
+      <FilterChip label="Platform" left={641} top={523} x={row(1)} delay={ROW_LEAD + POP_STEP} />
+      <FilterChip label="Mood" left={1633} top={465} x={row(1)} delay={ROW_LEAD + POP_STEP * 2} />
+      <FilterChip label="Service" left={1686} top={529} x={row(1)} delay={ROW_LEAD + POP_STEP * 3} />
       <img
         src={cube}
         alt=""
         className="absolute inset-[20.74%_40.75%_72.31%_56.31%] max-w-none"
         data-anim="pop"
         data-x={row(1)}
-        data-delay={320 + POP_STEP * 4}
+        data-delay={ROW_LEAD + POP_STEP * 4}
         style={{ opacity: 0 }}
       />
 
@@ -543,8 +562,8 @@ function SolutionPanel({ start }) {
       >
         Layout structure
       </p>
-      <TagCard left={1245} top={696} x={row(2)} delay={320} />
-      <TagCard left={1313} top={805} x={row(2)} delay={320 + POP_STEP} />
+      <TagCard left={1245} top={696} x={row(2)} delay={ROW_LEAD} />
+      <TagCard left={1313} top={805} x={row(2)} delay={ROW_LEAD + POP_STEP} />
 
       {/* Wireframe stand-in for the layout-structure idea: a sidebar rotated
           onto its side plus a header and body block. */}
@@ -552,7 +571,7 @@ function SolutionPanel({ start }) {
         className="absolute left-[2072px] top-[655px] flex h-[150px] w-[37px] items-center justify-center"
         data-anim="pop"
         data-x={row(2)}
-        data-delay={320 + POP_STEP * 2}
+        data-delay={ROW_LEAD + POP_STEP * 2}
         style={{ opacity: 0 }}
       >
         <div className="h-[37px] w-[150px] -rotate-90 rounded-[8px] bg-[rgba(4,146,189,0.6)]" />
@@ -561,14 +580,14 @@ function SolutionPanel({ start }) {
         className="absolute left-[2121px] top-[655px] h-[37px] w-[143px] rounded-[8px] bg-[rgba(4,146,189,0.4)]"
         data-anim="pop"
         data-x={row(2)}
-        data-delay={320 + POP_STEP * 3}
+        data-delay={ROW_LEAD + POP_STEP * 3}
         style={{ opacity: 0 }}
       />
       <div
         className="absolute left-[2121px] top-[701px] h-[102px] w-[143px] rounded-[8px] bg-[rgba(4,146,189,0.2)]"
         data-anim="pop"
         data-x={row(2)}
-        data-delay={320 + POP_STEP * 4}
+        data-delay={ROW_LEAD + POP_STEP * 4}
         style={{ opacity: 0 }}
       />
     </div>
@@ -581,34 +600,67 @@ function SolutionPanel({ start }) {
  *  translated under a sticky stage, so leaving it interactive would put click
  *  targets on a moving surface and swallow scrolls meant for the page — the
  *  working version is the one the PROJECT section opens. */
-const SNAPKEEP_SCALE = 0.85;
-const SNAPKEEP_WIDTH = 1440;
-const SNAPKEEP_HEIGHT = 900;
+// The line and the app are a pair, so the gap between them is stated once and
+// the app's top is derived from it rather than being a second hand-tuned
+// number that drifts whenever the type size changes.
+const LINE_TOP = 120;
+const LINE_SIZE = 22;
+const LINE_LEADING = 1.3;
+const LINE_GAP = 24;
+const APP_TOP = Math.round(LINE_TOP + LINE_SIZE * LINE_LEADING + LINE_GAP);
+// The space left under the line that the app has to fit inside, in design px.
+const APP_AREA = { top: APP_TOP, height: DESIGN_HEIGHT - APP_TOP - 60, maxWidth: 1700 };
 
 function SnapkeepPanel({ start }) {
-  const width = SNAPKEEP_WIDTH * SNAPKEEP_SCALE;
-  const height = SNAPKEEP_HEIGHT * SNAPKEEP_SCALE;
+  const appRef = useRef(null);
+  const [size, setSize] = useState({ width: 1440, height: 900 });
+
+  // Snapkeep renders at its own fixed size (index.css pins the shell to
+  // 1440 wide) and is taller than one screen, so it has to be measured rather
+  // than assumed — hardcoding a height crops it mid-card the moment its
+  // content changes. offsetWidth/Height read the untransformed layout, so this
+  // is safe to run while the element is already scaled.
+  useLayoutEffect(() => {
+    const el = appRef.current;
+    const measure = () =>
+      setSize({ width: el.offsetWidth, height: el.offsetHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const fit = Math.min(
+    1,
+    APP_AREA.height / size.height,
+    APP_AREA.maxWidth / size.width,
+  );
+  const width = size.width * fit;
+  const height = size.height * fit;
+
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
       <TypedText
         lines={["스크린샷을 올려보세요. AI가 태깅하고, 내 언어로 검색됩니다"]}
-        className="absolute left-1/2 top-[120px] -translate-x-1/2 text-center font-['Pretendard'] text-[44px] font-medium leading-[1.3] tracking-[-0.88px] text-white"
+        className="absolute left-1/2 -translate-x-1/2 text-center font-['Pretendard'] text-[22px] font-medium leading-[1.3] tracking-[-0.44px] text-white"
+        style={{ top: LINE_TOP }}
         x={start}
-        delay={200}
+        delay={120}
       />
 
       <Popup
         x={start}
-        delay={900}
+        delay={480}
         left={(1920 - width) / 2}
-        top={250}
+        top={APP_AREA.top}
         width={width}
         height={height}
       >
         <div className="absolute inset-0 overflow-hidden rounded-[24px] shadow-[0px_24px_60px_0px_rgba(0,0,0,0.45)]">
           <div
-            className="pointer-events-none origin-top-left"
-            style={{ width: SNAPKEEP_WIDTH, transform: `scale(${SNAPKEEP_SCALE})` }}
+            ref={appRef}
+            className="pointer-events-none w-max origin-top-left"
+            style={{ transform: `scale(${fit})` }}
             aria-hidden="true"
           >
             <SnapkeepSpread />
@@ -760,6 +812,9 @@ export default function ExperienceSection() {
               <SavedPanel start={PANELS[0]} />
               <ProblemPanel start={PANELS[0] + PANELS[1]} />
               <SolutionPanel start={PANELS[0] + PANELS[1] + PANELS[2]} />
+              <SnapkeepPanel
+                start={PANELS[0] + PANELS[1] + PANELS[2] + PANELS[3]}
+              />
             </div>
           </div>
         </div>
