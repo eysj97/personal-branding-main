@@ -1012,6 +1012,20 @@ export default function SnapkeepSpread() {
   const toggleFilter = (value) =>
     setSelectedFilters((current) => (current.includes(value) ? current.filter((item) => item !== value) : [...current, value]));
 
+  /** Back to the default view — what the logo does. Saved references, tags and
+      uploads are the user's data and are deliberately left alone; this only
+      clears what is narrowing the view. */
+  const goHome = () => {
+    setQuery("");
+    setSelectedFilters([]);
+    setSavedOnly(false);
+    setView("original");
+    setSelectedId(null);
+    setSearchOpen(false);
+    setFilterOpen(false);
+    setScanOpen(false);
+  };
+
   const updateTags = (reference, label, updater) =>
     setTagOverrides((current) => {
       const tags = tagGroupsFor(reference, current).find((group) => group.label === label)?.tags ?? [];
@@ -1083,7 +1097,22 @@ export default function SnapkeepSpread() {
   return (
     <div className="relative min-h-[1030px] w-[1489px] overflow-hidden rounded-[24px] bg-[#f7f7f5] font-['Pretendard'] text-[#1d1c1c]">
       <header className="flex items-center justify-between px-[62px] pb-[28px] pt-[46px]">
-        <div>
+        {/* The logo doubles as home, the way a site's wordmark does: it clears
+            the search, the filters and any open panel, and puts the grid back
+            to its default view. */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={goHome}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              goHome();
+            }
+          }}
+          className="cursor-pointer select-none text-left"
+          aria-label="snapkeep 홈으로"
+        >
           <p className="font-serif text-[42px] font-bold italic tracking-[-3.1px]">snapkeep</p>
           <p className="mt-[7px] text-[13px] tracking-[-0.3px] text-[#777d79]">스크린샷을 넣고, AI가 정리한 레퍼런스를 다시 찾으세요.</p>
         </div>
@@ -1238,10 +1267,22 @@ export default function SnapkeepSpread() {
         )}
       </main>
 
-      <button type="button" onClick={() => setScanOpen(true)} className="absolute bottom-[38px] right-[55px] flex h-[58px] items-center gap-[9px] rounded-full bg-[#017c6e] px-[23px] font-['Plus_Jakarta_Sans'] text-[14px] font-semibold text-white">
-        <span className="text-[25px] font-normal">+</span>
-        {uploading ? "AI 분석 중..." : "스캔/넣기"}
-      </button>
+      {/* Sticky rather than absolute, in a zero-height row so it takes no
+          layout space of its own. Absolute put it at the bottom of the
+          *content*, which slid out of reach as soon as the reference list grew
+          past the window; sticky keeps it on the visible bottom edge, and
+          degrades to sitting exactly where it used to wherever there is no
+          internal scrolling. */}
+      <div className="sticky bottom-0 z-20 flex h-0 items-end justify-end pr-[55px]">
+        <button
+          type="button"
+          onClick={() => setScanOpen(true)}
+          className="mb-[38px] flex h-[58px] items-center gap-[9px] rounded-full bg-[#017c6e] px-[23px] font-['Plus_Jakarta_Sans'] text-[14px] font-semibold text-white shadow-[0px_6px_18px_0px_rgba(0,0,0,0.18)]"
+        >
+          <span className="text-[25px] font-normal">+</span>
+          {uploading ? "AI 분석 중..." : "등록"}
+        </button>
+      </div>
 
       {filterOpen && (
         <FilterDrawer

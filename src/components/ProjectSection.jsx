@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import cardPhoto from "../assets/project/card-photo.png";
 import cardViewBody from "../assets/project/card-view-hover-body.png";
 import cardSantalBody from "../assets/project/card-santal-hover-body.png";
-import cardSnapkeepBody from "../assets/project/card-snapkeep-body.png";
 import screenImac from "../assets/project/mockup/screen-imac.png";
 import screenIpad from "../assets/project/mockup/screen-ipad.png";
 import screenPhone1 from "../assets/project/mockup/screen-phone-1.png";
@@ -12,13 +11,13 @@ import screenPhone4 from "../assets/project/mockup/screen-phone-4.png";
 import santalHover from "../assets/project/hover/layer-hover.png";
 import viewHoverCards from "../assets/project/hover/view-hover1.png";
 import viewHoverPhones from "../assets/project/hover/view-hover2.png";
-import snapkeepHover from "../assets/project/hover/snapkeep-hover.png";
 import ProjectMockup from "./ProjectMockup";
 import ProjectHoverComposition from "./ProjectHoverComposition";
 import ProjectDetailOverlay from "./ProjectDetailOverlay";
 import ProjectAppWindow from "./ProjectAppWindow";
 import AquaplanetSpread from "./detail/AquaplanetSpread";
 import SnapkeepSpread from "./detail/SnapkeepSpread";
+import SnapkeepCardFace from "./SnapkeepCardFace";
 import ReviuSpread from "./detail/ReviuSpread";
 import LayerSpread from "./detail/LayerSpread";
 
@@ -86,28 +85,23 @@ const CARDS = [
       ],
     },
   },
-  // Placeholder 4th card — swap `image` for a real one whenever you have it.
   {
     angle: 270,
-    image: cardSnapkeepBody,
+    // Drawn rather than a screenshot: `face` replaces the card art with a
+    // component, so this one stays sharp at any card size and reads as the
+    // same shell the app it opens into uses.
+    face: SnapkeepCardFace,
     tabColor: "#017c6e",
     detail: SnapkeepSpread,
     // Snapkeep is a working app rather than a case-study spread, so it opens
     // straight into its own window — no folder unfolding first.
     standalone: true,
-    hover: {
-      origin: "35% 25%",
-      assets: [
-        {
-          image: snapkeepHover,
-          layout: { width: "101.92%", left: "-62%", top: "-27.99%" },
-        },
-      ],
-    },
   },
 ].map((card) => ({
   ...card,
-  mockup: card.mockup ?? fallbackMockup(card.image),
+  // A card that draws its own face is complete on its own — no device
+  // cluster and no hover art floats out of it.
+  mockup: card.face ? null : (card.mockup ?? fallbackMockup(card.image)),
 }));
 // Not a multiple of 360 on purpose — lands slightly off the baseline
 // angles at rest, so the 0deg/180deg cards don't end up perfectly
@@ -284,7 +278,7 @@ export default function ProjectSection() {
               className="relative w-[clamp(180px,18vw,343px)] h-[clamp(260px,27vw,522px)] [transform-style:preserve-3d] will-change-transform"
             >
               {CARDS.map((card, i) => {
-                const { angle, image, tabColor, crop, hover, mockup } = card;
+                const { angle, image, tabColor, crop, hover, mockup, face: Face } = card;
                 const isFront = i === frontIndex;
                 const isOpen = isFront && hovered;
                 const baseTransform = `rotateY(${angle}deg) translateZ(clamp(270px,27vw,515px))`;
@@ -310,7 +304,9 @@ export default function ProjectSection() {
                       onMouseLeave={() => setHover(false)}
                       onClick={(event) => open(card, event)}
                     >
-                      {crop ? (
+                      {Face ? (
+                        <Face />
+                      ) : crop ? (
                         <img
                           src={image}
                           alt=""
@@ -334,9 +330,9 @@ export default function ProjectSection() {
                     {isFront &&
                       (hover ? (
                         <ProjectHoverComposition {...hover} open={isOpen} />
-                      ) : (
+                      ) : mockup ? (
                         <ProjectMockup screens={mockup} open={isOpen} />
-                      ))}
+                      ) : null)}
                   </div>
                 );
               })}

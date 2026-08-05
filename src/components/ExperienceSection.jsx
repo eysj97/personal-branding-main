@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import SnapkeepSpread from "./detail/SnapkeepSpread";
 
@@ -68,35 +68,40 @@ const TRACK_VH = 200;
 const STEP_RAW = STOPS.map((_, i) => i / Math.max(1, STOPS.length - 1));
 const TWEEN_MS = 520;
 
+// Which stop shows each panel. Elements name the stop they belong to and are
+// sequenced entirely by `data-delay` from there.
+const STOP = {
+  intro: 0,
+  saved: 1,
+  problemA: 2,
+  problemB: 3,
+  solutionA: 4,
+  solutionB: 5,
+  snapkeep: 6,
+};
+
 // ---------------------------------------------------------------------------
 // Entrance animations.
 //
-// Every animated element carries `data-anim` (which effect) and `data-x` (its
-// own left edge along the strip, in design px). Scrolling only decides *when*
-// an element is considered on screen; once it is, the effect runs on its own
-// clock and finishes at its own pace. Tying playback to scroll position
-// instead makes every animation stall the moment the reader stops moving, and
-// run at whatever speed they happen to be scrolling at.
+// Every animated element carries `data-anim` (which effect), `data-stop` (the
+// stop it belongs to) and `data-delay` (ms after that stop lands). Once the
+// strip has arrived, each effect runs on its own clock and finishes at its own
+// pace — playback is never tied to scroll position, which would stall every
+// animation the moment the reader stops moving.
 //
-// `data-delay` (ms) staggers elements that arrive together — the first panel is
-// already on screen when the section pins, so its elements all trigger at once
-// and lean on the delay entirely.
+// Keying off the stop rather than the element's own position is what makes the
+// sequencing readable: a whole panel arrives in one 520ms tween, so triggering
+// on x meant everything in it fired within a few frames of everything else no
+// matter how far apart the pieces sat.
 // ---------------------------------------------------------------------------
 
-// How far past the right edge an element must be before it counts as on
-// screen, in viewport widths — a little inside, so it isn't animating while
-// still clipped by the edge.
-const ENTER_MARGIN = 0.85;
-// How far back out an element has to travel before it is rearmed to play
-// again. Without the gap, an element parked exactly on its trigger would
-// restart on every jitter of the scroll wheel.
-const RESET_MARGIN = 0.15;
-
+// Text is quick — it is read, not watched. The artwork is the opposite: the
+// pop is the thing you are meant to notice, so it gets room to be seen.
 const DURATIONS = {
   sweep: 600,
   wipe: 460,
-  popup: 340,
-  pop: 420,
+  popup: 560,
+  pop: 640,
   tint: 300,
   type: 650,
 };
@@ -137,14 +142,14 @@ const SWEEP_BOX = "py-[0.22em] -my-[0.22em]";
     start and never reflows as it "types" — the same approach CareerSection's
     paragraphs use. The spans are hidden from assistive tech and the whole
     string is put back as a label, so a screen reader reads one sentence. */
-function TypedText({ lines, className, style, x, delay = 0 }) {
+function TypedText({ lines, className, style, stop, delay = 0 }) {
   return (
     <p
       className={className}
       style={style}
       aria-label={lines.join(" ")}
       data-anim="type"
-      data-x={x}
+      data-stop={stop}
       data-delay={delay}
     >
       {lines.map((line, li) => (
@@ -164,12 +169,12 @@ function TypedText({ lines, className, style, x, delay = 0 }) {
     scale grows from that element's centre rather than the panel's, and so the
     transform has somewhere to live that isn't already carrying one from the
     design's layout. */
-function Popup({ x, delay = 0, left, top, width, height, children }) {
+function Popup({ stop, delay = 0, left, top, width, height, children }) {
   return (
     <div
       className="absolute"
       data-anim="popup"
-      data-x={x}
+      data-stop={stop}
       data-delay={delay}
       style={{ left, top, width, height, opacity: 0 }}
     >
@@ -246,8 +251,9 @@ function IntroPanel() {
         <p
           className={`font-['Plus_Jakarta_Sans'] text-[120px] font-semibold tracking-[-2.4px] ${SWEEP_BOX}`}
           data-anim="sweep"
-          data-x={0}
+          data-stop={STOP.intro}
           data-delay={0}
+          data-duration={220}
           style={sweepStyleGhosted}
         >
           Experience It
@@ -255,7 +261,7 @@ function IntroPanel() {
         <TypedText
           lines={["말보다 먼저, 만든 걸 보여드릴게요."]}
           className="font-['Pretendard'] text-[22px] tracking-[-0.44px]"
-          x={0}
+          stop={STOP.intro}
           delay={400}
         />
       </div>
@@ -324,23 +330,23 @@ function SafariWindow() {
 /** Panel 2 — the "everything saved, nothing findable" board. The three pieces
     of artwork rise in the order they reach the screen; the headline is held
     back until they have all landed, since it is the punchline. */
-function SavedPanel({ start }) {
+function SavedPanel() {
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
-      <Popup x={start + 189} left={189} top={492} width={800} height={495}>
+      <Popup stop={STOP.saved} delay={0} left={189} top={492} width={800} height={495}>
         <div className="absolute inset-0 overflow-hidden">
           <img src={savedBoard} alt="" className="absolute left-[-0.17%] top-[-0.17%] h-[100.33%] w-[100.17%] max-w-none" />
         </div>
       </Popup>
 
-      <Popup x={start + 754} left={754} top={113} width={1006.6} height={538.3}>
+      <Popup stop={STOP.saved} delay={260} left={754} top={113} width={1006.6} height={538.3}>
         <SafariWindow />
       </Popup>
 
       {/* The phone's two layers share one box, so the frame and the screen
           inside it pop as a single object. Their offsets are the design's own,
           rebased onto the frame's origin. */}
-      <Popup x={start + 1386} left={1386} top={434} width={309} height={605.336}>
+      <Popup stop={STOP.saved} delay={520} left={1386} top={434} width={309} height={605.336}>
         <div className="absolute left-[18.36px] top-[22.16px] h-[561.012px] w-[272.275px] rounded-[30px]">
           <img src={phoneScreen} alt="" className="absolute inset-0 size-full max-w-none rounded-[30px] object-contain" />
         </div>
@@ -354,8 +360,8 @@ function SavedPanel({ start }) {
       <TypedText
         lines={["Saved it,", "But can’t find it"]}
         className="absolute left-[708px] top-[339px] -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[50px] font-bold leading-none text-[#0492bd]"
-        x={start + 1386}
-        delay={300}
+        stop={STOP.saved}
+        delay={860}
       />
     </div>
   );
@@ -364,23 +370,26 @@ function SavedPanel({ start }) {
 /** Panel 3 — the problem statement, the widest panel in the strip. Its pieces
     are triggered by their own left edges, which happens to be exactly the
     reading order: headline, the squiggle under it, then the marks. */
-function ProblemPanel({ start }) {
+function ProblemPanel() {
   return (
     <div className="relative h-full w-[3031px] shrink-0 overflow-hidden bg-[#06252e]">
       <p
         className={`absolute left-[calc(50%+50.5px)] top-[calc(50%-139px)] -translate-x-full text-right font-['Pretendard'] text-[100px] font-bold leading-none text-[#0492bd] whitespace-nowrap ${SWEEP_BOX}`}
         data-anim="sweep"
-        data-x={start + 166}
+        data-stop={STOP.problemA}
         style={sweepStyle}
       >
         The problem wasn&rsquo;t saving
       </p>
 
-      {/* Wipes open from its left edge, chasing the headline above it. */}
+      {/* Both hang off the headline's own trigger on the same delay, so they
+          arrive together once the line has been written — the squiggle wiping
+          open under it while the mark pops in beside it. */}
       <div
         className="absolute left-[308px] top-[511px] flex h-[29px] w-[582px] items-center justify-center"
         data-anim="wipe"
-        data-x={start + 308}
+        data-stop={STOP.problemA}
+        data-delay={450}
         style={{ clipPath: "inset(0 100% 0 0)" }}
       >
         <img src={underline} alt="" className="h-[29px] w-[582px] max-w-none -scale-y-100" />
@@ -389,7 +398,9 @@ function ProblemPanel({ start }) {
       <div
         className="absolute left-[1238px] top-[203px] flex h-[197.986px] w-[198.12px] items-center justify-center"
         data-anim="pop"
-        data-x={start + 1238}
+        data-stop={STOP.problemA}
+        data-delay={450}
+        data-float="12"
         style={{ opacity: 0 }}
       >
         <div className="rotate-[11.95deg]">
@@ -400,7 +411,7 @@ function ProblemPanel({ start }) {
       <p
         className={`absolute left-[calc(50%+1052.5px)] top-[calc(50%+121px)] -translate-x-full text-right font-['Pretendard'] text-[100px] font-bold leading-none whitespace-nowrap ${SWEEP_BOX}`}
         data-anim="sweep"
-        data-x={start + 1468}
+        data-stop={STOP.problemB}
         style={sweepStyle}
       >
         <span className="text-[#0492bd]">it was </span>
@@ -409,8 +420,8 @@ function ProblemPanel({ start }) {
             supposed to read as a reaction to it. */}
         <span
           data-anim="tint"
-          data-x={start + 2592}
-          data-delay={400}
+          data-stop={STOP.problemB}
+          data-delay={900}
           style={{ color: "#0492bd" }}
         >
           getting it back out.
@@ -422,7 +433,9 @@ function ProblemPanel({ start }) {
         alt=""
         className="absolute left-[2592px] top-[521px] h-[294.5px] w-[259px] max-w-none"
         data-anim="pop"
-        data-x={start + 2592}
+        data-stop={STOP.problemB}
+        data-delay={450}
+        data-float="14"
         style={{ opacity: 0 }}
       />
     </div>
@@ -432,13 +445,13 @@ function ProblemPanel({ start }) {
 /** A stand-in reference card — the repeated block in the "AI tagging" cluster.
     Drawn rather than exported because the design builds it from plain
     rectangles, so there is no asset to render. */
-function TagCard({ left, top, x, delay }) {
+function TagCard({ left, top, stop, delay }) {
   return (
     <div
       className="absolute h-[82px] w-[176px] rounded-[8px] bg-[rgba(4,146,189,0.2)]"
       style={{ left, top, opacity: 0 }}
       data-anim="pop"
-      data-x={x}
+      data-stop={stop}
       data-delay={delay}
     >
       <div className="absolute left-[7px] top-[7px] size-[66px] rounded-[8px] bg-[rgba(4,146,189,0.3)]" />
@@ -449,13 +462,13 @@ function TagCard({ left, top, x, delay }) {
   );
 }
 
-function FilterChip({ label, left, top, x, delay }) {
+function FilterChip({ label, left, top, stop, delay }) {
   return (
     <div
       className="absolute flex items-center justify-center rounded-[8px] bg-[rgba(4,146,189,0.4)] px-[10px] py-[5px]"
       style={{ left, top, opacity: 0 }}
       data-anim="pop"
-      data-x={x}
+      data-stop={stop}
       data-delay={delay}
     >
       <p className="font-['Plus_Jakarta_Sans'] text-[30px] font-bold leading-none tracking-[-0.6px] text-[rgba(255,255,255,0.5)] whitespace-nowrap">
@@ -472,21 +485,24 @@ function FilterChip({ label, left, top, x, delay }) {
  *  which runs top-to-bottom in x as well, so they play in reading order; the
  *  graphics then hang off that same trigger on a delay rather than their own
  *  positions, which is what keeps each row's pieces together. */
-const ROW_TEXT_X = [396, 804, 1498];
-const POP_STEP = 85; // ms between graphics inside one row
+const POP_STEP = 150; // ms between graphics inside one row — one at a time, visibly
 const ROW_LEAD = 200; // ms from a row's headline to its first graphic
+// Row 2 shares a stop with row 1, so it waits out row 1's whole sequence
+// before starting its own — otherwise both headlines write at once.
+const ROW_B = 950;
+// Row 3 follows row 2 in the same breath rather than waiting for a scroll.
+const ROW_C = 1900;
 const headlineClass =
   "absolute -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[70px] font-bold leading-none tracking-[-1.4px] text-white whitespace-nowrap";
 
-function SolutionPanel({ start }) {
-  const row = (i) => start + ROW_TEXT_X[i];
+function SolutionPanel() {
   return (
     <div className="relative h-full w-[2545px] shrink-0 overflow-hidden bg-[#06252e]">
       {/* Row 1 — AI tagging */}
       <p
         className={`${headlineClass} left-[1386px] top-[275px] ${SWEEP_BOX}`}
         data-anim="sweep"
-        data-x={row(0)}
+        data-stop={STOP.solutionA}
         style={sweepStyle}
       >
         AI tagging instead of folders
@@ -498,8 +514,9 @@ function SolutionPanel({ start }) {
         alt=""
         className="absolute left-[146px] top-[174px] h-[117.907px] w-[157.907px] max-w-none"
         data-anim="pop"
-        data-x={row(0)}
+        data-stop={STOP.solutionA}
         data-delay={ROW_LEAD}
+        data-float="11"
         style={{ opacity: 0 }}
       />
       <img
@@ -507,8 +524,9 @@ function SolutionPanel({ start }) {
         alt=""
         className="absolute left-[11.47%] right-[83.04%] top-[299.66px] h-[96.671px] max-w-none"
         data-anim="pop"
-        data-x={row(0)}
+        data-stop={STOP.solutionA}
         data-delay={ROW_LEAD + POP_STEP}
+        data-float="11"
         style={{ opacity: 0 }}
       />
       <img
@@ -516,8 +534,9 @@ function SolutionPanel({ start }) {
         alt=""
         className="absolute left-[15.83%] right-[78.38%] top-[154px] h-[95.861px] max-w-none"
         data-anim="pop"
-        data-x={row(0)}
+        data-stop={STOP.solutionA}
         data-delay={ROW_LEAD + POP_STEP * 2}
+        data-float="11"
         style={{ opacity: 0 }}
       />
       <img
@@ -525,31 +544,34 @@ function SolutionPanel({ start }) {
         alt=""
         className="absolute left-[1317px] top-[143px] h-[129.291px] w-[161.633px] max-w-none"
         data-anim="pop"
-        data-x={row(0)}
+        data-stop={STOP.solutionA}
         data-delay={ROW_LEAD + POP_STEP * 3}
+        data-float="11"
         style={{ opacity: 0 }}
       />
 
       {/* Row 2 — search in design language */}
       <p
-        className={`${headlineClass} left-[1654px] top-[calc(50%-35px)] ${SWEEP_BOX}`}
+        className={`${headlineClass} left-[1664px] top-[calc(50%-35px)] ${SWEEP_BOX}`}
         data-anim="sweep"
-        data-x={row(1)}
+        data-stop={STOP.solutionA}
+        data-delay={ROW_B}
         style={sweepStyle}
       >
         Search in design language
       </p>
-      <FilterChip label="Screen" left={702} top={465} x={row(1)} delay={ROW_LEAD} />
-      <FilterChip label="Platform" left={641} top={523} x={row(1)} delay={ROW_LEAD + POP_STEP} />
-      <FilterChip label="Mood" left={1633} top={465} x={row(1)} delay={ROW_LEAD + POP_STEP * 2} />
-      <FilterChip label="Service" left={1686} top={529} x={row(1)} delay={ROW_LEAD + POP_STEP * 3} />
+      <FilterChip label="Screen" left={702} top={465} stop={STOP.solutionA} delay={ROW_B + ROW_LEAD} />
+      <FilterChip label="Platform" left={641} top={523} stop={STOP.solutionA} delay={ROW_B + ROW_LEAD + POP_STEP} />
+      <FilterChip label="Mood" left={1633} top={465} stop={STOP.solutionA} delay={ROW_B + ROW_LEAD + POP_STEP * 2} />
+      <FilterChip label="Service" left={1686} top={529} stop={STOP.solutionA} delay={ROW_B + ROW_LEAD + POP_STEP * 3} />
       <img
         src={cube}
         alt=""
         className="absolute inset-[20.74%_40.75%_72.31%_56.31%] max-w-none"
         data-anim="pop"
-        data-x={row(1)}
-        data-delay={ROW_LEAD + POP_STEP * 4}
+        data-stop={STOP.solutionA}
+        data-delay={ROW_B + ROW_LEAD + POP_STEP * 4}
+        data-float="11"
         style={{ opacity: 0 }}
       />
 
@@ -557,37 +579,44 @@ function SolutionPanel({ start }) {
       <p
         className={`${headlineClass} left-[2043px] top-[735px] ${SWEEP_BOX}`}
         data-anim="sweep"
-        data-x={row(2)}
+        data-stop={STOP.solutionA}
+        data-delay={ROW_C}
         style={sweepStyle}
       >
         Layout structure
       </p>
-      <TagCard left={1245} top={696} x={row(2)} delay={ROW_LEAD} />
-      <TagCard left={1313} top={805} x={row(2)} delay={ROW_LEAD + POP_STEP} />
+      <TagCard left={1245} top={696} stop={STOP.solutionA} delay={ROW_C + ROW_LEAD} />
+      <TagCard left={1313} top={805} stop={STOP.solutionA} delay={ROW_C + ROW_LEAD + POP_STEP} />
 
       {/* Wireframe stand-in for the layout-structure idea: a sidebar rotated
           onto its side plus a header and body block. */}
       <div
         className="absolute left-[2072px] top-[655px] flex h-[150px] w-[37px] items-center justify-center"
         data-anim="pop"
-        data-x={row(2)}
-        data-delay={ROW_LEAD + POP_STEP * 2}
+        data-stop={STOP.solutionA}
+        data-delay={ROW_C + ROW_LEAD + POP_STEP * 2}
         style={{ opacity: 0 }}
       >
-        <div className="h-[37px] w-[150px] -rotate-90 rounded-[8px] bg-[rgba(4,146,189,0.6)]" />
+        {/* `flex-none` is load-bearing: the bar is 150px long inside a 37px
+            wide flex line, so without it the bar is shrunk to fit *before* it
+            is rotated and the sidebar comes out a square instead of a
+            full-height column. */}
+        <div className="-rotate-90 flex-none">
+          <div className="h-[37px] w-[150px] rounded-[8px] bg-[rgba(4,146,189,0.6)]" />
+        </div>
       </div>
       <div
         className="absolute left-[2121px] top-[655px] h-[37px] w-[143px] rounded-[8px] bg-[rgba(4,146,189,0.4)]"
         data-anim="pop"
-        data-x={row(2)}
-        data-delay={ROW_LEAD + POP_STEP * 3}
+        data-stop={STOP.solutionA}
+        data-delay={ROW_C + ROW_LEAD + POP_STEP * 3}
         style={{ opacity: 0 }}
       />
       <div
         className="absolute left-[2121px] top-[701px] h-[102px] w-[143px] rounded-[8px] bg-[rgba(4,146,189,0.2)]"
         data-anim="pop"
-        data-x={row(2)}
-        data-delay={ROW_LEAD + POP_STEP * 4}
+        data-stop={STOP.solutionA}
+        data-delay={ROW_C + ROW_LEAD + POP_STEP * 4}
         style={{ opacity: 0 }}
       />
     </div>
@@ -596,10 +625,10 @@ function SolutionPanel({ start }) {
 
 /** Panel 5 — the payoff: the line that states the idea, then Snapkeep itself.
  *
- *  The app is shown, not driven. It sits inside a strip that is being
- *  translated under a sticky stage, so leaving it interactive would put click
- *  targets on a moving surface and swallow scrolls meant for the page — the
- *  working version is the one the PROJECT section opens. */
+ *  The real app, live and usable. This only works because the strip moves in
+ *  discrete steps and is otherwise still — on a surface that tracked the
+ *  scrollbar continuously, the click targets would be sliding under the
+ *  cursor the whole time. */
 // The line and the app are a pair, so the gap between them is stated once and
 // the app's top is derived from it rather than being a second hand-tuned
 // number that drifts whenever the type size changes.
@@ -611,32 +640,22 @@ const APP_TOP = Math.round(LINE_TOP + LINE_SIZE * LINE_LEADING + LINE_GAP);
 // The space left under the line that the app has to fit inside, in design px.
 const APP_AREA = { top: APP_TOP, height: DESIGN_HEIGHT - APP_TOP - 60, maxWidth: 1700 };
 
-function SnapkeepPanel({ start }) {
-  const appRef = useRef(null);
-  const [size, setSize] = useState({ width: 1440, height: 900 });
+// The window is a fixed frame, sized from Snapkeep's own authored dimensions
+// (index.css pins the shell to 1440 wide with a 900 min-height) rather than
+// from whatever it currently renders as. Measuring the live app instead makes
+// the window grow and shrink as references are added or deleted, which reads
+// as the layout breaking rather than as content changing — so the frame is
+// constant and anything past it scrolls inside.
+const APP_FRAME = { width: 1440, height: 900 };
+const APP_FIT = Math.min(
+  1,
+  APP_AREA.height / APP_FRAME.height,
+  APP_AREA.maxWidth / APP_FRAME.width,
+);
 
-  // Snapkeep renders at its own fixed size (index.css pins the shell to
-  // 1440 wide) and is taller than one screen, so it has to be measured rather
-  // than assumed — hardcoding a height crops it mid-card the moment its
-  // content changes. offsetWidth/Height read the untransformed layout, so this
-  // is safe to run while the element is already scaled.
-  useLayoutEffect(() => {
-    const el = appRef.current;
-    const measure = () =>
-      setSize({ width: el.offsetWidth, height: el.offsetHeight });
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  const fit = Math.min(
-    1,
-    APP_AREA.height / size.height,
-    APP_AREA.maxWidth / size.width,
-  );
-  const width = size.width * fit;
-  const height = size.height * fit;
+function SnapkeepPanel() {
+  const width = APP_FRAME.width * APP_FIT;
+  const height = APP_FRAME.height * APP_FIT;
 
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
@@ -644,24 +663,34 @@ function SnapkeepPanel({ start }) {
         lines={["스크린샷을 올려보세요. AI가 태깅하고, 내 언어로 검색됩니다"]}
         className="absolute left-1/2 -translate-x-1/2 text-center font-['Pretendard'] text-[22px] font-medium leading-[1.3] tracking-[-0.44px] text-white"
         style={{ top: LINE_TOP }}
-        x={start}
-        delay={120}
+        stop={STOP.snapkeep}
+        delay={150}
       />
 
       <Popup
-        x={start}
-        delay={480}
+        stop={STOP.snapkeep}
+        delay={620}
         left={(1920 - width) / 2}
         top={APP_AREA.top}
         width={width}
         height={height}
       >
         <div className="absolute inset-0 overflow-hidden rounded-[24px] shadow-[0px_24px_60px_0px_rgba(0,0,0,0.45)]">
+          {/* Live and clickable. `data-interactive` tells the section's wheel
+              handler to keep its hands off gestures that start in here, so the
+              app's own scrolling works instead of being turned into a step.
+
+              The scroller is sized to the frame and scaled as a whole, so a
+              long reference list scrolls within a window that never changes
+              size. */}
           <div
-            ref={appRef}
-            className="pointer-events-none w-max origin-top-left"
-            style={{ transform: `scale(${fit})` }}
-            aria-hidden="true"
+            className="snapkeep-frame origin-top-left overflow-y-auto"
+            style={{
+              width: APP_FRAME.width,
+              height: APP_FRAME.height,
+              transform: `scale(${APP_FIT})`,
+            }}
+            data-interactive
           >
             <SnapkeepSpread />
           </div>
@@ -690,16 +719,45 @@ export default function ExperienceSection() {
     const animated = [...section.querySelectorAll("[data-anim]")].map((el) => ({
       el,
       kind: el.dataset.anim,
-      x: Number(el.dataset.x) || 0,
+      stop: Number(el.dataset.stop) || 0,
       delay: Number(el.dataset.delay) || 0,
-      duration: DURATIONS[el.dataset.anim] ?? 800,
+      duration: Number(el.dataset.duration) || DURATIONS[el.dataset.anim] || 800,
       // Wall-clock time this one is due to begin; null until it is on screen.
       startAt: null,
       done: false,
     }));
     const typedCounts = new Map();
-    let scrollTicking = false;
     let paintId = null;
+
+    // --- the step machine ------------------------------------------------
+    // One wheel tick / swipe advances one stop; the strip tweens there and
+    // stays put until the next one. At either end the event is deliberately
+    // not claimed, which hands the gesture straight to the neighbouring
+    // section — that is what makes "read to the end, scroll once more, next
+    // section" work without any special-casing.
+    let stepIndex = 0;
+    let currentX = 0;
+    let busy = false;
+    let tweenId = null;
+    let selfScrollUntil = 0;
+
+    function metrics() {
+      const stripScale = window.innerHeight / DESIGN_HEIGHT;
+      const viewportWidth = window.innerWidth;
+      return {
+        stripScale,
+        viewportWidth,
+        maxX: Math.max(0, TOTAL_WIDTH * stripScale - viewportWidth),
+      };
+    }
+
+    function targetXFor(index) {
+      const { stripScale, maxX } = metrics();
+      // The last stop goes all the way, so the final panel is never left with
+      // a sliver of itself off the right edge.
+      if (index >= STOPS.length - 1) return maxX;
+      return Math.min(STOPS[index] * stripScale, maxX);
+    }
 
     // Playback runs on its own clock: once an element is on screen it plays
     // through at its own pace, whether or not the reader keeps scrolling.
@@ -722,72 +780,248 @@ export default function ExperienceSection() {
       paintId = running ? requestAnimationFrame(paint) : null;
     }
 
-    // Scrolling only decides *when* something is on screen.
-    function checkTriggers() {
-      const rect = section.getBoundingClientRect();
-      const scrollable = section.offsetHeight - window.innerHeight;
-      const progress = scrollable > 0 ? clamp01(-rect.top / scrollable) : 0;
-
-      // Recompute the scale here rather than reading the state value, so a
-      // resize between renders can't leave the two disagreeing.
-      const stripScale = window.innerHeight / DESIGN_HEIGHT;
-      const viewportWidth = window.innerWidth;
-      const maxX = Math.max(0, TOTAL_WIDTH * stripScale - viewportWidth);
-      // The hold: the strip stays at 0 through the first stretch of the
-      // section's scroll, so the opening panel arrives, sits still, and plays
-      // its entrance before anything starts moving sideways.
-      const travelled = clamp01((progress - HOLD_FRACTION) / (1 - HOLD_FRACTION));
-      const x = travelled * maxX;
+    function applyX(x) {
+      currentX = x;
       trackRef.current.style.transform = `translate3d(${-x}px, 0, 0)`;
+    }
 
-      // Scrolled back above the section entirely: rearm the whole sequence, so
-      // coming down into it again replays it from the top. The first panel's
-      // trigger clamps to 0 and can never go off to the right, so this is the
-      // only thing that rearms it.
-      const beforeSection = rect.top > 0;
-
+    // Arm everything belonging to stops we have reached, and rearm anything
+    // above them so scrolling back and returning replays it.
+    function refreshTriggers() {
+      const beforeSection = section.getBoundingClientRect().top > 0;
       let started = false;
       for (const item of animated) {
-        // Clamped at 0 so the first panel — already on screen when the section
-        // pins — starts with the section rather than never triggering.
-        const trigger = Math.max(
-          0,
-          item.x * stripScale - viewportWidth * ENTER_MARGIN,
-        );
-        const offScreen =
-          beforeSection || x < trigger - viewportWidth * RESET_MARGIN;
-
+        const reached = !beforeSection && stepIndex >= item.stop;
         if (item.startAt === null) {
-          if (!offScreen) {
+          if (reached) {
             item.startAt = performance.now() + item.delay;
             started = true;
           }
-        } else if (offScreen) {
+        } else if (!reached) {
           item.startAt = null;
           item.done = false;
           applyAnim(item.el, item.kind, 0, typedCounts);
         }
       }
       if (started && paintId === null) paintId = requestAnimationFrame(paint);
-
-      scrollTicking = false;
     }
 
-    function onScroll() {
-      if (!scrollTicking) {
-        requestAnimationFrame(checkTriggers);
-        scrollTicking = true;
+    // Once a graphic has landed it drifts, so the panels are never completely
+    // static while you read them. Each gets its own phase and period, or they
+    // bob in lockstep and read as one rigid sheet moving.
+    // Everything that pops in drifts afterwards — the chips, cards and layout
+    // blocks beside the headlines as much as the drawn marks, since they read
+    // as the same family of floating pieces. `data-float` overrides how far.
+    const floaters = animated
+      .filter((item) => item.kind === "pop")
+      .map((item, n) => ({
+        item,
+        amplitude: Number(item.el.dataset.float) || 9,
+        phase: n * 1.9,
+        period: 2600 + n * 220,
+      }));
+    let floatId = null;
+
+    function floatTick(now) {
+      for (const { item, amplitude, phase, period } of floaters) {
+        // While the entrance is still playing it owns the transform.
+        if (!item.done) continue;
+        const y = Math.sin((now / period) * Math.PI * 2 + phase) * amplitude;
+        item.el.style.transform = `translate3d(0, ${y.toFixed(2)}px, 0) scale(1)`;
       }
+      floatId = requestAnimationFrame(floatTick);
     }
 
+    // Only drift while the section is actually on screen.
+    const visibility = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && floatId === null) {
+          floatId = requestAnimationFrame(floatTick);
+        } else if (!entry.isIntersecting && floatId !== null) {
+          cancelAnimationFrame(floatId);
+          floatId = null;
+        }
+      },
+      { threshold: 0 },
+    );
+    visibility.observe(section);
+
+    function tweenTo(target) {
+      busy = true;
+      const from = currentX;
+      const startedAt = performance.now();
+      function step() {
+        const t = clamp01((performance.now() - startedAt) / TWEEN_MS);
+        applyX(from + (target - from) * smoothstep(t));
+        if (t < 1) {
+          tweenId = requestAnimationFrame(step);
+        } else {
+          busy = false;
+          tweenId = null;
+          // Start the panel's sequence once it has actually landed, so the
+          // entrances are not competing with the strip still sliding under
+          // them — which is what made them impossible to follow.
+          refreshTriggers();
+        }
+      }
+      step();
+    }
+
+    function isEngaged() {
+      const rect = section.getBoundingClientRect();
+      return rect.top <= 1 && rect.bottom >= window.innerHeight - 1;
+    }
+
+    // Park the page at the scroll position that matches the current stop, so
+    // that at either end the page already sits on that edge of the section and
+    // handing back to normal scrolling is a plain hand-off.
+    function syncScroll() {
+      const scrollable = section.offsetHeight - window.innerHeight;
+      if (scrollable <= 0) return;
+      selfScrollUntil = performance.now() + 200;
+      window.scrollTo({
+        top: section.offsetTop + STEP_RAW[stepIndex] * scrollable,
+      });
+    }
+
+    function advance(direction) {
+      const next = Math.min(
+        STOPS.length - 1,
+        Math.max(0, stepIndex + direction),
+      );
+      if (next === stepIndex) return;
+      stepIndex = next;
+      syncScroll();
+      tweenTo(targetXFor(stepIndex));
+    }
+
+    let snapUntil = 0;
+
+    function onWheel(e) {
+      // The hero runs its own beats off the same wheel and claims the event
+      // when it consumes one. Without this the last hero beat and the jump
+      // into this section both happen on a single tick.
+      if (e.defaultPrevented) return;
+      // Anything inside the embedded app owns its own scrolling.
+      if (e.target instanceof Element && e.target.closest("[data-interactive]")) {
+        return;
+      }
+      const direction = e.deltaY > 0 ? 1 : e.deltaY < 0 ? -1 : 0;
+      if (direction === 0) return;
+
+      // Arriving from the hero: one tick lands on the section rather than
+      // creeping into it, so entering reads the same as moving between the
+      // panels inside it.
+      const rect = section.getBoundingClientRect();
+      // `<=` with a little slack: the hero hands off with its bottom edge
+      // exactly on the viewport's, which puts this section's top at precisely
+      // one viewport down. A strict `<` would need a second tick to catch it.
+      if (
+        !isEngaged() &&
+        direction > 0 &&
+        rect.top > 1 &&
+        rect.top <= window.innerHeight + 4
+      ) {
+        e.preventDefault();
+        if (performance.now() < snapUntil) return;
+        snapUntil = performance.now() + 800;
+        selfScrollUntil = performance.now() + 1000;
+        window.scrollTo({ top: section.offsetTop, behavior: "smooth" });
+        return;
+      }
+
+      if (!isEngaged()) return;
+      if (busy) {
+        e.preventDefault();
+        return;
+      }
+      // At either end the page is already parked on that edge, so simply not
+      // claiming the event hands the gesture to the neighbouring section.
+      if (direction > 0 && stepIndex >= STOPS.length - 1) return;
+      if (direction < 0 && stepIndex <= 0) return;
+      e.preventDefault();
+      advance(direction);
+    }
+
+    let touchStartY = null;
+    function onTouchStart(e) {
+      touchStartY = isEngaged() ? e.touches[0].clientY : null;
+    }
+    function onTouchMove(e) {
+      if (touchStartY === null || e.defaultPrevented) return;
+      if (e.target instanceof Element && e.target.closest("[data-interactive]")) {
+        return;
+      }
+      if (busy) {
+        e.preventDefault();
+        return;
+      }
+      const delta = touchStartY - e.touches[0].clientY;
+      if (Math.abs(delta) < 40) return;
+      const direction = delta > 0 ? 1 : -1;
+      touchStartY = e.touches[0].clientY;
+      if (direction > 0 && stepIndex >= STOPS.length - 1) return;
+      if (direction < 0 && stepIndex <= 0) return;
+      e.preventDefault();
+      advance(direction);
+    }
+
+    // The wheel owns the steps, but the page can still be moved under us — the
+    // nav, a jump link, a resize. Re-derive the step from where the page landed
+    // for moves we did not make ourselves.
+    function onScroll() {
+      // Re-derive the step only for moves we did not make ourselves — but run
+      // the trigger check either way. Skipping it wholesale meant that landing
+      // here via the hero's snap left the section parked with nothing played:
+      // the smooth scroll finished inside the guard window, and with no
+      // further scroll events there was nothing left to start the entrances.
+      if (busy || performance.now() < selfScrollUntil) {
+        refreshTriggers();
+        return;
+      }
+      const scrollable = section.offsetHeight - window.innerHeight;
+      if (scrollable <= 0) return;
+      const raw = clamp01((window.scrollY - section.offsetTop) / scrollable);
+      let nearest = 0;
+      STEP_RAW.forEach((v, i) => {
+        if (Math.abs(v - raw) < Math.abs(STEP_RAW[nearest] - raw)) nearest = i;
+      });
+      if (nearest !== stepIndex) stepIndex = nearest;
+      applyX(targetXFor(stepIndex));
+      refreshTriggers();
+    }
+
+    function onResize() {
+      applyX(targetXFor(stepIndex));
+    }
+
+    // Pick up whichever stop the page already sits on, so a reload partway
+    // through the section doesn't snap back to the beginning.
+    const scrollable0 = section.offsetHeight - window.innerHeight;
+    const raw0 =
+      scrollable0 > 0
+        ? clamp01((window.scrollY - section.offsetTop) / scrollable0)
+        : 0;
+    STEP_RAW.forEach((v, i) => {
+      if (Math.abs(v - raw0) < Math.abs(STEP_RAW[stepIndex] - raw0)) stepIndex = i;
+    });
+    applyX(targetXFor(stepIndex));
+    refreshTriggers();
+
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    checkTriggers();
+    window.addEventListener("resize", onResize);
 
     return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
+      window.removeEventListener("resize", onResize);
       if (paintId !== null) cancelAnimationFrame(paintId);
+      if (tweenId !== null) cancelAnimationFrame(tweenId);
     };
   }, []);
 
@@ -809,12 +1043,10 @@ export default function ExperienceSection() {
           >
             <div className="flex h-full">
               <IntroPanel />
-              <SavedPanel start={PANELS[0]} />
-              <ProblemPanel start={PANELS[0] + PANELS[1]} />
-              <SolutionPanel start={PANELS[0] + PANELS[1] + PANELS[2]} />
-              <SnapkeepPanel
-                start={PANELS[0] + PANELS[1] + PANELS[2] + PANELS[3]}
-              />
+              <SavedPanel />
+              <ProblemPanel />
+              <SolutionPanel />
+              <SnapkeepPanel />
             </div>
           </div>
         </div>

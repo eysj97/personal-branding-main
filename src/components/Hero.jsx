@@ -53,13 +53,19 @@ export default function Hero() {
     const halfFrames = stageRef.current.querySelectorAll('[data-state="half"]')
     const openFrames = stageRef.current.querySelectorAll('[data-state="open"]')
 
-    let ticking = false
+    // One wheel tick per beat, rather than the animation tracking the
+    // scrollbar: eyes shut, then eyes open with the copy in, then the copy in
+    // Korean. Values are positions along the same 0-1 timeline the render
+    // below already reads, so the keyframes are unchanged — only what drives
+    // them is.
+    const STEPS = [0, 0.75, 1]
+    let stepIndex = 0
+    let current = 0
+    let busy = false
+    let tweenId = null
+    let selfScrollUntil = 0
 
-    function render() {
-      const scrollable = section.offsetHeight - window.innerHeight
-      const rect = section.getBoundingClientRect()
-      const progress = scrollable > 0 ? clamp01(-rect.top / scrollable) : 0
-
+    function render(progress) {
       // Eyes closed -> open and background black -> teal over the first 60% of the scroll.
       const eyeProgress = clamp01(progress / 0.6)
       overlay.style.opacity = Math.pow(1 - eyeProgress, 1.5)
@@ -83,28 +89,133 @@ export default function Hero() {
       textEnRef.current.style.opacity = revealT * (1 - langT)
       textKoRef.current.style.opacity = revealT * langT
 
-      ticking = false
+      current = progress
     }
 
-    function onScroll() {
-      if (!ticking) {
-        requestAnimationFrame(render)
-        ticking = true
+    function tweenTo(target) {
+      busy = true
+      const from = current
+      const startedAt = performance.now()
+      function step() {
+        const t = clamp01((performance.now() - startedAt) / 700)
+        render(from + (target - from) * smoothstep(0, 1, t))
+        if (t < 1) {
+          tweenId = requestAnimationFrame(step)
+        } else {
+          busy = false
+          tweenId = null
+        }
       }
+      step()
     }
 
+    function isEngaged() {
+      const rect = section.getBoundingClientRect()
+      return rect.top <= 1 && rect.bottom >= window.innerHeight - 1
+    }
+
+    // Park the page on the scroll position that matches the current beat, so
+    // that at either end the page already sits on that edge of the section and
+    // handing back to normal scrolling has nothing left to unwind.
+    function syncScroll() {
+      const scrollable = section.offsetHeight - window.innerHeight
+      if (scrollable <= 0) return
+      selfScrollUntil = performance.now() + 200
+      window.scrollTo({
+        top: section.offsetTop + (stepIndex / (STEPS.length - 1)) * scrollable,
+      })
+    }
+
+    function advance(direction) {
+      const next = Math.min(STEPS.length - 1, Math.max(0, stepIndex + direction))
+      if (next === stepIndex) return
+      stepIndex = next
+      syncScroll()
+      tweenTo(STEPS[stepIndex])
+    }
+
+    function onWheel(e) {
+      if (!isEngaged()) return
+      const direction = e.deltaY > 0 ? 1 : e.deltaY < 0 ? -1 : 0
+      if (direction === 0) return
+      if (busy) {
+        e.preventDefault()
+        return
+      }
+      // At either end the page is already parked on that edge, so not claiming
+      // the event hands the gesture straight to the neighbouring section.
+      if (direction > 0 && stepIndex >= STEPS.length - 1) return
+      if (direction < 0 && stepIndex <= 0) return
+      e.preventDefault()
+      advance(direction)
+    }
+
+    let touchStartY = null
+    function onTouchStart(e) {
+      touchStartY = isEngaged() ? e.touches[0].clientY : null
+    }
+    function onTouchMove(e) {
+      if (touchStartY === null) return
+      if (busy) {
+        e.preventDefault()
+        return
+      }
+      const delta = touchStartY - e.touches[0].clientY
+      if (Math.abs(delta) < 40) return
+      const direction = delta > 0 ? 1 : -1
+      touchStartY = e.touches[0].clientY
+      if (direction > 0 && stepIndex >= STEPS.length - 1) return
+      if (direction < 0 && stepIndex <= 0) return
+      e.preventDefault()
+      advance(direction)
+    }
+
+    // The wheel owns the beats, but the page can still be moved under us — the
+    // nav's HOME, a reload partway down. Re-derive the beat from where the page
+    // landed, for moves we did not make ourselves.
+    function onScroll() {
+      if (busy || performance.now() < selfScrollUntil) return
+      const scrollable = section.offsetHeight - window.innerHeight
+      if (scrollable <= 0) return
+      const raw = clamp01((window.scrollY - section.offsetTop) / scrollable)
+      let nearest = 0
+      STEPS.forEach((_, i) => {
+        const at = i / (STEPS.length - 1)
+        const best = nearest / (STEPS.length - 1)
+        if (Math.abs(at - raw) < Math.abs(best - raw)) nearest = i
+      })
+      if (nearest !== stepIndex) stepIndex = nearest
+      render(STEPS[stepIndex])
+    }
+
+    function onResize() {
+      render(current)
+    }
+
+    onScroll()
+    render(STEPS[stepIndex])
+
+    window.addEventListener('wheel', onWheel, { passive: false })
+    window.addEventListener('touchstart', onTouchStart, { passive: true })
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
     window.addEventListener('scroll', onScroll, { passive: true })
-    window.addEventListener('resize', onScroll)
-    render()
+    window.addEventListener('resize', onResize)
 
     return () => {
+      window.removeEventListener('wheel', onWheel)
+      window.removeEventListener('touchstart', onTouchStart)
+      window.removeEventListener('touchmove', onTouchMove)
       window.removeEventListener('scroll', onScroll)
-      window.removeEventListener('resize', onScroll)
+      window.removeEventListener('resize', onResize)
+      if (tweenId !== null) cancelAnimationFrame(tweenId)
     }
   }, [])
 
   return (
-    <section ref={sectionRef} className="section-hero relative h-[450vh]">
+    // 200vh = one screen of sticky stage plus one screen of range to park the
+    // three beats in. The beats are driven by the wheel, not by this height, so
+    // anything longer is just dead scroll between them.
+    <section ref={sectionRef} className="section-hero relative h-[200vh]">
       <div ref={stageRef} className="sticky top-0 h-screen w-full overflow-hidden bg-[#06252e]">
         <div ref={overlayRef} className="absolute inset-0 bg-black opacity-100 pointer-events-none" />
 

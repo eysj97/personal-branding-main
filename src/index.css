@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+/* The Experience section's Snapkeep window scrolls internally so the frame can
+   stay a fixed size; the bar itself would read as browser chrome sitting
+   inside the mockup. */
+.snapkeep-frame {
+  scrollbar-width: none;
+}
+
+.snapkeep-frame::-webkit-scrollbar {
+  display: none;
+}
+
+/* The shell's own `overflow: hidden` would otherwise be the nearest scrollport
+   for anything sticky inside it, which pins the register button to the bottom
+   of the *content* instead of the visible window. The frame above already
+   clips, so the shell does not need to. */
+.snapkeep-frame > div:has(> header .font-serif) {
+  overflow: visible;
+}
+
 @keyframes snapkeep-filter-in {
   from {
     transform: translateX(100%);
@@ -493,11 +512,18 @@ div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) {
   height: auto;
   max-height: calc(100% - 80px);
   overflow-y: auto;
+  /* Still scrolls, just without the bar — the panel is a floating card and a
+     native scrollbar down its edge reads as a browser chrome artifact. */
+  scrollbar-width: none;
   border: 0;
   border-radius: 20px;
   background-color: #fff !important;
   padding: 40px 28px 28px;
   transform: translate(-50%, -50%);
+}
+
+div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"])::-webkit-scrollbar {
+  display: none;
 }
 
 div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:first-child {
