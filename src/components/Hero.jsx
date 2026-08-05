@@ -9,6 +9,28 @@ import openRight from '../assets/eyes/open-right.svg'
 const eyeBoxClass = 'relative w-[clamp(160px,26vw,503px)] h-[clamp(78px,12.6vw,243px)]'
 const eyeFrameClass = 'absolute inset-0 w-full h-full object-contain'
 
+// `null` means the very top of the page; the others are the section each label
+// should land on. ABOUT is the career section — that is where the "about me"
+// story lives.
+const NAV = [
+  { label: 'HOME', target: null },
+  { label: 'PROJECT', target: '.section-project' },
+  { label: 'ABOUT', target: '.section-career' },
+]
+
+function goTo(selector) {
+  if (!selector) {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    return
+  }
+  const section = document.querySelector(selector)
+  if (!section) return
+  // Its own top, not scrollIntoView — every section here is a tall scroll
+  // track with a sticky stage inside, and their animations all read from
+  // "how far into this section are we", so they have to be entered at 0.
+  window.scrollTo({ top: section.getBoundingClientRect().top + window.scrollY, behavior: 'smooth' })
+}
+
 const clamp01 = (v) => Math.min(1, Math.max(0, v))
 const tent = (x, center, width) => clamp01(1 - Math.abs(x - center) / width)
 const smoothstep = (from, to, x) => {
@@ -55,6 +77,9 @@ export default function Hero() {
       const langT = smoothstep(0.8, 1, progress)
 
       navRef.current.style.opacity = revealT
+      // Fading alone would leave an invisible but still clickable nav sitting
+      // over the eyes for the first half of the scroll.
+      navRef.current.style.pointerEvents = revealT > 0.5 ? 'auto' : 'none'
       textEnRef.current.style.opacity = revealT * (1 - langT)
       textKoRef.current.style.opacity = revealT * langT
 
@@ -89,13 +114,23 @@ export default function Hero() {
           <p>JEONG</p>
         </div>
 
-        <nav ref={navRef} className="font-['Plus_Jakarta_Sans'] absolute top-0 right-0 pt-3 pr-7 flex flex-col items-end gap-2 font-bold leading-none text-[22px] opacity-0">
-          <span>HOME</span>
-          <span>PROJECT</span>
-          <span>ABOUT</span>
+        {/* z-20 because the decorative layers below are `inset-0` and come
+            later in the DOM — without it they stack over the nav and eat
+            every click on it. */}
+        <nav ref={navRef} className="font-['Plus_Jakarta_Sans'] absolute top-0 right-0 z-20 pt-3 pr-7 flex flex-col items-end gap-2 font-bold leading-none text-[22px] opacity-0">
+          {NAV.map(({ label, target }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => goTo(target)}
+              className="transition-opacity hover:opacity-60"
+            >
+              {label}
+            </button>
+          ))}
         </nav>
 
-        <div className="absolute inset-0 flex items-center justify-center gap-[clamp(40px,12vw,336px)]">
+        <div className="absolute inset-0 flex items-center justify-center gap-[clamp(40px,12vw,336px)] pointer-events-none">
           <div className={`${eyeBoxClass} rotate-180 -scale-y-100`}>
             <img className={eyeFrameClass} data-state="closed" src={closedLeft} alt="" />
             <img className={eyeFrameClass} data-state="half" src={halfLeft} alt="" />

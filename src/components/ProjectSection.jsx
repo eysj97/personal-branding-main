@@ -16,6 +16,7 @@ import snapkeepHover from "../assets/project/hover/snapkeep-hover.png";
 import ProjectMockup from "./ProjectMockup";
 import ProjectHoverComposition from "./ProjectHoverComposition";
 import ProjectDetailOverlay from "./ProjectDetailOverlay";
+import ProjectAppWindow from "./ProjectAppWindow";
 import AquaplanetSpread from "./detail/AquaplanetSpread";
 import SnapkeepSpread from "./detail/SnapkeepSpread";
 import ReviuSpread from "./detail/ReviuSpread";
@@ -91,6 +92,9 @@ const CARDS = [
     image: cardSnapkeepBody,
     tabColor: "#017c6e",
     detail: SnapkeepSpread,
+    // Snapkeep is a working app rather than a case-study spread, so it opens
+    // straight into its own window — no folder unfolding first.
+    standalone: true,
     hover: {
       origin: "35% 25%",
       assets: [
@@ -139,6 +143,8 @@ export default function ProjectSection() {
   // { card, rect } — rect is where the card sat on screen when it was clicked,
   // which is the frame the folder animation starts from.
   const [opened, setOpened] = useState(null);
+  // Cards that open as a plain window rather than a folder spread.
+  const [standalone, setStandalone] = useState(null);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -227,12 +233,19 @@ export default function ProjectSection() {
     if (!card.detail) return;
     openedRef.current = true;
     setHover(false);
+    // A standalone card skips the folder entirely — there is no spread to
+    // unfold into, just the app itself, so it needs no origin rect either.
+    if (card.standalone) {
+      setStandalone(card);
+      return;
+    }
     setOpened({ card, rect: event.currentTarget.getBoundingClientRect() });
   };
 
   const closeDetail = () => {
     openedRef.current = false;
     setOpened(null);
+    setStandalone(null);
     // The spin only recomputes on scroll, so without a nudge the cube would sit
     // frozen at whatever angle it was abandoned on until the page next moves.
     window.dispatchEvent(new Event("scroll"));
@@ -253,17 +266,19 @@ export default function ProjectSection() {
         <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none whitespace-nowrap text-[clamp(48px,8vw,150px)] tracking-[clamp(-8px,-0.8vw,-15px)] text-white">
           PROJECT
         </p>
-        <p className="font-['Pretendard'] leading-[1.2] whitespace-nowrap text-[clamp(14px,1.15vw,22px)] tracking-[-0.44px] text-white">
-          발견한 문제를 어떻게 해결했는지 담았습니다.
+        {/* text-center, not just the parent's items-center — that only
+            centers the block, which with two lines of different lengths
+            still leaves them ragged against a shared left edge. */}
+        <p className="font-['Pretendard'] leading-[1.2] whitespace-nowrap text-center text-[clamp(14px,1.15vw,22px)] tracking-[-0.44px] text-white">
+          경험해 보신 것 처럼, 저는 이런 방식으로 만들어 갑니다
+          <br />
+          다른 프로젝트들도 보여드릴게요
         </p>
       </div>
 
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         <div className="absolute inset-0 z-10 flex items-center justify-center [perspective:900px]">
-          <div
-            ref={groupRef}
-            className="will-change-transform"
-          >
+          <div ref={groupRef} className="will-change-transform">
             <div
               ref={spinRef}
               className="relative w-[clamp(180px,18vw,343px)] h-[clamp(260px,27vw,522px)] [transform-style:preserve-3d] will-change-transform"
@@ -336,6 +351,10 @@ export default function ProjectSection() {
           originRect={opened.rect}
           onClose={closeDetail}
         />
+      )}
+
+      {standalone && (
+        <ProjectAppWindow card={standalone} onClose={closeDetail} />
       )}
     </section>
   );

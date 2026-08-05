@@ -1,8 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import oceanReference from "../../assets/project/card-photo.png";
-import santalReference from "../../assets/project/card-santal-hover-body.png";
-import viewReference from "../../assets/project/card-view-hover-body.png";
-import snapkeepReference from "../../assets/project/card-snapkeep-body.png";
+// Snapkeep's own reference library — src/assets/snapkeep/ exists purely for
+// these, so swapping a sample out never touches the project cards' artwork.
+// They are thumbnails: the card shows them ~420px wide, so these are sized for
+// that at 2x rather than being full-resolution card art.
+//
+// To add one: drop the file in that folder, import it here, and point a
+// REFERENCES entry's `image` at it. An entry with `image: null` renders the
+// built-in wireframe placeholder instead, which is what the last two do.
+import aquaPlanet from "../../assets/snapkeep/aqua-planet.jpg";
+import santal33 from "../../assets/snapkeep/santal-33.jpg";
+import viewApp from "../../assets/snapkeep/view.jpg";
+import dailyRoutine from "../../assets/snapkeep/daily-routine.jpg";
+// A fully documented reference: the screen itself, its wireframe, and each
+// component in both states. `structure` and `components` are optional — an
+// entry without them falls back to the drawn wireframe and colour swatches.
+import activityOriginal from "../../assets/snapkeep/activity-original.jpg";
+import activityStructure from "../../assets/snapkeep/activity-structure.png";
+import activityChipDefault from "../../assets/snapkeep/activity-chip-default.png";
+import activityChipSelected from "../../assets/snapkeep/activity-chip-selected.png";
+import activityLabelDefault from "../../assets/snapkeep/activity-label-default.png";
+import activityLabelSelected from "../../assets/snapkeep/activity-label-selected.png";
 import bookmarkIcon from "../../assets/bookmark.svg";
 
 // The whole screen is styled from index.css with structural selectors
@@ -12,10 +29,31 @@ import bookmarkIcon from "../../assets/bookmark.svg";
 // Behaviour lives here in state; only the markup shape is fixed.
 
 const REFERENCES = [
-  { id: "ref-aqua", title: "Aqua Planet", image: oceanReference, platform: "웹(데스크톱)", service: "여행·이동", screen: "랜딩·히어로", elements: ["헤더", "카드", "버튼"], mood: "사진 중심", accent: "#2686e7", note: "티켓 예매를 위한 메인 히어로. 사진과 카드의 레이어를 분명히 나눈 구성입니다." },
-  { id: "ref-santal", title: "Santal 33", image: santalReference, platform: "모바일 앱", service: "커머스", screen: "상세", elements: ["헤더", "카드", "버튼"], mood: "다크", accent: "#ff5b16", note: "제품 사진을 중심에 두고, 구매 행동을 하단으로 모은 상세 화면입니다." },
-  { id: "ref-view", title: "VIEW", image: viewReference, platform: "모바일 앱", service: "콘텐츠·미디어", screen: "홈", elements: ["탭바", "카드", "검색바"], mood: "비비드", accent: "#78db44", note: "다양한 콘텐츠를 빠르게 훑을 수 있도록 카드와 탐색 요소를 배치했습니다." },
-  { id: "ref-routine", title: "Daily routine", image: snapkeepReference, platform: "태블릿", service: "헬스케어", screen: "대시보드", elements: ["리스트", "칩", "토글"], mood: "미니멀", accent: "#017c6e", note: "상태를 한눈에 보고 다음 행동을 선택하도록 정리한 루틴 대시보드입니다." },
+  {
+    id: "ref-activity",
+    title: "Activity picker",
+    image: activityOriginal,
+    structure: activityStructure,
+    // Each component carries both of its states; the labels come baked into
+    // the artwork, so nothing is captioned again here.
+    components: [
+      // 태그는 FILTERS의 "UI 요소" 값만 씁니다 — 여기 붙은 태그도 필터로
+      // 그대로 되찾을 수 있어야 하므로, 자유 문구를 두지 않습니다.
+      { name: "활동 칩", tags: ["칩", "아이콘"], default: activityChipDefault, selected: activityChipSelected },
+      { name: "라벨", tags: ["라벨"], default: activityLabelDefault, selected: activityLabelSelected },
+    ],
+    platform: "모바일 앱",
+    service: "헬스케어",
+    screen: "홈",
+    elements: ["리스트", "칩", "버튼"],
+    mood: "미니멀",
+    accent: "#e879c7",
+    note: "운동 종류를 곡선 캐러셀로 훑어 고르는 화면. 선택된 항목만 색과 외곽선을 얻어, 나머지가 흐려진 자리에서 하나만 또렷하게 읽힙니다.",
+  },
+  { id: "ref-aqua", title: "Aqua Planet", image: aquaPlanet, platform: "웹(데스크톱)", service: "여행·이동", screen: "랜딩·히어로", elements: ["헤더", "카드", "버튼"], mood: "사진 중심", accent: "#2686e7", note: "티켓 예매를 위한 메인 히어로. 사진과 카드의 레이어를 분명히 나눈 구성입니다." },
+  { id: "ref-santal", title: "Santal 33", image: santal33, platform: "모바일 앱", service: "커머스", screen: "상세", elements: ["헤더", "카드", "버튼"], mood: "다크", accent: "#ff5b16", note: "제품 사진을 중심에 두고, 구매 행동을 하단으로 모은 상세 화면입니다." },
+  { id: "ref-view", title: "VIEW", image: viewApp, platform: "모바일 앱", service: "콘텐츠·미디어", screen: "홈", elements: ["탭바", "카드", "검색바"], mood: "비비드", accent: "#78db44", note: "다양한 콘텐츠를 빠르게 훑을 수 있도록 카드와 탐색 요소를 배치했습니다." },
+  { id: "ref-routine", title: "Daily routine", image: dailyRoutine, platform: "태블릿", service: "헬스케어", screen: "대시보드", elements: ["리스트", "칩", "토글"], mood: "미니멀", accent: "#017c6e", note: "상태를 한눈에 보고 다음 행동을 선택하도록 정리한 루틴 대시보드입니다." },
   { id: "ref-payment", title: "Quick pay", image: null, platform: "모바일 앱", service: "핀테크", screen: "결제·주문", elements: ["폼", "버튼", "스텝퍼"], mood: "라이트", accent: "#946ee9", note: "결제 정보를 단계별로 확인하며 진행하는 간결한 입력 플로우입니다." },
   { id: "ref-profile", title: "Creator profile", image: null, platform: "웹(모바일)", service: "소셜", screen: "프로필·설정", elements: ["헤더", "리스트", "칩"], mood: "파스텔", accent: "#eb8fa8", note: "프로필 정보와 소통 카드를 위계로 구분한 설정 화면입니다." },
 ];
@@ -27,9 +65,17 @@ const FILTERS = [
   ["플랫폼", ["모바일 앱", "웹(데스크톱)", "웹(모바일)", "태블릿"], "platform"],
   ["서비스 유형", ["커머스", "핀테크", "콘텐츠·미디어", "여행·이동", "헬스케어", "소셜"], "service"],
   ["화면 유형", ["홈", "상세", "랜딩·히어로", "대시보드", "결제·주문", "프로필·설정"], "screen"],
-  ["UI 요소", ["헤더", "탭바", "카드", "리스트", "칩", "검색바", "버튼", "폼", "스텝퍼", "토글"], "elements"],
+  // 아이콘·라벨은 컴포넌트 탭의 태그가 쓰는 값입니다. 컴포넌트 태그도 이
+  // 목록에서 나와야 같은 규칙이 지켜지므로 여기에 함께 둡니다.
+  ["UI 요소", ["헤더", "탭바", "카드", "리스트", "칩", "검색바", "버튼", "폼", "스텝퍼", "토글", "아이콘", "라벨"], "elements"],
   ["무드", ["미니멀", "다크", "라이트", "파스텔", "비비드", "사진 중심"], "mood"],
 ];
+
+// 그룹 이름으로 그 그룹의 선택지를 바로 찾기 위한 표 — 상세 패널의 태그
+// 추가 버튼이 "이 그룹에 어떤 값이 있는지"를 보여줄 때 씁니다.
+const OPTIONS_BY_GROUP = Object.fromEntries(
+  FILTERS.map(([label, options]) => [label, options]),
+);
 
 const VIEWS = [["original", "원본"], ["structure", "구조"], ["component", "컴포넌트"]];
 const DETAIL_TABS = [["original", "원본"], ["structure", "구조"], ["component", "컴포넌트"]];
@@ -82,10 +128,12 @@ function tagGroupsFor(reference, overrides) {
 const searchTextFor = (reference, groups) =>
   [reference.title, reference.note, ...groups.flatMap((group) => group.tags)].join(" ").toLowerCase();
 
-const componentsOf = (reference) => [
-  ["카드", "Radius 16 · White", "#ffffff"],
-  ["필터 칩", "Radius 100 · Selected", reference.accent],
-  ["주요 버튼", "Height 44 · Filled", "#017c6e"],
+// Colour-swatch stand-ins, used only by references that have no real component
+// artwork of their own.
+const swatchesOf = (reference) => [
+  { name: "카드", spec: "Radius 16 · White", color: "#ffffff" },
+  { name: "필터 칩", spec: "Radius 100 · Selected", color: reference.accent },
+  { name: "주요 버튼", spec: "Height 44 · Filled", color: "#017c6e" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -282,12 +330,104 @@ function Wireframe({ accent }) {
   );
 }
 
+// How each block role is drawn. The point of the structure view is placement
+// and weight, so roles differ only by fill and outline — nothing here draws
+// content, because content is exactly what this view is stripping away.
+// `pill: true` rounds by half the block's own height, which is what makes a
+// search bar or a chip read as one without knowing its size up front.
+const BLOCK_STYLES = {
+  헤더: { fill: "#ffffff", stroke: "#b9c1bd", rx: 0 },
+  탭바: { fill: "#e4e8e6", stroke: "#b9c1bd", rx: 0 },
+  검색바: { fill: "#ffffff", stroke: "#b9c1bd", pill: true },
+  이미지: { fill: "#dfe4e2", stroke: "#b9c1bd", rx: 6 },
+  카드: { fill: "#ffffff", stroke: "#b9c1bd", rx: 14 },
+  리스트: { fill: "#ffffff", stroke: "#c7cecb", rx: 8 },
+  텍스트: { fill: "#cbd1ce", stroke: "none", pill: true },
+  버튼: { fill: "accent", stroke: "none", rx: 12 },
+  칩: { fill: "#eef1f0", stroke: "#b9c1bd", pill: true },
+  입력: { fill: "#ffffff", stroke: "#b9c1bd", rx: 8 },
+  아이콘: { fill: "none", stroke: "#aeb7b3", pill: true },
+};
+const DEFAULT_BLOCK = { fill: "#ffffff", stroke: "#b9c1bd", rx: 6 };
+
+const clampUnit = (value) => Math.min(1, Math.max(0, Number(value) || 0));
+
+// The viewBox is the screenshot's own proportions, so a tall phone stays tall.
+const WIREFRAME_UNITS = 1000;
+
+/** A wireframe redrawn from the analysis's own block list, so the structure
+    tab shows this screenshot's layout rather than a generic placeholder.
+    Buttons take the reference's accent — the one place colour still carries
+    meaning once everything else is stripped to boxes.
+
+    Drawn as SVG rather than positioned divs because `preserveAspectRatio`
+    letterboxes the whole drawing to whatever box it is given. Percentage
+    divs would stretch a 9:19.5 phone layout flat across a wide panel. */
+function LayoutWireframe({ layout, accent, aspect }) {
+  const height = WIREFRAME_UNITS;
+  const width = Math.round(height * (Number(aspect) > 0 ? Number(aspect) : 0.5));
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      preserveAspectRatio="xMidYMid meet"
+      // Height from the viewBox, not the container — the well has no fixed
+      // height any more, so `h-full` would resolve to nothing.
+      className="block h-auto w-full bg-[#eff1f0]"
+      role="img"
+      aria-label="화면 구조 와이어프레임"
+    >
+      <rect width={width} height={height} fill="#ffffff" />
+      {layout.map((block, index) => {
+        const x = clampUnit(block.x);
+        const y = clampUnit(block.y);
+        // Clamped against the origin so a block that overshoots the frame is
+        // trimmed at the edge instead of pushing past it.
+        const w = Math.min(1 - x, clampUnit(block.w)) * width;
+        const h = Math.min(1 - y, clampUnit(block.h)) * height;
+        const style = BLOCK_STYLES[block.role] ?? DEFAULT_BLOCK;
+        return (
+          <rect
+            key={index}
+            x={x * width}
+            y={y * height}
+            width={w}
+            height={h}
+            rx={style.pill ? h / 2 : style.rx}
+            fill={style.fill === "accent" ? accent : style.fill}
+            stroke={style.stroke}
+            strokeWidth={style.stroke === "none" ? 0 : 3}
+          />
+        );
+      })}
+    </svg>
+  );
+}
+
 /** Component view. Root has to be a div — a bare span here would pick up the
     bookmark styling that index.css applies to `> div:first-child > span`. */
 function ComponentSheet({ reference, compact }) {
+  // Real artwork when the reference has it — each component shown in both of
+  // its states side by side, since that pairing is the point of the view.
+  if (reference.components) {
+    return (
+      <div className={`flex h-full flex-col justify-center bg-[#eff1f0] ${compact ? "gap-[8px] p-[12px]" : "gap-[12px] p-[18px]"}`}>
+        {reference.components.map((component) => (
+          <div key={component.name} className="rounded-[10px] border border-[#e2e6e3] bg-white p-[10px]">
+            <p className={`${compact ? "text-[10px]" : "text-[12px]"} font-semibold`}>{component.name}</p>
+            <div className="mt-[6px] flex items-center justify-around gap-[8px]">
+              <img src={component.default} alt="" className="max-h-[64px] min-w-0 flex-1 object-contain" />
+              <img src={component.selected} alt="" className="max-h-[64px] min-w-0 flex-1 object-contain" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className={`flex h-full flex-col justify-center bg-[#eff1f0] ${compact ? "gap-[8px] p-[16px]" : "gap-[10px] p-[20px]"}`}>
-      {componentsOf(reference).map(([name, spec, color]) => (
+      {swatchesOf(reference).map(({ name, spec, color }) => (
         <div key={name} className="flex items-center gap-[10px] rounded-[10px] border border-[#e2e6e3] bg-white p-[10px]">
           <span className="size-[26px] shrink-0 rounded-[7px] border border-black/10" style={{ backgroundColor: color }} />
           <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">{name}</span>
@@ -299,7 +439,27 @@ function ComponentSheet({ reference, compact }) {
 }
 
 function ReferencePreview({ reference, view, compact }) {
-  if (view === "structure") return <Wireframe accent={reference.accent} />;
+  if (view === "structure") {
+    // Hand-made artwork wins; then a wireframe drawn from this screenshot's
+    // own analysed layout; then the generic stand-in, which is all a
+    // reference has when the analysis ran locally (no key, static build).
+    //
+    // object-top matches the original view, so the two tabs stay on the same
+    // part of a tall screen instead of jumping when you switch.
+    if (reference.structure) {
+      return <img src={reference.structure} alt="" className="h-full w-full object-cover object-top" />;
+    }
+    if (reference.layout?.length) {
+      return (
+        <LayoutWireframe
+          layout={reference.layout}
+          accent={reference.accent}
+          aspect={reference.aspect}
+        />
+      );
+    }
+    return <Wireframe accent={reference.accent} />;
+  }
   if (view === "component") return <ComponentSheet reference={reference} compact={compact} />;
   if (reference.image) return <img src={reference.image} alt="" className="h-full w-full object-cover object-top" />;
   return (
@@ -398,6 +558,27 @@ function DetailPanel({ reference, groups, onAddTag, onRemoveTag, onClose, onDele
     setDraftTag("");
   };
 
+  // 이 그룹이 가진 필터 값 중 아직 안 붙은 것들. 입력 중이면 그 글자로
+  // 좁혀서, 목록이 길어져도 원하는 값이 바로 보이게 합니다.
+  const suggestionsFor = (group) => {
+    const already = new Set(group.tags);
+    const typed = draftTag.trim().toLowerCase();
+    return (OPTIONS_BY_GROUP[group.label] ?? []).filter(
+      (option) =>
+        !already.has(option) &&
+        (!typed || option.toLowerCase().includes(typed)),
+    );
+  };
+
+  // The real artwork for the current tab, when there is any. Null means this
+  // tab falls back to something drawn in code, which needs a fixed height.
+  const previewImage = tab === "structure" ? reference.structure : tab === "original" ? reference.image : null;
+  // A wireframe drawn from this screenshot's analysed layout is real content,
+  // not a placeholder, so it earns the same tall well the screenshots get —
+  // only the generic stand-in stays in the short one.
+  const showsWireframe =
+    tab === "structure" && !reference.structure && reference.layout?.length > 0;
+
   return (
     <aside className="absolute bottom-0 right-0 top-0 z-30 flex w-[465px] flex-col border-l border-[#e1e5e2] bg-[#fbfcfa] p-[30px]">
       <div className="flex items-start justify-between">
@@ -405,7 +586,6 @@ function DetailPanel({ reference, groups, onAddTag, onRemoveTag, onClose, onDele
           <p className="text-[10px] font-bold tracking-[1.1px] text-[#017c6e]">REFERENCE DETAIL</p>
           <h3 className="mt-[7px] font-['Plus_Jakarta_Sans'] text-[27px] font-semibold tracking-[-1.2px]">{reference.title}</h3>
         </div>
-        <button type="button" onClick={onDelete} className="snapkeep-detail-delete">삭제</button>
         <button type="button" onClick={onClose} className="snapkeep-detail-close grid size-[34px] place-items-center rounded-full bg-[#edf0ee] text-[20px] text-[#4d5751]" aria-label="상세 닫기">×</button>
       </div>
 
@@ -422,25 +602,73 @@ function DetailPanel({ reference, groups, onAddTag, onRemoveTag, onClose, onDele
         ))}
       </div>
 
-      {/* index.css sizes this well through `div:nth-of-type(3)[class*="h-[265px]"]`,
-          so it has to stay the third div and keep that class. */}
+      {/* This is a detail view, so a real screenshot is shown whole: the width
+          is the panel's and the height follows the image. The `h-[265px]` class
+          is deliberately gone — index.css pinned the well to 360px through
+          `div:nth-of-type(3)[class*="h-[265px]"]`, and dropping the class is
+          what releases that. The border and spacing that rule also supplied are
+          restored here. It still has to stay the third div.
+
+          Only the drawn stand-ins (wireframe, empty-state) keep a fixed height,
+          since they have no aspect ratio of their own to follow. */}
       {tab !== "component" && (
-        <div className="mt-[25px] h-[265px] overflow-hidden rounded-[16px] bg-[#edf0ee]">
-          <ReferencePreview reference={reference} view={tab === "structure" ? "structure" : "original"} />
+        <div
+          className={`relative mt-[18px] shrink-0 overflow-hidden rounded-[12px] border border-[#e7e6e3] bg-[#edf0ee] ${previewImage || showsWireframe ? "" : "h-[360px]"}`}
+        >
+          {previewImage ? (
+            /* Full width, natural height — the screenshot is shown whole and
+               the panel grows around it rather than the image being squeezed
+               into a fixed box. `shrink-0` above is what makes that stick:
+               the panel is a flex column, so without it the well would be
+               shrunk back to whatever space was left over.
+
+               Only the drawn stand-ins keep a fixed height, since they have
+               no aspect ratio of their own to follow. */
+            <img src={previewImage} alt="" className="block h-auto w-full" />
+          ) : (
+            <ReferencePreview reference={reference} view={tab === "structure" ? "structure" : "original"} />
+          )}
+
+          <button
+            type="button"
+            onClick={onDelete}
+            className="snapkeep-image-delete absolute bottom-[12px] right-[12px]"
+          >
+            삭제
+          </button>
         </div>
       )}
 
       {tab === "component" ? (
         <div className="mt-[18px] space-y-[10px]">
-          {componentsOf(reference).map(([name, spec, color]) => (
-            <div key={name} className="flex items-center gap-[12px] rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
-              <span className="size-[35px] rounded-[9px] border border-black/5" style={{ backgroundColor: color }} />
-              <div>
-                <p className="text-[13px] font-semibold">{name}</p>
-                <p className="mt-[2px] text-[11px] text-[#7c847f]">{spec}</p>
-              </div>
-            </div>
-          ))}
+          {reference.components
+            ? reference.components.map((component) => (
+                <div key={component.name} className="rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
+                  <p className="text-[13px] font-semibold">{component.name}</p>
+                  {/* Same pill shape the reference's own tags use, so the two
+                      read as one vocabulary. */}
+                  <div className="snapkeep-component-tags mt-[8px] flex flex-wrap gap-[6px]">
+                    {component.tags.map((tag) => (
+                      <span key={tag} className="rounded-full border border-[#dfe5e1] bg-white px-[10px] py-[6px]">{tag}</span>
+                    ))}
+                  </div>
+                  {/* Both states together — the artwork already labels which
+                      is which, so they are shown plain. */}
+                  <div className="mt-[10px] flex items-center justify-around gap-[12px]">
+                    <img src={component.default} alt={`${component.name} 기본 상태`} className="max-h-[110px] min-w-0 flex-1 object-contain" />
+                    <img src={component.selected} alt={`${component.name} 선택 상태`} className="max-h-[110px] min-w-0 flex-1 object-contain" />
+                  </div>
+                </div>
+              ))
+            : swatchesOf(reference).map(({ name, spec, color }) => (
+                <div key={name} className="flex items-center gap-[12px] rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
+                  <span className="size-[35px] rounded-[9px] border border-black/5" style={{ backgroundColor: color }} />
+                  <div>
+                    <p className="text-[13px] font-semibold">{name}</p>
+                    <p className="mt-[2px] text-[11px] text-[#7c847f]">{spec}</p>
+                  </div>
+                </div>
+              ))}
         </div>
       ) : (
         <>
@@ -463,22 +691,51 @@ function DetailPanel({ reference, groups, onAddTag, onRemoveTag, onClose, onDele
                     </span>
                   ))}
                   {addingGroup === group.label ? (
-                    <input
-                      autoFocus
-                      value={draftTag}
-                      onChange={(event) => setDraftTag(event.target.value)}
-                      onBlur={commitTag}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") commitTag();
-                        if (event.key === "Escape") {
-                          setAddingGroup(null);
-                          setDraftTag("");
-                        }
-                      }}
-                      placeholder="태그 입력"
-                      aria-label={`${group.label} 태그 이름`}
-                      className="w-[104px] rounded-full border border-[#017c6e] px-[10px] py-[5px] text-[14px] outline-none"
-                    />
+                    // Typing still works, but the group's own filter values are
+                    // listed underneath so you can see what this group actually
+                    // holds instead of having to remember it. Free text stays
+                    // allowed — it is how a value that is not in the taxonomy
+                    // yet gets added at all.
+                    <span className="snapkeep-tag-picker">
+                      <input
+                        autoFocus
+                        value={draftTag}
+                        onChange={(event) => setDraftTag(event.target.value)}
+                        onBlur={commitTag}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") commitTag();
+                          if (event.key === "Escape") {
+                            setAddingGroup(null);
+                            setDraftTag("");
+                          }
+                        }}
+                        placeholder="태그 입력"
+                        aria-label={`${group.label} 태그 이름`}
+                        className="w-[104px] rounded-full border border-[#017c6e] px-[10px] py-[5px] text-[14px] outline-none"
+                      />
+                      {suggestionsFor(group).length > 0 && (
+                        <span className="snapkeep-tag-picker-list" role="listbox">
+                          {suggestionsFor(group).map((option) => (
+                            <button
+                              key={option}
+                              type="button"
+                              role="option"
+                              aria-selected="false"
+                              // mousedown, not click: the input's onBlur commits
+                              // and closes the picker, and blur lands first.
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                onAddTag(group.label, option);
+                                setAddingGroup(null);
+                                setDraftTag("");
+                              }}
+                            >
+                              {option}
+                            </button>
+                          ))}
+                        </span>
+                      )}
+                    </span>
                   ) : (
                     <button
                       type="button"
@@ -802,6 +1059,10 @@ export default function SnapkeepSpread() {
       title: fileName.replace(/\.[^/.]+$/, "") || "새 레퍼런스",
       image: measured.image,
       ...described,
+      // After the spread, so the measured value always wins: this is the
+      // screenshot's real shape, and it is what keeps the structure view's
+      // wireframe in the original's proportions.
+      aspect: measured.ratio,
       // The analysis record: what ran, when, and on what evidence.
       analysis: {
         source: remote.ok ? "claude" : "local",

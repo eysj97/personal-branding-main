@@ -233,12 +233,29 @@ export default function SkillsSection() {
             ))}
           </div>
 
-          <p
-            className="absolute font-['Plus_Jakarta_Sans'] font-semibold leading-none text-white whitespace-nowrap tracking-[-0.1em]"
-            style={{ left: 30, top: 288, fontSize: 120 }}
+          {/* Heading and its caption share one absolutely-placed column so
+              the gap between them is a real gap, not a second hand-tuned
+              `top` that has to be re-derived whenever the heading resizes. */}
+          <div
+            className="absolute flex flex-col gap-[20px]"
+            style={{ left: 30, top: 288 }}
           >
-            SKILLS
-          </p>
+            <p
+              className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-white whitespace-nowrap tracking-[-0.1em]"
+              style={{ fontSize: 120 }}
+            >
+              SKILLS
+            </p>
+            {/* Sized in canvas px like everything else here — the whole
+                composition is scaled as one piece, so viewport units would
+                get scaled a second time and drift off the design. */}
+            <p
+              className="font-['Pretendard'] leading-[1.2] text-white whitespace-nowrap tracking-[-0.02em]"
+              style={{ fontSize: 24 }}
+            >
+              그렇게 지금 다루는 것들입니다
+            </p>
+          </div>
         </div>
       </div>
     </section>

@@ -487,7 +487,10 @@ div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) {
   bottom: auto;
   left: 50%;
   width: min(720px, calc(100% - 80px));
-  height: min(800px, calc(100% - 80px));
+  /* Height follows the content — a tall screenshot makes a tall panel — and
+     only starts scrolling once it would outgrow the app window. Pinning it
+     to 800px was what cut long screenshots off mid-image. */
+  height: auto;
   max-height: calc(100% - 80px);
   overflow-y: auto;
   border: 0;
@@ -531,12 +534,9 @@ div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:nth
   letter-spacing: -0.24px;
 }
 
-div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:nth-of-type(3)[class*="h-[265px]"] {
-  height: 360px;
-  margin-top: 18px;
-  border: 1px solid #e7e6e3;
-  border-radius: 12px;
-}
+/* The preview well used to be pinned to 360px here. It now sizes itself to the
+   screenshot — a detail view should show the whole image — so its border and
+   spacing moved onto the element's own classes. */
 
 div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div[class*="mt-[21px]"] {
   gap: 8px;
@@ -623,6 +623,50 @@ div:has(> header .font-serif) .snapkeep-detail-tag-add {
   background: #fff url("./assets/tag-plus.svg") center / 12px 12px no-repeat;
 }
 
+/* Tag picker — the list of a group's own filter values, dropped under the
+   input the plus button opens. Absolute so it hangs over whatever meta row
+   comes next instead of pushing the panel's layout around as it opens. */
+div:has(> header .font-serif) .snapkeep-tag-picker {
+  position: relative;
+  display: inline-block;
+}
+
+div:has(> header .font-serif) .snapkeep-tag-picker-list {
+  position: absolute;
+  z-index: 2;
+  top: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: max-content;
+  max-width: 300px;
+  max-height: 148px;
+  overflow-y: auto;
+  border: 1px solid #e2e6e3;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 8px 20px rgb(29 28 28 / 12%);
+  padding: 10px;
+}
+
+div:has(> header .font-serif) .snapkeep-tag-picker-list > button {
+  border: 1px solid #dfe5e1;
+  border-radius: 50px;
+  background: #fff;
+  padding: 6px 10px;
+  color: #536059;
+  font-family: Pretendard, sans-serif;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+div:has(> header .font-serif) .snapkeep-tag-picker-list > button:hover {
+  border-color: #017c6e;
+  background: #e1f2ec;
+  color: #017c6e;
+}
+
 div:has(> header .font-serif) aside[class*="snapkeep-filter-in"] > header > button {
   border-radius: 0;
   background: transparent url("./assets/close.svg") center / 14px 14px no-repeat !important;
@@ -644,19 +688,38 @@ div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div:fir
   background: transparent url("./assets/close.svg") center / 14px 14px no-repeat !important;
 }
 
-div:has(> header .font-serif) .snapkeep-detail-delete {
-  position: absolute;
-  top: 40px;
-  right: 76px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: #474646;
+/* Delete used to sit up beside the close button; it now lives on the
+   screenshot itself — see .snapkeep-image-delete below. */
+
+/* Component tags — same pill as the reference's own tags above, so the two
+   read as one vocabulary. Mirrors .snapkeep-detail-meta-tags > span. */
+div:has(> header .font-serif) .snapkeep-component-tags > span {
+  margin: 0;
+  border-color: #e7e6e3;
+  background: #fff;
+  color: #1d1c1c;
+  font-size: 14px;
+}
+
+/* Delete, sitting on the screenshot's bottom-right corner. It has to stay
+   legible over whatever the image happens to be there, hence the solid chip
+   rather than plain text. */
+div:has(> header .font-serif) .snapkeep-image-delete {
+  z-index: 1;
+  border: 1px solid #e7e6e3;
+  border-radius: 50px;
+  background: rgb(255 255 255 / 92%);
+  padding: 6px 12px;
+  color: #1d1c1c;
   font-family: Pretendard, sans-serif;
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.2;
+}
+
+div:has(> header .font-serif) .snapkeep-image-delete:hover {
+  background: #fff;
+  color: #c2402c;
 }
 
 /* Analysis record — nested inside the AI DESCRIPTION paragraph, so it inherits

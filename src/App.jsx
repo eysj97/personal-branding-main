@@ -1,4 +1,5 @@
 import Hero from './components/Hero'
+import ExperienceSection from './components/ExperienceSection'
 import ProjectSection from './components/ProjectSection'
 import LearnSection from './components/LearnSection'
 import SkillsSection from './components/SkillsSection'
@@ -30,6 +31,7 @@ export default function App() {
   return (
     <>
       <Hero />
+      <ExperienceSection />
       <ProjectSection />
       <LearnSection />
       <SkillsSection />
