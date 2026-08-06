@@ -1,31 +1,50 @@
 import { useEffect, useRef, useState } from "react";
 
 import SnapkeepSpread from "./detail/SnapkeepSpread";
+import ProjectAppWindow from "./ProjectAppWindow";
 
-import browserShot from "../assets/experience/browser-shot.png";
-import browserShotOverlay from "../assets/experience/browser-shot-2.png";
-import savedBoard from "../assets/experience/saved-board.png";
-import phoneScreen from "../assets/experience/phone-screen.png";
-import phoneFrame from "../assets/experience/phone-frame.png";
-import scribbleArrow from "../assets/experience/scribble-arrow.svg";
-import scribbleStack from "../assets/experience/scribble-stack.svg";
-import underline from "../assets/experience/underline.svg";
-import tagCluster from "../assets/experience/tag-cluster.svg";
-import folderA from "../assets/experience/folder-a.svg";
-import folderB from "../assets/experience/folder-b.svg";
-import folderC from "../assets/experience/folder-c.svg";
-import cube from "../assets/experience/cube.svg";
+import noteMark from "../assets/experience/note-mark.png";
+import underlineWave from "../assets/experience/underline-wave.svg";
+import boxBase from "../assets/experience/box-base.svg";
+import boxLid from "../assets/experience/box-lid.svg";
+import searchMark from "../assets/experience/search-mark.svg";
+import tagMark from "../assets/experience/tag-mark.svg";
+import savedScreen from "../assets/experience/saved-screen.png";
+import savedFigma from "../assets/experience/saved-figma.png";
+import savedSiteMenu from "../assets/experience/saved-site-menu.png";
+import archiveCapture from "../assets/experience/archive-capture.png";
+import snapkeepGrid from "../assets/experience/snapkeep-grid.png";
 
-import icSidebar from "../assets/experience/safari/sidebar-leading.svg";
-import icChevronDown from "../assets/experience/safari/chevron-down.svg";
-import icChevronLeft from "../assets/experience/safari/chevron-left.svg";
-import icChevronRight from "../assets/experience/safari/chevron-right.svg";
-import icShield from "../assets/experience/safari/shield.svg";
-import icLock from "../assets/experience/safari/lock.svg";
-import icReload from "../assets/experience/safari/arrow-clockwise.svg";
-import icShare from "../assets/experience/safari/share.svg";
-import icPlus from "../assets/experience/safari/plus.svg";
-import icGrid from "../assets/experience/safari/grid.svg";
+// The archive capture is a screen recording. Figma will only hand out still
+// frames of a video fill, so the file has to be dropped in by hand — put it at
+// src/assets/experience/archive-capture.mp4 (or .webm/.mov) and the panel picks
+// it up on the next build with no code change. A glob rather than a plain
+// import so that the build does not break while the file is not there yet;
+// until then the panel shows the still frame Figma did give us.
+const ARCHIVE_VIDEO =
+  Object.values(
+    import.meta.glob("../assets/experience/archive-capture.{mp4,webm,mov}", {
+      eager: true,
+      query: "?url",
+      import: "default",
+    }),
+  )[0] ?? null;
+// The recording is slow to watch at its own pace; the design's point is the
+// scrolling, not the reading.
+const ARCHIVE_SPEED = 2;
+// The same monitor the project cards' hover cluster uses — one asset, one
+// download, rather than a second copy of the identical frame.
+import imacFrame from "../assets/project/mockup/imac.png";
+import sfSidebar from "../assets/experience/safari/sidebar-leading.svg";
+import sfChevronDown from "../assets/experience/safari/chevron-down.svg";
+import sfChevronLeft from "../assets/experience/safari/chevron-left.svg";
+import sfChevronRight from "../assets/experience/safari/chevron-right.svg";
+import sfShield from "../assets/experience/safari/shield.svg";
+import sfLock from "../assets/experience/safari/lock.svg";
+import sfReload from "../assets/experience/safari/reload.svg";
+import sfShare from "../assets/experience/safari/share.svg";
+import sfPlus from "../assets/experience/safari/plus.svg";
+import sfGrid from "../assets/experience/safari/grid.svg";
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (v) => {
@@ -45,18 +64,33 @@ const backOut = (v, overshoot = 1.70158) => {
 // stays pixel-identical to the design at any screen size — the same approach
 // SkillsSection and CareerSection use for their canvases.
 const DESIGN_HEIGHT = 1080;
-const PANELS = [1920, 1920, 3031, 2545, 1920];
-const TOTAL_WIDTH = PANELS.reduce((sum, w) => sum + w, 0);
+const SCREEN = 1920;
+// `stops` defaults to how many screens wide the panel is, which is the fewest
+// that can frame all of it. A panel whose content sits in more groups than
+// that asks for more, so that each group gets a scroll of its own.
+const PANELS = [
+  { width: SCREEN },
+  { width: SCREEN },
+  { width: SCREEN },
+  { width: 3031 },
+  { width: 3966, stops: 4 },
+  { width: SCREEN },
+];
+const TOTAL_WIDTH = PANELS.reduce((sum, panel) => sum + panel.width, 0);
 
 // One wheel tick moves the strip one screenful, rather than the strip tracking
-// the scrollbar continuously. Every panel gets a stop; the two wide ones get a
-// second so they can be read all the way across before the section moves on.
-// Positions are the design-px the viewport's left edge lands on.
+// the scrollbar continuously. These are only the *order* of the steps and a
+// fallback position — where each one actually lands is measured off its own
+// content at runtime, so that a stop frames what it is for rather than a fixed
+// slice of the strip.
 const STOPS = PANELS.reduce(
-  (acc, width) => {
-    acc.stops.push(acc.at);
-    if (width > PANELS[0] * 1.2) acc.stops.push(acc.at + width - PANELS[0]);
-    acc.at += width;
+  (acc, panel) => {
+    const count = panel.stops ?? Math.max(1, Math.ceil(panel.width / SCREEN));
+    for (let k = 0; k < count; k += 1) {
+      const offset = count === 1 ? 0 : ((panel.width - SCREEN) * k) / (count - 1);
+      acc.stops.push(acc.at + offset);
+    }
+    acc.at += panel.width;
     return acc;
   },
   { stops: [], at: 0 },
@@ -72,12 +106,15 @@ const TWEEN_MS = 520;
 // sequenced entirely by `data-delay` from there.
 const STOP = {
   intro: 0,
-  saved: 1,
-  problemA: 2,
-  problemB: 3,
-  solutionA: 4,
-  solutionB: 5,
-  snapkeep: 6,
+  archive: 1,
+  saved: 2,
+  problemA: 3,
+  problemB: 4,
+  solutionLead: 5,
+  solutionTag: 6,
+  solutionSearch: 7,
+  solutionLayout: 8,
+  snapkeep: 9,
 };
 
 // ---------------------------------------------------------------------------
@@ -102,7 +139,6 @@ const DURATIONS = {
   wipe: 460,
   popup: 560,
   pop: 640,
-  tint: 300,
   type: 650,
 };
 
@@ -165,24 +201,6 @@ function TypedText({ lines, className, style, stop, delay = 0 }) {
   );
 }
 
-/** Wraps a piece of artwork in a box matching its own bounds, so the popup
-    scale grows from that element's centre rather than the panel's, and so the
-    transform has somewhere to live that isn't already carrying one from the
-    design's layout. */
-function Popup({ stop, delay = 0, left, top, width, height, children }) {
-  return (
-    <div
-      className="absolute"
-      data-anim="popup"
-      data-stop={stop}
-      data-delay={delay}
-      style={{ left, top, width, height, opacity: 0 }}
-    >
-      {children}
-    </div>
-  );
-}
-
 function applyAnim(el, kind, t, typedCounts) {
   switch (kind) {
     case "sweep": {
@@ -211,16 +229,6 @@ function applyAnim(el, kind, t, typedCounts) {
       el.style.transform = `scale(${0.3 + 0.7 * backOut(t)})`;
       break;
     }
-    case "tint": {
-      // #0492bd -> #ffffff. The line arrives entirely in the accent colour and
-      // only the second half lifts to white, so the emphasis lands as a beat
-      // of its own rather than being baked into the markup.
-      const r = Math.round(4 + (255 - 4) * t);
-      const g = Math.round(146 + (255 - 146) * t);
-      const b = Math.round(189 + (255 - 189) * t);
-      el.style.color = `rgb(${r}, ${g}, ${b})`;
-      break;
-    }
     case "type": {
       const chars = el.querySelectorAll("[data-char]");
       // Linear, not eased — an eased typewriter visibly speeds up and slows
@@ -247,7 +255,9 @@ function applyAnim(el, kind, t, typedCounts) {
 function IntroPanel() {
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
-      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-[24px] pl-[20px] leading-[1.2] text-white">
+      {/* No left padding: it would be inside the box being centred, which
+          pushes the type half of it off to the right. */}
+      <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-[24px] leading-[1.2] text-white">
         <p
           className={`font-['Plus_Jakarta_Sans'] text-[120px] font-semibold tracking-[-2.4px] ${SWEEP_BOX}`}
           data-anim="sweep"
@@ -269,112 +279,309 @@ function IntroPanel() {
   );
 }
 
-/** The Safari chrome around the desktop screenshot. Its own sub-pixel sizes
-    come straight from the design — this is a scaled-down device frame, so the
-    fractional values are load-bearing rather than noise. */
-function SafariWindow() {
+/** Panel 2 — what the thing actually is, before the story of building it.
+ *
+ *  One centred column: the line that names it, the app itself, and the line
+ *  that hands off to the rest of the section. */
+function ArchivePanel() {
   return (
-    // Fills the Popup box that positions it — the design's own 754/113 origin
-    // and 1006.6x538.3 size live there now.
-    <div className="absolute inset-0 flex flex-col items-start overflow-hidden rounded-[10px] border-[0.35px] border-solid border-[#a5a5a5] bg-[#bfc2c8] shadow-[0px_11.2px_33.6px_0px_rgba(0,0,0,0.5)]">
-      <div className="relative h-[36.4px] w-full shrink-0 overflow-hidden bg-[rgba(255,255,255,0.8)] backdrop-blur-[16.8px]">
-        <div className="absolute left-[14px] top-[14px] flex items-start gap-[5.6px]">
-          <div className="size-[8.4px] shrink-0 rounded-[6px] bg-[#ec6b5e]" />
-          <div className="size-[8.4px] shrink-0 rounded-[6px] bg-[#f4bf4f]" />
-          <div className="size-[8.4px] shrink-0 rounded-[6px] bg-[#61c453]" />
+    <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
+      <div className="absolute left-1/2 top-[calc(50%+0.5px)] flex w-[710px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[50px]">
+        <TypedText
+          lines={["레퍼런스를 저장해 두었다가", "필요할 때 꺼내 쓰는 아카이브"]}
+          className="text-center font-['Pretendard'] text-[32px] font-medium leading-none text-white whitespace-nowrap"
+          stop={STOP.archive}
+          delay={0}
+        />
+
+        {/* 710 x 444.35 is the design's 778:487 box resolved at this column's
+            width; the capture is exported at exactly that size. */}
+        <div
+          className="h-[444.35px] w-[710px] overflow-hidden rounded-[8px]"
+          data-anim="popup"
+          data-stop={STOP.archive}
+          data-delay={520}
+          style={{ opacity: 0 }}
+        >
+          {ARCHIVE_VIDEO ? (
+            <video
+              src={ARCHIVE_VIDEO}
+              // Nudged past the frame it is clipped to. The recording carries
+              // a dark column of its own along the edge, and `cover` fits this
+              // one by width, so that column lands just inside the box and
+              // reads as a hairline drawn down the side of the video.
+              className="h-[444.35px] w-[710px] max-w-none scale-[1.03] object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+              // Set on both: assigning it before the metadata is in gets
+              // dropped, and some browsers reset it on each loop.
+              ref={(el) => {
+                if (el) el.playbackRate = ARCHIVE_SPEED;
+              }}
+              onLoadedMetadata={(e) => {
+                e.currentTarget.playbackRate = ARCHIVE_SPEED;
+              }}
+            />
+          ) : (
+            <img
+              src={archiveCapture}
+              alt=""
+              className="h-[444.35px] w-[710px] max-w-none"
+            />
+          )}
         </div>
 
-        <img src={icSidebar} alt="" className="absolute left-[48.41px] top-[8.91px] h-[10.068px] w-[12.895px]" />
-        <div className="absolute left-[60.76px] top-[8.33px] h-[12.6px] w-[0.7px] bg-[rgba(0,0,0,0.1)]" />
-        <img src={icChevronDown} alt="" className="absolute left-[64.19px] top-[12.25px] h-[2.1px] w-[4.2px]" />
-
-        <img src={icChevronLeft} alt="" className="absolute left-[114.54px] top-[13px] h-[9.494px] w-[5.348px]" />
-        <img src={icChevronRight} alt="" className="absolute left-[139.73px] top-[13px] h-[9.494px] w-[5.348px]" />
-
-        {/* Address bar — left/right insets rather than a width, so it keeps the
-            design's proportion of the toolbar. */}
-        <div className="absolute left-[27.69%] right-[29.84%] top-1/2 h-[19.6px] -translate-y-1/2">
-          <img src={icShield} alt="" className="absolute left-[0.53px] top-[4.68px] h-[11.047px] w-[9.089px]" />
-          <div className="absolute left-[20.65px] right-0 top-1/2 h-[19.6px] -translate-y-1/2 overflow-hidden rounded-[8px] border-[0.7px] border-solid border-[rgba(0,0,0,0.25)]">
-            <div className="absolute left-1/2 top-[3.85px] flex -translate-x-1/2 items-center justify-center gap-[5.6px]">
-              <img src={icLock} alt="" className="h-[8.002px] w-[5.48px] shrink-0" />
-              <p className="font-['Pretendard'] text-[9.8px] leading-none text-[#999]">
-                khazifire.com
-              </p>
-            </div>
-            <img src={icReload} alt="" className="absolute right-[4.04px] top-[3.9px] h-[9.567px] w-[7.851px]" />
-          </div>
-        </div>
-
-        <img src={icShare} alt="" className="absolute right-[65.5px] top-[11.18px] h-[12.343px] w-[9.707px]" />
-        <img src={icPlus} alt="" className="absolute right-[40.29px] top-[13.24px] size-[9.023px]" />
-        <img src={icGrid} alt="" className="absolute right-[13.87px] top-[12.73px] size-[10.068px]" />
-      </div>
-
-      <div className="relative w-full flex-1 overflow-hidden bg-[#f5f5f5]">
-        {/* Two exported layers stacked exactly as the design composes them:
-            the base shot, then an overlay nudged up by 4.1% of its own box. */}
-        <div className="absolute left-0 top-0 h-[504px] w-[1008px]">
-          <img src={browserShot} alt="" className="absolute inset-0 size-full max-w-none object-cover" />
-          <div className="absolute inset-0 overflow-hidden">
-            <img src={browserShotOverlay} alt="" className="absolute left-0 top-[-4.1%] h-[108.4%] w-[100.78%] max-w-none" />
-          </div>
-        </div>
-        <div className="absolute inset-x-0 top-0 h-[0.35px] bg-[rgba(0,0,0,0.2)]" />
-        <div className="absolute inset-x-0 top-[0.35px] h-[0.35px] bg-[rgba(0,0,0,0.1)]" />
+        <TypedText
+          lines={["이걸 만들기까지의 이야기입니다"]}
+          className="text-center font-['Pretendard'] text-[32px] font-medium leading-none text-white whitespace-nowrap"
+          stop={STOP.archive}
+          delay={1100}
+        />
       </div>
     </div>
   );
 }
 
-/** Panel 2 — the "everything saved, nothing findable" board. The three pieces
-    of artwork rise in the order they reach the screen; the headline is held
-    back until they have all landed, since it is the punchline. */
+// The size the design draws a browser window at. Its chrome is fixed px, so
+// the only way a smaller copy keeps its proportions is to build it at this size
+// and scale the whole thing — the same fixed-canvas trick the sections use.
+const WINDOW = { width: 852, height: 494 };
+
+/** The Safari chrome, at the design's own window size. */
+function SafariWindow({ url, children }) {
+  return (
+    <div className="absolute inset-0 flex flex-col items-start overflow-hidden rounded-[10px] border-[0.5px] border-solid border-[#a5a5a5] bg-[#bfc2c8]">
+      <div className="relative h-[52px] w-full shrink-0 overflow-hidden bg-[rgba(255,255,255,0.8)] backdrop-blur-[24px]">
+        <div className="absolute left-[20px] top-[20px] flex items-start gap-[8px]">
+          <div className="size-[12px] shrink-0 rounded-[6px] bg-[#ec6b5e]" />
+          <div className="size-[12px] shrink-0 rounded-[6px] bg-[#f4bf4f]" />
+          <div className="size-[12px] shrink-0 rounded-[6px] bg-[#61c453]" />
+        </div>
+
+        <img
+          src={sfSidebar}
+          alt=""
+          className="absolute left-[110.91px] top-[20.41px] h-[14.383px] w-[18.422px] max-w-none"
+        />
+        <div className="absolute left-[139.21px] top-[19.09px] h-[18px] w-px bg-[rgba(0,0,0,0.1)]" />
+        <img
+          src={sfChevronDown}
+          alt=""
+          className="absolute left-[147.07px] top-[28.07px] h-[3px] w-[6px] max-w-none"
+        />
+        <img
+          src={sfChevronLeft}
+          alt=""
+          className="absolute left-[163.63px] top-[18.58px] h-[13.563px] w-[7.641px] max-w-none"
+        />
+        <img
+          src={sfChevronRight}
+          alt=""
+          className="absolute left-[199.61px] top-[18.58px] h-[13.563px] w-[7.641px] max-w-none"
+        />
+
+        <div className="absolute left-[27.69%] right-[29.84%] top-1/2 h-[28px] -translate-y-1/2">
+          <img
+            src={sfShield}
+            alt=""
+            className="absolute left-[0.76px] top-[6.68px] h-[15.781px] w-[12.984px] max-w-none"
+          />
+          <div className="absolute left-[29.5px] right-0 top-1/2 h-[28px] -translate-y-1/2 overflow-hidden rounded-[8px] border border-solid border-[rgba(0,0,0,0.25)]">
+            <div className="absolute left-1/2 top-[5.5px] flex -translate-x-1/2 items-center justify-center gap-[8px]">
+              <img
+                src={sfLock}
+                alt=""
+                className="h-[11.432px] w-[7.828px] max-w-none shrink-0"
+              />
+              <p className="shrink-0 font-['Roboto'] text-[14px] leading-normal text-[#999] whitespace-nowrap">
+                {url}
+              </p>
+            </div>
+            <img
+              src={sfReload}
+              alt=""
+              className="absolute right-[5.77px] top-[5.58px] h-[13.667px] w-[11.216px] max-w-none"
+            />
+          </div>
+        </div>
+
+        <img
+          src={sfShare}
+          alt=""
+          className="absolute right-[93.57px] top-[15.97px] h-[17.633px] w-[13.867px] max-w-none"
+        />
+        <img
+          src={sfPlus}
+          alt=""
+          className="absolute right-[57.55px] top-[18.91px] size-[12.891px] max-w-none"
+        />
+        <img
+          src={sfGrid}
+          alt=""
+          className="absolute right-[19.81px] top-[18.18px] h-[14.383px] w-[14.383px] max-w-none"
+        />
+      </div>
+
+      <div className="relative min-h-px w-full flex-1 overflow-hidden bg-[#f5f5f5]">
+        {children}
+        {/* The hairline the design puts under the toolbar. */}
+        <div className="absolute inset-x-0 top-0 h-[0.5px] bg-[rgba(0,0,0,0.2)]" />
+        <div className="absolute inset-x-0 top-[0.5px] h-[0.5px] bg-[rgba(0,0,0,0.1)]" />
+      </div>
+    </div>
+  );
+}
+
+// Where the three windows sit inside the 738x622 monitor and how big they are.
+// The monitor's glass is inset 4%/4.62%/3.89%/32.05%, and the stack is centred
+// in it with room for two cascade steps.
+const WINDOW_SCALE = 0.62;
+const WINDOW_STEP = { x: 46, y: 34 };
+const WINDOW_ORIGIN = { x: 58, y: 38 };
+// One beat apart, after the monitor itself has finished opening.
+const WINDOW_DELAY = [1000, 1340, 1680];
+
+/** One browser window in the stack: a full-size window scaled down into place.
+ *
+ *  The scale lives on the inner element because `popup` drives the outer one's
+ *  transform — the two would otherwise overwrite each other. */
+function StackedWindow({ index, children }) {
+  return (
+    <div
+      className="absolute overflow-hidden rounded-[10px]"
+      style={{
+        left: WINDOW_ORIGIN.x + WINDOW_STEP.x * index,
+        top: WINDOW_ORIGIN.y + WINDOW_STEP.y * index,
+        width: WINDOW.width * WINDOW_SCALE,
+        height: WINDOW.height * WINDOW_SCALE,
+        // Not in the design, which parks the three windows side by side rather
+        // than stacked: without it a window landing on another one of the same
+        // size and colour reads as a redraw rather than as a new window.
+        boxShadow: "0 18px 40px rgba(0, 0, 0, 0.35)",
+        opacity: 0,
+      }}
+      data-anim="popup"
+      data-stop={STOP.saved}
+      data-delay={WINDOW_DELAY[index]}
+    >
+      <div
+        style={{
+          width: WINDOW.width,
+          height: WINDOW.height,
+          transform: `scale(${WINDOW_SCALE})`,
+          transformOrigin: "top left",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Panel 2 — the "everything saved, nothing findable" line.
+ *
+ *  The headline, and the evidence: an iMac with three windows opening onto it
+ *  one after another — the board, the file, and the bookmark menu you get lost
+ *  in. Three windows rather than one because the point of the line is the pile,
+ *  not any single screen. */
 function SavedPanel() {
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
-      <Popup stop={STOP.saved} delay={0} left={189} top={492} width={800} height={495}>
-        <div className="absolute inset-0 overflow-hidden">
-          <img src={savedBoard} alt="" className="absolute left-[-0.17%] top-[-0.17%] h-[100.33%] w-[100.17%] max-w-none" />
-        </div>
-      </Popup>
-
-      <Popup stop={STOP.saved} delay={260} left={754} top={113} width={1006.6} height={538.3}>
-        <SafariWindow />
-      </Popup>
-
-      {/* The phone's two layers share one box, so the frame and the screen
-          inside it pop as a single object. Their offsets are the design's own,
-          rebased onto the frame's origin. */}
-      <Popup stop={STOP.saved} delay={520} left={1386} top={434} width={309} height={605.336}>
-        <div className="absolute left-[18.36px] top-[22.16px] h-[561.012px] w-[272.275px] rounded-[30px]">
-          <img src={phoneScreen} alt="" className="absolute inset-0 size-full max-w-none rounded-[30px] object-contain" />
-        </div>
-        <div className="absolute inset-0">
-          <img src={phoneFrame} alt="" className="absolute inset-0 size-full max-w-none object-cover" />
-        </div>
-      </Popup>
-
-      {/* Right-aligned to x=708 in the design, hence the translate rather than
-          a left offset — the two lines differ in length. */}
+      {/* Right-aligned to x=748, hence the translate rather than a left
+          offset — the two lines differ in length. */}
       <TypedText
         lines={["Saved it,", "But can’t find it"]}
-        className="absolute left-[708px] top-[339px] -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[50px] font-bold leading-none text-[#0492bd]"
+        className="absolute left-[748px] top-[472px] -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[50px] font-bold leading-none text-white"
         stop={STOP.saved}
-        delay={860}
+        delay={0}
       />
+
+      {/* The credit line, on the same right edge as the headline. 572 is the
+          headline's own bottom — two 50px lines at leading-none — plus the
+          section's usual 24. */}
+      <TypedText
+        lines={["SNAPKEEP · 개인 프로젝트 · 기획 · UX/UI 디자인 · 프로토타이핑"]}
+        className="absolute left-[748px] top-[596px] -translate-x-full text-right font-['Pretendard'] text-[12px] leading-none tracking-[-0.24px] text-white"
+        stop={STOP.saved}
+        delay={620}
+      />
+
+      {/* `popup` rather than `pop`: a screen full of saved work should open
+          like a window, not spring in from a third of its size. */}
+      <div
+        className="absolute left-[800px] top-[229px] h-[622px] w-[738px]"
+        data-anim="popup"
+        data-stop={STOP.saved}
+        data-delay={400}
+        style={{ opacity: 0 }}
+      >
+        <img
+          src={imacFrame}
+          alt=""
+          className="pointer-events-none absolute inset-0 size-full max-w-none object-cover"
+        />
+
+        {/* Clipped to the glass, so a window that lands past the edge of the
+            screen is cut off by the bezel the way a real one would be. The grey
+            is the desktop the windows are opening onto — without it they float
+            on the section's own dark teal and read as pasted-on rather than as
+            windows on a screen. */}
+        <div className="absolute inset-[4.62%_3.89%_32.05%_4%] overflow-hidden rounded-[10px] bg-[#d9d9d9]">
+          <StackedWindow index={0}>
+            <SafariWindow url="khazifire.com">
+              {/* The board overflows its viewport in the design — the crop is
+                  what makes it read as a page you have scrolled into, not a
+                  thumbnail. */}
+              <img
+                src={savedScreen}
+                alt=""
+                className="absolute left-[-0.01%] top-[-13.74%] h-[118.18%] w-full max-w-none"
+              />
+            </SafariWindow>
+          </StackedWindow>
+
+          {/* The design draws this one as a bare screenshot — it is a desktop
+              app, so it brings its own chrome and takes no Safari frame. */}
+          <StackedWindow index={1}>
+            <div className="absolute inset-0 overflow-hidden rounded-[10px] bg-[#f5f5f5]">
+              <img
+                src={savedFigma}
+                alt=""
+                className="absolute left-[-0.17%] top-[-0.18%] h-[107.03%] w-[100.17%] max-w-none"
+              />
+            </div>
+          </StackedWindow>
+
+          {/* Two layers, as the design has it: the page, and the bookmark menus
+              cascading over it. */}
+          <StackedWindow index={2}>
+            <SafariWindow url="khazifire.com">
+              <img
+                src={savedScreen}
+                alt=""
+                className="absolute left-[-0.01%] top-[-13.74%] h-[118.18%] w-full max-w-none"
+              />
+              <img
+                src={savedSiteMenu}
+                alt=""
+                className="absolute left-0 top-[-4.1%] h-[108.4%] w-[100.78%] max-w-none"
+              />
+            </SafariWindow>
+          </StackedWindow>
+        </div>
+      </div>
     </div>
   );
 }
 
-/** Panel 3 — the problem statement, the widest panel in the strip. Its pieces
-    are triggered by their own left edges, which happens to be exactly the
-    reading order: headline, the squiggle under it, then the marks. */
+/** Panel 3 — the problem statement, the widest panel in the strip. */
 function ProblemPanel() {
   return (
     <div className="relative h-full w-[3031px] shrink-0 overflow-hidden bg-[#06252e]">
       <p
-        className={`absolute left-[calc(50%+50.5px)] top-[calc(50%-139px)] -translate-x-full text-right font-['Pretendard'] text-[100px] font-bold leading-none text-[#0492bd] whitespace-nowrap ${SWEEP_BOX}`}
+        className={`absolute left-[calc(50%+50.5px)] top-[calc(50%-139px)] -translate-x-full text-right font-['Pretendard'] text-[100px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
         data-anim="sweep"
         data-stop={STOP.problemA}
         style={sweepStyle}
@@ -382,320 +589,244 @@ function ProblemPanel() {
         The problem wasn&rsquo;t saving
       </p>
 
-      {/* Both hang off the headline's own trigger on the same delay, so they
-          arrive together once the line has been written — the squiggle wiping
-          open under it while the mark pops in beside it. */}
+      {/* Wipes open from its left edge, chasing the headline above it, with
+          the note mark popping in beside them on the same beat. */}
       <div
-        className="absolute left-[308px] top-[511px] flex h-[29px] w-[582px] items-center justify-center"
+        className="absolute left-[307px] top-[501px] h-[20px] w-[594px]"
         data-anim="wipe"
         data-stop={STOP.problemA}
         data-delay={450}
         style={{ clipPath: "inset(0 100% 0 0)" }}
       >
-        <img src={underline} alt="" className="h-[29px] w-[582px] max-w-none -scale-y-100" />
+        {/* The stroke overshoots its own box top and bottom, which is what the
+            negative inset is — without it the wave's crests get clipped. */}
+        <div className="absolute inset-[-7.5%_-0.13%_-7.5%_-0.15%]">
+          <img
+            src={underlineWave}
+            alt=""
+            className="block size-full max-w-none"
+          />
+        </div>
       </div>
 
-      <div
-        className="absolute left-[1238px] top-[203px] flex h-[197.986px] w-[198.12px] items-center justify-center"
+      <img
+        src={noteMark}
+        alt=""
+        className="absolute left-[1426px] top-[299px] size-[140px] max-w-none object-cover"
         data-anim="pop"
         data-stop={STOP.problemA}
         data-delay={450}
         data-float="12"
         style={{ opacity: 0 }}
-      >
-        <div className="rotate-[11.95deg]">
-          <img src={scribbleArrow} alt="" className="h-[167.001px] w-[167.173px] max-w-none" />
-        </div>
-      </div>
+      />
 
       <p
-        className={`absolute left-[calc(50%+1052.5px)] top-[calc(50%+121px)] -translate-x-full text-right font-['Pretendard'] text-[100px] font-bold leading-none whitespace-nowrap ${SWEEP_BOX}`}
+        className={`absolute left-[calc(50%+1012.5px)] top-[calc(50%+124px)] -translate-x-full text-right font-['Pretendard'] text-[100px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
         data-anim="sweep"
         data-stop={STOP.problemB}
         style={sweepStyle}
       >
-        <span className="text-[#0492bd]">it was </span>
-        {/* Keyed to the box's own x rather than this line's, with a delay that
-            lands the colour change while that pop is playing — the emphasis is
-            supposed to read as a reaction to it. */}
-        <span
-          data-anim="tint"
-          data-stop={STOP.problemB}
-          data-delay={900}
-          style={{ color: "#0492bd" }}
-        >
-          getting it back out.
-        </span>
+        it was getting it back out
       </p>
 
-      <img
-        src={scribbleStack}
-        alt=""
-        className="absolute left-[2592px] top-[521px] h-[294.5px] w-[259px] max-w-none"
+      {/* Two pieces that make one open box: the base, and a lid tipped off it. */}
+      <div
+        className="absolute left-[2427px] top-[574px] h-[90px] w-[91.5px]"
         data-anim="pop"
         data-stop={STOP.problemB}
         data-delay={450}
         data-float="14"
         style={{ opacity: 0 }}
-      />
+      >
+        <img
+          src={boxBase}
+          alt=""
+          className="absolute left-0 top-[29.5px] h-[60.5px] w-[91.5px] max-w-none"
+        />
+        <div className="absolute left-[13px] top-0 flex h-[41.924px] w-[50.636px] items-center justify-center">
+          <div className="rotate-[-10.94deg]">
+            <img
+              src={boxLid}
+              alt=""
+              className="h-[34.001px] w-[45px] max-w-none"
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
 
-/** A stand-in reference card — the repeated block in the "AI tagging" cluster.
-    Drawn rather than exported because the design builds it from plain
-    rectangles, so there is no asset to render. */
-function TagCard({ left, top, stop, delay }) {
-  return (
-    <div
-      className="absolute h-[82px] w-[176px] rounded-[8px] bg-[rgba(4,146,189,0.2)]"
-      style={{ left, top, opacity: 0 }}
-      data-anim="pop"
-      data-stop={stop}
-      data-delay={delay}
-    >
-      <div className="absolute left-[7px] top-[7px] size-[66px] rounded-[8px] bg-[rgba(4,146,189,0.3)]" />
-      <div className="absolute left-[87px] top-[13px] h-[11px] w-[42px] rounded-[8px] bg-[rgba(4,146,189,0.6)]" />
-      <div className="absolute left-[87px] top-[34px] h-[11px] w-[80px] rounded-[8px] bg-[rgba(4,146,189,0.6)]" />
-      <div className="absolute left-[87px] top-[55px] h-[11px] w-[80px] rounded-[8px] bg-[rgba(4,146,189,0.6)]" />
-    </div>
-  );
-}
-
-function FilterChip({ label, left, top, stop, delay }) {
-  return (
-    <div
-      className="absolute flex items-center justify-center rounded-[8px] bg-[rgba(4,146,189,0.4)] px-[10px] py-[5px]"
-      style={{ left, top, opacity: 0 }}
-      data-anim="pop"
-      data-stop={stop}
-      data-delay={delay}
-    >
-      <p className="font-['Plus_Jakarta_Sans'] text-[30px] font-bold leading-none tracking-[-0.6px] text-[rgba(255,255,255,0.5)] whitespace-nowrap">
-        {label}
-      </p>
-    </div>
-  );
-}
-
-/** Panel 4 — the three answers, read top to bottom.
+/** Panel 5 — the three answers, stepped down and across.
  *
- *  Each row is one beat: the headline sweeps in, then that row's graphics pop
- *  in one after another. The rows are keyed to their own headline's left edge,
- *  which runs top-to-bottom in x as well, so they play in reading order; the
- *  graphics then hang off that same trigger on a delay rather than their own
- *  positions, which is what keeps each row's pieces together. */
-const POP_STEP = 150; // ms between graphics inside one row — one at a time, visibly
-const ROW_LEAD = 200; // ms from a row's headline to its first graphic
-// Row 2 shares a stop with row 1, so it waits out row 1's whole sequence
-// before starting its own — otherwise both headlines write at once.
-const ROW_B = 950;
-// Row 3 follows row 2 in the same breath rather than waiting for a scroll.
-const ROW_C = 1900;
-const headlineClass =
-  "absolute -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[70px] font-bold leading-none tracking-[-1.4px] text-white whitespace-nowrap";
+ *  Each row is a mark and its line side by side rather than the two being
+ *  parked at opposite ends of the panel, and the rows now stagger diagonally
+ *  across three screens, so each one gets its own stop. */
+const ROW_LEAD = 260; // ms from a row's line to its own mark
+const rowLineClass =
+  "shrink-0 text-right font-['Plus_Jakarta_Sans'] text-[70px] font-bold leading-none tracking-[-1.4px] text-white whitespace-nowrap";
 
 function SolutionPanel() {
   return (
-    <div className="relative h-full w-[2545px] shrink-0 overflow-hidden bg-[#06252e]">
-      {/* Row 1 — AI tagging */}
+    <div className="relative h-full w-[3966px] shrink-0 overflow-hidden bg-[#06252e]">
+      {/* Right-aligned to x=1166 — the design's calc(50% - 817px) on this
+          panel's own width. */}
       <p
-        className={`${headlineClass} left-[1386px] top-[275px] ${SWEEP_BOX}`}
+        className={`absolute left-[calc(50%-817px)] top-[calc(50%-74px)] -translate-x-full text-right font-['Pretendard'] text-[100px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
         data-anim="sweep"
-        data-stop={STOP.solutionA}
-        style={sweepStyle}
+        data-stop={STOP.solutionLead}
+        // Held until the panel has finished sliding in. Armed at zero, the
+        // whole sharpen plays out while the strip is still travelling, so by
+        // the time anything is still to look at it has already happened.
+        data-delay={TWEEN_MS}
+        style={sweepStyleGhosted}
       >
-        AI tagging instead of folders
+        Produce <span className="text-[#0492bd]">3</span>solution
       </p>
-      {/* The folder trio keeps the design's percentage insets — they were
-          authored against the panel width, so hardcoding px would drift. */}
-      <img
-        src={folderC}
-        alt=""
-        className="absolute left-[146px] top-[174px] h-[117.907px] w-[157.907px] max-w-none"
-        data-anim="pop"
-        data-stop={STOP.solutionA}
-        data-delay={ROW_LEAD}
-        data-float="11"
-        style={{ opacity: 0 }}
-      />
-      <img
-        src={folderB}
-        alt=""
-        className="absolute left-[11.47%] right-[83.04%] top-[299.66px] h-[96.671px] max-w-none"
-        data-anim="pop"
-        data-stop={STOP.solutionA}
-        data-delay={ROW_LEAD + POP_STEP}
-        data-float="11"
-        style={{ opacity: 0 }}
-      />
-      <img
-        src={folderA}
-        alt=""
-        className="absolute left-[15.83%] right-[78.38%] top-[154px] h-[95.861px] max-w-none"
-        data-anim="pop"
-        data-stop={STOP.solutionA}
-        data-delay={ROW_LEAD + POP_STEP * 2}
-        data-float="11"
-        style={{ opacity: 0 }}
-      />
-      <img
-        src={tagCluster}
-        alt=""
-        className="absolute left-[1317px] top-[143px] h-[129.291px] w-[161.633px] max-w-none"
-        data-anim="pop"
-        data-stop={STOP.solutionA}
-        data-delay={ROW_LEAD + POP_STEP * 3}
-        data-float="11"
-        style={{ opacity: 0 }}
-      />
+
+      {/* Row 1 — AI tagging */}
+      <div className="absolute left-[1426px] top-[225px] flex items-center gap-[40px]">
+        <div
+          className="flex h-[104.755px] w-[81.731px] shrink-0 items-center justify-center"
+          data-anim="pop"
+          data-stop={STOP.solutionTag}
+          data-delay={ROW_LEAD}
+          data-float="11"
+          style={{ opacity: 0 }}
+        >
+          <div className="rotate-[2.14deg]">
+            <img
+              src={tagMark}
+              alt=""
+              className="h-[101.911px] w-[77.976px] max-w-none"
+            />
+          </div>
+        </div>
+        <p
+          className={`${rowLineClass} ${SWEEP_BOX}`}
+          data-anim="sweep"
+          data-stop={STOP.solutionTag}
+          data-delay={0}
+          style={sweepStyle}
+        >
+          AI tagging instead of folders
+        </p>
+      </div>
 
       {/* Row 2 — search in design language */}
-      <p
-        className={`${headlineClass} left-[1664px] top-[calc(50%-35px)] ${SWEEP_BOX}`}
-        data-anim="sweep"
-        data-stop={STOP.solutionA}
-        data-delay={ROW_B}
-        style={sweepStyle}
-      >
-        Search in design language
-      </p>
-      <FilterChip label="Screen" left={702} top={465} stop={STOP.solutionA} delay={ROW_B + ROW_LEAD} />
-      <FilterChip label="Platform" left={641} top={523} stop={STOP.solutionA} delay={ROW_B + ROW_LEAD + POP_STEP} />
-      <FilterChip label="Mood" left={1633} top={465} stop={STOP.solutionA} delay={ROW_B + ROW_LEAD + POP_STEP * 2} />
-      <FilterChip label="Service" left={1686} top={529} stop={STOP.solutionA} delay={ROW_B + ROW_LEAD + POP_STEP * 3} />
-      <img
-        src={cube}
-        alt=""
-        className="absolute inset-[20.74%_40.75%_72.31%_56.31%] max-w-none"
-        data-anim="pop"
-        data-stop={STOP.solutionA}
-        data-delay={ROW_B + ROW_LEAD + POP_STEP * 4}
-        data-float="11"
-        style={{ opacity: 0 }}
-      />
-
-      {/* Row 3 — layout structure */}
-      <p
-        className={`${headlineClass} left-[2043px] top-[735px] ${SWEEP_BOX}`}
-        data-anim="sweep"
-        data-stop={STOP.solutionA}
-        data-delay={ROW_C}
-        style={sweepStyle}
-      >
-        Layout structure
-      </p>
-      <TagCard left={1245} top={696} stop={STOP.solutionA} delay={ROW_C + ROW_LEAD} />
-      <TagCard left={1313} top={805} stop={STOP.solutionA} delay={ROW_C + ROW_LEAD + POP_STEP} />
-
-      {/* Wireframe stand-in for the layout-structure idea: a sidebar rotated
-          onto its side plus a header and body block. */}
-      <div
-        className="absolute left-[2072px] top-[655px] flex h-[150px] w-[37px] items-center justify-center"
-        data-anim="pop"
-        data-stop={STOP.solutionA}
-        data-delay={ROW_C + ROW_LEAD + POP_STEP * 2}
-        style={{ opacity: 0 }}
-      >
-        {/* `flex-none` is load-bearing: the bar is 150px long inside a 37px
-            wide flex line, so without it the bar is shrunk to fit *before* it
-            is rotated and the sidebar comes out a square instead of a
-            full-height column. */}
-        <div className="-rotate-90 flex-none">
-          <div className="h-[37px] w-[150px] rounded-[8px] bg-[rgba(4,146,189,0.6)]" />
+      <div className="absolute left-[2237px] top-[466px] flex w-[957px] items-center gap-[40px]">
+        {/* The magnifier sits in a rotated box, and its own stroke overshoots
+            that box — the negative inset is what keeps the glass from being
+            clipped flat. */}
+        <div
+          className="flex h-[71.6px] w-[66.936px] shrink-0 items-center justify-center"
+          data-anim="pop"
+          data-stop={STOP.solutionSearch}
+          data-delay={ROW_LEAD}
+          data-float="11"
+          style={{ opacity: 0 }}
+        >
+          <div className="-scale-y-100 rotate-[-174.14deg] skew-x-[3.86deg]">
+            <div className="relative size-[65px]">
+              <div className="absolute inset-[-7.69%]">
+                <img
+                  src={searchMark}
+                  alt=""
+                  className="block size-full max-w-none"
+                />
+              </div>
+            </div>
+          </div>
         </div>
+        <p
+          className={`${rowLineClass} ${SWEEP_BOX}`}
+          data-anim="sweep"
+          data-stop={STOP.solutionSearch}
+          data-delay={0}
+          style={sweepStyle}
+        >
+          Search in design language
+        </p>
       </div>
-      <div
-        className="absolute left-[2121px] top-[655px] h-[37px] w-[143px] rounded-[8px] bg-[rgba(4,146,189,0.4)]"
-        data-anim="pop"
-        data-stop={STOP.solutionA}
-        data-delay={ROW_C + ROW_LEAD + POP_STEP * 3}
-        style={{ opacity: 0 }}
-      />
-      <div
-        className="absolute left-[2121px] top-[701px] h-[102px] w-[143px] rounded-[8px] bg-[rgba(4,146,189,0.2)]"
-        data-anim="pop"
-        data-stop={STOP.solutionA}
-        data-delay={ROW_C + ROW_LEAD + POP_STEP * 4}
-        style={{ opacity: 0 }}
-      />
+
+      {/* Row 3 — layout structure. Drawn, not exported: the design builds this
+          from four plain rectangles, so there is no asset to render. */}
+      <div className="absolute left-[3022px] top-[719px] flex items-center gap-[40px]">
+        <div
+          className="relative h-[88.361px] w-[94px] shrink-0 rounded-[10px] bg-white"
+          data-anim="pop"
+          data-stop={STOP.solutionLayout}
+          data-delay={ROW_LEAD}
+          data-float="11"
+          style={{ opacity: 0 }}
+        >
+          <div className="absolute left-[5.55px] top-[3.17px] h-[81.597px] w-[22.974px] rounded-[5px] bg-[#0492bd]" />
+          <div className="absolute left-[33.27px] top-[4.75px] h-[19.013px] w-[56.247px] rounded-[5px] bg-[#0492bd]" />
+          <div className="absolute left-[33.27px] top-[27.73px] h-[54.662px] w-[56.247px] rounded-[5px] bg-[#0492bd]" />
+        </div>
+        <p
+          className={`${rowLineClass} ${SWEEP_BOX}`}
+          data-anim="sweep"
+          data-stop={STOP.solutionLayout}
+          data-delay={0}
+          style={sweepStyle}
+        >
+          Layout structure
+        </p>
+      </div>
     </div>
   );
 }
 
-/** Panel 5 — the payoff: the line that states the idea, then Snapkeep itself.
+/** Panel 6 — the payoff: the invitation, and the app behind it.
  *
- *  The real app, live and usable. This only works because the strip moves in
- *  discrete steps and is otherwise still — on a surface that tracked the
- *  scrollbar continuously, the click targets would be sliding under the
- *  cursor the whole time. */
-// The line and the app are a pair, so the gap between them is stated once and
-// the app's top is derived from it rather than being a second hand-tuned
-// number that drifts whenever the type size changes.
-const LINE_TOP = 120;
-const LINE_SIZE = 22;
-const LINE_LEADING = 1.3;
-const LINE_GAP = 24;
-const APP_TOP = Math.round(LINE_TOP + LINE_SIZE * LINE_LEADING + LINE_GAP);
-// The space left under the line that the app has to fit inside, in design px.
-const APP_AREA = { top: APP_TOP, height: DESIGN_HEIGHT - APP_TOP - 60, maxWidth: 1700 };
+ *  The app used to be embedded live in the strip. It is a picture now, and the
+ *  real thing opens on click — the strip is a read-through, and an app you can
+ *  type into sitting inside it competes with that. Opening it deliberately
+ *  also gives it the whole screen instead of a panel's worth. */
+// 710 x 443.4 is the design's 2307:1441 box at this column's width. The inner
+// offsets are the design's own crop of the capture.
+const GRID_BOX = { width: 710, height: 443.4 };
 
-// The window is a fixed frame, sized from Snapkeep's own authored dimensions
-// (index.css pins the shell to 1440 wide with a 900 min-height) rather than
-// from whatever it currently renders as. Measuring the live app instead makes
-// the window grow and shrink as references are added or deleted, which reads
-// as the layout breaking rather than as content changing — so the frame is
-// constant and anything past it scrolls inside.
-const APP_FRAME = { width: 1440, height: 900 };
-const APP_FIT = Math.min(
-  1,
-  APP_AREA.height / APP_FRAME.height,
-  APP_AREA.maxWidth / APP_FRAME.width,
-);
-
-function SnapkeepPanel() {
-  const width = APP_FRAME.width * APP_FIT;
-  const height = APP_FRAME.height * APP_FIT;
-
+function SnapkeepPanel({ onOpen }) {
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
-      <TypedText
-        lines={["스크린샷을 올려보세요. AI가 태깅하고, 내 언어로 검색됩니다"]}
-        className="absolute left-1/2 -translate-x-1/2 text-center font-['Pretendard'] text-[22px] font-medium leading-[1.3] tracking-[-0.44px] text-white"
-        style={{ top: LINE_TOP }}
-        stop={STOP.snapkeep}
-        delay={150}
-      />
+      <div className="absolute left-1/2 top-[calc(50%+0.5px)] flex w-[710px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[50px]">
+        <TypedText
+          lines={["저장만 하던 레퍼런스, 이번엔 꺼내보세요."]}
+          className="text-center font-['Pretendard'] text-[32px] font-medium leading-none text-white whitespace-nowrap"
+          stop={STOP.snapkeep}
+          delay={0}
+        />
 
-      <Popup
-        stop={STOP.snapkeep}
-        delay={620}
-        left={(1920 - width) / 2}
-        top={APP_AREA.top}
-        width={width}
-        height={height}
-      >
-        <div className="absolute inset-0 overflow-hidden rounded-[24px] shadow-[0px_24px_60px_0px_rgba(0,0,0,0.45)]">
-          {/* Live and clickable. `data-interactive` tells the section's wheel
-              handler to keep its hands off gestures that start in here, so the
-              app's own scrolling works instead of being turned into a step.
-
-              The scroller is sized to the frame and scaled as a whole, so a
-              long reference list scrolls within a window that never changes
-              size. */}
-          <div
-            className="snapkeep-frame origin-top-left overflow-y-auto"
-            style={{
-              width: APP_FRAME.width,
-              height: APP_FRAME.height,
-              transform: `scale(${APP_FIT})`,
-            }}
-            data-interactive
-          >
-            <SnapkeepSpread />
-          </div>
-        </div>
-      </Popup>
+        {/* `data-interactive` so the section's wheel handler leaves gestures
+            that start here alone — otherwise a click-drag on the app would be
+            read as a step. */}
+        <button
+          type="button"
+          onClick={onOpen}
+          aria-label="Snapkeep 열기"
+          data-interactive
+          className="group relative block cursor-pointer overflow-hidden rounded-[8px]"
+          style={{ width: GRID_BOX.width, height: GRID_BOX.height, opacity: 0 }}
+          data-anim="popup"
+          data-stop={STOP.snapkeep}
+          data-delay={520}
+        >
+          <img
+            src={snapkeepGrid}
+            alt=""
+            className="absolute left-[-1.69%] top-[-2.71%] h-[105.9%] w-[104.12%] max-w-none transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+          {/* Nothing in the design says this is clickable, so the panel says
+              it — on hover only, so the still frame stays the design's. */}
+          <span className="absolute inset-0 flex items-end justify-center bg-[rgba(6,37,46,0)] pb-[22px] opacity-0 transition-opacity duration-300 group-hover:bg-[rgba(6,37,46,0.35)] group-hover:opacity-100">
+            <span className="rounded-full bg-white px-[18px] py-[8px] font-['Pretendard'] text-[14px] font-semibold text-[#06252e]">
+              직접 써보기
+            </span>
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -704,6 +835,9 @@ export default function ExperienceSection() {
   const sectionRef = useRef(null);
   const trackRef = useRef(null);
   const [scale, setScale] = useState(1);
+  // Snapkeep opens over the whole page rather than inside the strip, so it
+  // lives here and not in the panel that launches it.
+  const [appOpen, setAppOpen] = useState(false);
 
   // Fit the strip's height to the viewport; the width then follows from the
   // design's own aspect ratio and becomes the horizontal travel distance.
@@ -721,7 +855,8 @@ export default function ExperienceSection() {
       kind: el.dataset.anim,
       stop: Number(el.dataset.stop) || 0,
       delay: Number(el.dataset.delay) || 0,
-      duration: Number(el.dataset.duration) || DURATIONS[el.dataset.anim] || 800,
+      duration:
+        Number(el.dataset.duration) || DURATIONS[el.dataset.anim] || 800,
       // Wall-clock time this one is due to begin; null until it is on screen.
       startAt: null,
       done: false,
@@ -744,19 +879,48 @@ export default function ExperienceSection() {
     function metrics() {
       const stripScale = window.innerHeight / DESIGN_HEIGHT;
       const viewportWidth = window.innerWidth;
-      return {
-        stripScale,
-        viewportWidth,
-        maxX: Math.max(0, TOTAL_WIDTH * stripScale - viewportWidth),
-      };
+      return { stripScale, viewportWidth };
+    }
+
+    // Where each stop should aim: the middle of whatever belongs to it. Held in
+    // design px, so it is measured once and survives any resize.
+    //
+    // Measured rather than declared, because a stop's position is a fact about
+    // its content, not a slice of the strip — and the strip is fitted to the
+    // viewport's *height*, so a panel only happens to fill the width on a 16:9
+    // screen. Anywhere else, parking a stop at a fixed offset leaves whatever
+    // it was meant to frame sitting off to one side.
+    let stopCentres = [];
+    function measureStops() {
+      const trackLeft = trackRef.current.getBoundingClientRect().left;
+      const { stripScale } = metrics();
+      const bounds = STOPS.map(() => null);
+      for (const item of animated) {
+        const rect = item.el.getBoundingClientRect();
+        const left = (rect.left - trackLeft) / stripScale;
+        const right = (rect.right - trackLeft) / stripScale;
+        const seen = bounds[item.stop];
+        bounds[item.stop] = seen
+          ? { left: Math.min(seen.left, left), right: Math.max(seen.right, right) }
+          : { left, right };
+      }
+      stopCentres = bounds.map((box, i) =>
+        box ? (box.left + box.right) / 2 : STOPS[i] + SCREEN / 2,
+      );
     }
 
     function targetXFor(index) {
-      const { stripScale, maxX } = metrics();
-      // The last stop goes all the way, so the final panel is never left with
-      // a sliver of itself off the right edge.
-      if (index >= STOPS.length - 1) return maxX;
-      return Math.min(STOPS[index] * stripScale, maxX);
+      const { stripScale, viewportWidth } = metrics();
+      const centre = stopCentres[index];
+      if (centre == null) return STOPS[index] * stripScale;
+      // Deliberately not clamped to the strip's own ends. The strip is fitted
+      // to the viewport's *height*, so on a wide screen a 1920-wide panel comes
+      // out narrower than the viewport — and clamping to 0 then pins it to the
+      // left edge instead of centring it, which is exactly the case this is
+      // supposed to handle. Running off either end is harmless: the section
+      // behind the strip is the same colour as the panels, so what shows there
+      // is indistinguishable from the panel itself.
+      return centre * stripScale - viewportWidth / 2;
     }
 
     // Playback runs on its own clock: once an element is on screen it plays
@@ -773,7 +937,12 @@ export default function ExperienceSection() {
         const t = clamp01(elapsed / item.duration);
         // Typing stays linear — an eased typewriter visibly speeds up and slows
         // down mid-word, which reads as a glitch rather than typing.
-        applyAnim(item.el, item.kind, item.kind === "type" ? t : smoothstep(t), typedCounts);
+        applyAnim(
+          item.el,
+          item.kind,
+          item.kind === "type" ? t : smoothstep(t),
+          typedCounts,
+        );
         if (t >= 1) item.done = true;
         else running = true;
       }
@@ -903,7 +1072,10 @@ export default function ExperienceSection() {
       // into this section both happen on a single tick.
       if (e.defaultPrevented) return;
       // Anything inside the embedded app owns its own scrolling.
-      if (e.target instanceof Element && e.target.closest("[data-interactive]")) {
+      if (
+        e.target instanceof Element &&
+        e.target.closest("[data-interactive]")
+      ) {
         return;
       }
       const direction = e.deltaY > 0 ? 1 : e.deltaY < 0 ? -1 : 0;
@@ -949,7 +1121,10 @@ export default function ExperienceSection() {
     }
     function onTouchMove(e) {
       if (touchStartY === null || e.defaultPrevented) return;
-      if (e.target instanceof Element && e.target.closest("[data-interactive]")) {
+      if (
+        e.target instanceof Element &&
+        e.target.closest("[data-interactive]")
+      ) {
         return;
       }
       if (busy) {
@@ -1003,10 +1178,21 @@ export default function ExperienceSection() {
         ? clamp01((window.scrollY - section.offsetTop) / scrollable0)
         : 0;
     STEP_RAW.forEach((v, i) => {
-      if (Math.abs(v - raw0) < Math.abs(STEP_RAW[stepIndex] - raw0)) stepIndex = i;
+      if (Math.abs(v - raw0) < Math.abs(STEP_RAW[stepIndex] - raw0))
+        stepIndex = i;
     });
+    // Before anything is armed, so nothing has an entrance transform on it yet
+    // and every box is its resting one.
+    measureStops();
     applyX(targetXFor(stepIndex));
     refreshTriggers();
+    // Headlines are the widest things here, and a webfont arriving after this
+    // changes how wide they are — so the centres are taken again once the
+    // fonts are actually in.
+    document.fonts?.ready.then(() => {
+      measureStops();
+      if (!busy) applyX(targetXFor(stepIndex));
+    });
 
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -1043,14 +1229,24 @@ export default function ExperienceSection() {
           >
             <div className="flex h-full">
               <IntroPanel />
+              <ArchivePanel />
               <SavedPanel />
               <ProblemPanel />
               <SolutionPanel />
-              <SnapkeepPanel />
+              <SnapkeepPanel onOpen={() => setAppOpen(true)} />
             </div>
           </div>
         </div>
       </div>
+
+      {/* Outside the strip and its scale, so the app gets the whole screen —
+          the same window the Snapkeep project card opens. */}
+      {appOpen && (
+        <ProjectAppWindow
+          card={{ detail: SnapkeepSpread }}
+          onClose={() => setAppOpen(false)}
+        />
+      )}
     </section>
   );
 }

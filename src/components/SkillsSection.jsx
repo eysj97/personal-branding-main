@@ -237,7 +237,7 @@ export default function SkillsSection() {
               the gap between them is a real gap, not a second hand-tuned
               `top` that has to be re-derived whenever the heading resizes. */}
           <div
-            className="absolute flex flex-col gap-[20px]"
+            className="absolute flex flex-col gap-[24px]"
             style={{ left: 30, top: 288 }}
           >
             <p
@@ -251,7 +251,7 @@ export default function SkillsSection() {
                 get scaled a second time and drift off the design. */}
             <p
               className="font-['Pretendard'] leading-[1.2] text-white whitespace-nowrap tracking-[-0.02em]"
-              style={{ fontSize: 24 }}
+              style={{ fontSize: 22 }}
             >
               그렇게 지금 다루는 것들입니다
             </p>

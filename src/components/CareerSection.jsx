@@ -70,24 +70,65 @@ const ROLES = [
 // and each circle steps CENTER -> A -> C -> D -> B -> CENTER as the
 // wheel advances one role at a time.
 const CENTER_OFFSET = { x: -50, y: -49 };
-const CENTER_POS = { x: 970 + CENTER_OFFSET.x, y: 546 + CENTER_OFFSET.y };
-const A_POS = { x: 574.5 + CENTER_OFFSET.x, y: 686 + CENTER_OFFSET.y };
-const C_POS = { x: 455.5 + CENTER_OFFSET.x, y: 866 + CENTER_OFFSET.y };
-const D_POS = { x: 1484.5 + CENTER_OFFSET.x, y: 866 + CENTER_OFFSET.y };
-const B_POS = { x: 1365.5 + CENTER_OFFSET.x, y: 686 + CENTER_OFFSET.y };
-const SLOT_SEQUENCE = [CENTER_POS, A_POS, C_POS, D_POS, B_POS];
 const CIRCLE_SIZE = 80;
 const GROWN_SIZE = 878;
 
+// The slots read straight off the design's own frame, where the cluster is
+// bottom-anchored.
+const RAW_SLOTS = {
+  center: { x: 920.5, y: 792 },
+  a: { x: 705.5, y: 844 },
+  c: { x: 563, y: 950 },
+  d: { x: 1278, y: 950 },
+  b: { x: 1135.5, y: 844 },
+};
+// ...and then the whole cluster is moved as one piece so that what it occupies
+// is centred across the canvas. Derived rather than five hand-adjusted pairs,
+// so the wheel's own geometry — which slot sits where relative to the others —
+// is untouched by the centring and stays exactly as designed.
+//
+// Centred across, and hung this far off the bottom. Not centred vertically:
+// the wheel sits under the role photo and its copy, and centring it as well
+// drives it up through both of them.
+const CLUSTER_BOTTOM_GAP = 50;
+const CLUSTER_SHIFT = (() => {
+  const slots = Object.values(RAW_SLOTS);
+  const left = Math.min(...slots.map((p) => p.x));
+  const right = Math.max(...slots.map((p) => p.x)) + CIRCLE_SIZE;
+  const bottom = Math.max(...slots.map((p) => p.y)) + CIRCLE_SIZE;
+  return {
+    x: DESIGN_WIDTH / 2 - (left + right) / 2,
+    y: DESIGN_HEIGHT - CLUSTER_BOTTOM_GAP - bottom,
+  };
+})();
+const centred = (p) => ({
+  x: p.x + CLUSTER_SHIFT.x,
+  y: p.y + CLUSTER_SHIFT.y,
+});
+const CENTER_POS = centred(RAW_SLOTS.center);
+const A_POS = centred(RAW_SLOTS.a);
+const C_POS = centred(RAW_SLOTS.c);
+const D_POS = centred(RAW_SLOTS.d);
+const B_POS = centred(RAW_SLOTS.b);
+const SLOT_SEQUENCE = [CENTER_POS, A_POS, C_POS, D_POS, B_POS];
+
+// x is derived from the canvas rather than carried over from the design's own
+// offsets — those put the photo half a pixel and the copy eleven pixels off
+// centre, which reads as the block leaning left against a wheel that is exactly
+// centred. Only the horizontal is taken over; the vertical stays as designed.
+const centredX = (width) => DESIGN_WIDTH / 2 - width / 2;
 const IMAGE_BOX = {
-  x: 687 + CENTER_OFFSET.x,
+  x: centredX(647),
   y: 232 + CENTER_OFFSET.y,
   width: 647,
   height: 350,
 };
+// Derived from the image rather than given its own y, so the 24px between the
+// photo and the role copy stays 24 whatever the image box does.
+const ROLE_TEXT_GAP = 24;
 const TEXT_BOX = {
-  x: 719 + CENTER_OFFSET.x,
-  y: 761 + CENTER_OFFSET.y,
+  x: centredX(560),
+  y: IMAGE_BOX.y + IMAGE_BOX.height + ROLE_TEXT_GAP,
   width: 560,
 };
 
@@ -98,23 +139,25 @@ const TEXT_BOX = {
 // circle stays hidden there and this title/START content shows in its
 // place until the wheel starts turning and role 5 rotates out to reveal
 // its own circle underneath.
-const START_TITLE_BOX_WIDTH = 560;
-const START_TITLE_GAP = 66;
+// It takes the role photo's own box: START is the slot's content before role 1
+// arrives in it, so it belongs where that content will be, not floating above
+// the wheel on a measurement of its own. Nudged down a touch — the photo is a
+// filled rectangle and this is two lines of type, so sharing the box exactly
+// left it reading high against the photo it replaces.
+const START_TITLE_DROP = 40;
 const START_TITLE_BOX = {
-  x: CENTER_POS.x + CIRCLE_SIZE / 2 - START_TITLE_BOX_WIDTH / 2,
-  bottom: DESIGN_HEIGHT - CENTER_POS.y + START_TITLE_GAP,
-  width: START_TITLE_BOX_WIDTH,
+  ...IMAGE_BOX,
+  y: IMAGE_BOX.y + START_TITLE_DROP,
 };
 const START_FADE_WINDOW = 0.35;
 
-// Where role 5's circle goes once it stops being a wheel slot and
-// becomes the sole background blob — step 7's position is *derived*
-// from CENTER_POS (not read off Figma) so it lands exactly where the
-// wheel's own convergence math already puts the circle at step 6, with
-// zero jump: same center point (CENTER_POS + half its size), just a
-// bigger radius.
-const BLOB_CENTER_X = CENTER_POS.x + CIRCLE_SIZE / 2;
-const BLOB_CENTER_Y = CENTER_POS.y + CIRCLE_SIZE / 2;
+// Where role 5's circle goes once it stops being a wheel slot and becomes the
+// sole background blob: dead centre of the canvas. It cannot simply grow where
+// the wheel left it — the wheel sits low, and an 878px circle grown from there
+// hangs off the bottom of the screen — so it travels here as it grows, and the
+// step lands with it centred.
+const BLOB_CENTER_X = DESIGN_WIDTH / 2;
+const BLOB_CENTER_Y = DESIGN_HEIGHT / 2;
 const BLOB_STEPS = [
   {
     x: BLOB_CENTER_X - GROWN_SIZE / 2,
@@ -630,8 +673,17 @@ export default function CareerSection() {
         const base = slotFor(r, centerValue);
         const dx = lerp(base.x, CENTER_POS.x, convergeT);
         const dy = lerp(base.y, CENTER_POS.y, convergeT);
-        const centerX = canvasOffsetX + dx * s + baseSize / 2;
-        const centerY = canvasOffsetY + dy * s + baseSize / 2;
+        let centerX = canvasOffsetX + dx * s + baseSize / 2;
+        let centerY = canvasOffsetY + dy * s + baseSize / 2;
+        // Role 5 is the survivor, and it does not just swell where the wheel
+        // left it: the wheel sits low on the canvas, so a circle this size
+        // grown there would hang off the bottom. It travels to the blob's own
+        // centre on the same curve it grows on — which is also exactly where
+        // the next step reads it from, so 6 -> 7 has nothing to jump over.
+        if (r === 5) {
+          centerX = lerp(centerX, canvasOffsetX + BLOB_CENTER_X * s, growT);
+          centerY = lerp(centerY, canvasOffsetY + BLOB_CENTER_Y * s, growT);
+        }
         el.style.left = `${centerX - grownSize / 2}px`;
         el.style.top = `${centerY - grownSize / 2}px`;
         el.style.width = `${grownSize}px`;
@@ -1172,11 +1224,12 @@ export default function CareerSection() {
           >
             <div
               ref={startPanelRef}
-              className="absolute flex flex-col items-center gap-[37px]"
+              className="absolute flex flex-col items-center justify-center gap-[37px]"
               style={{
                 left: START_TITLE_BOX.x,
-                bottom: START_TITLE_BOX.bottom,
+                top: START_TITLE_BOX.y,
                 width: START_TITLE_BOX.width,
+                height: START_TITLE_BOX.height,
               }}
             >
               <div className="flex items-start gap-[20px] font-['Plus_Jakarta_Sans'] font-bold text-[#0492bd] text-[84px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap">
@@ -1247,7 +1300,7 @@ export default function CareerSection() {
 
             <div
               ref={chapterTitleRef}
-              className="absolute flex flex-col font-['Plus_Jakarta_Sans'] font-bold text-white text-[70px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap"
+              className="absolute flex flex-col font-['Plus_Jakarta_Sans'] font-bold text-white text-[120px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap"
               style={{
                 left: CHAPTER_TITLE_POS.x,
                 top: CHAPTER_TITLE_POS.y,
@@ -1257,9 +1310,9 @@ export default function CareerSection() {
               <p>Role</p>
               <p>Led me to a career</p>
               {/* Every text property here is restated rather than inherited —
-                  the wrapper carries the 70px bold heading style, which this
+                  the wrapper carries the 120px bold heading style, which this
                   caption would otherwise pick up wholesale. */}
-              <p className="mt-[24px] font-['Pretendard'] font-medium text-[24px] tracking-[-0.02em] leading-[1.2]">
+              <p className="mt-[24px] font-['Pretendard'] font-medium text-[22px] tracking-[-0.02em] leading-[1.2]">
                 이 모습 그대로, 디자이너가 되었습니다
               </p>
             </div>

@@ -1,10 +1,16 @@
 import { useEffect, useRef } from "react";
-import card1 from "../assets/learn/card-1.png";
-import card2 from "../assets/learn/card-2.png";
-import card3 from "../assets/learn/card-3.png";
-import card4 from "../assets/learn/card-4.png";
-import card5 from "../assets/learn/card-5.png";
-import card6 from "../assets/learn/card-6.png";
+// Used exactly as supplied. These are browser mockups drawn in perspective —
+// each one is a trapezoid, not a tilted rectangle: on card-6 the left edge is
+// 1555px against 1781px on the right. That is the artwork, and no rotation or
+// scale turns a trapezoid into a rectangle, so nothing here tries. The card
+// simply shows the file, and the transparent corners around the mockup are part
+// of how it is drawn.
+import card1 from "../assets/learn/card-1.svg";
+import card2 from "../assets/learn/card-2.svg";
+import card3 from "../assets/learn/card-3.svg";
+import card4 from "../assets/learn/card-4.svg";
+import card5 from "../assets/learn/card-5.svg";
+import card6 from "../assets/learn/card-6.svg";
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (from, to, x) => {
@@ -59,20 +65,34 @@ const CARDS = [
   { image: card6, slug: "1-mujain", label: "뮤자인" },
 ];
 
-const CARD_WIDTH = "clamp(220px,29vw,554px)";
+// 0.8x what it was (29vw -> 23.2vw). Smaller cards also mean the fanned-out
+// row takes up less of the screen, which is what stops the far ones running off
+// the edges.
+const CARD_WIDTH = "clamp(176px,23.2vw,443px)";
 const CARD_ASPECT = 446.5 / 554;
-// Gap between each stacked card, as a fraction of the card width: starts
-// at the resting/packed amount, widens to double the 12x baseline (24x)
-// as you scroll.
+// Gap between each stacked card, as a fraction of the card width: starts at
+// the resting/packed amount and opens to GAP_AT_END by the time the run
+// finishes. Stated as the gap it ends at rather than as a growth rate, because
+// the rate depends on how long the run is — and the number that was halved is
+// the end gap, so that is the one worth being able to read off.
 const GAP_START_FRAC = 60 / 120;
-const GAP_END_FRAC = GAP_START_FRAC * 10;
-// The whole stack slides LEFT together. Has to comfortably outrun the gap
-// growth above for every card, so the back cards never net-drift right —
-// and large enough that even the frontmost card (which gets no gap
-// bonus) clears past the left edge of the screen, leaving it empty. Bumped
-// up alongside GAP_END_FRAC so it still dominates (otherwise the back
-// cards, whose gap term grew too, would net-drift right instead of left).
-const SHIFT_END_FRAC = -29;
+const GAP_AT_END = 1.13;
+// How far the whole stack travels left over the run, in card widths.
+//
+// There is a floor on this and it is not obvious. The rearmost card ends up
+// 5 x GAP_AT_END to the right of the front one — 5.65 card widths — so that
+// much of the leftward move is spent just getting back to where the front card
+// is. Add where the row starts (0.35 of the screen, which is ~1.5 card widths
+// at 1920 and more on a wider one) and it has to reach -1 to be gone:
+//
+//     start + SHIFT + 5 x GAP_AT_END <= -1     ->     SHIFT <= -8.15
+//
+// This is well under that on purpose — the travel was asked to come down twice
+// — so the run no longer ends with an empty screen. The last two cards come to
+// rest still in frame on the left instead of clearing it. Getting back to an
+// empty ending at this travel needs a tighter fan rather than more distance:
+// GAP_AT_END of about 0.7 rather than 1.13 would do it.
+const SHIFT_TOTAL = -6;
 // "LEARN" holds in place for a beat before it starts exiting left, instead
 // of moving the instant you scroll — then fully gone before the cards start.
 const TEXT_HOLD_UNTIL = 0.08;
@@ -80,12 +100,19 @@ const TEXT_EXIT_DONE_AT = 0.3;
 const TEXT_EXIT_VW = -120;
 // Cards only start moving once the text has cleared out.
 const CARDS_START_AT = 0.3;
-// Cards grow as they travel, ending up twice their resting size.
-const SCALE_END = 2;
-// Motion stops here instead of running to a full 1 — cards hold at this
-// point (still on screen, not fully exited) for the rest of the scroll
-// before the next section takes over.
-const T_CAP = 0.28;
+// Cards keep their size the whole way. Only the spacing between them opens up
+// as they travel — the fan is the movement, the cards themselves do not grow.
+//
+// How much of the run the motion uses before the cards settle and hold for the
+// rest of the section. This was 0.28, which meant two thirds of the section's
+// scroll was spent going nowhere — and since the travel has to fit inside it,
+// that forced the movement to be fast to cover any distance at all. Using most
+// of the run instead is what buys the same distance at a much lower speed.
+const T_CAP = 0.85;
+// Both of these are per-unit-of-t rates, derived from the totals above so that
+// changing how long the run is does not silently change where things end up.
+const GAP_END_FRAC = GAP_START_FRAC + (GAP_AT_END - GAP_START_FRAC) / T_CAP;
+const SHIFT_END_FRAC = SHIFT_TOTAL / T_CAP;
 
 export default function LearnSection() {
   const sectionRef = useRef(null);
@@ -118,16 +145,15 @@ export default function LearnSection() {
       const gapFrac = GAP_START_FRAC + (GAP_END_FRAC - GAP_START_FRAC) * t;
       const gapPx = cardWidthPx * gapFrac;
       const shiftPx = cardWidthPx * SHIFT_END_FRAC * t;
-      const scale = 1 + (SCALE_END - 1) * t;
 
       // The last card in the array paints on top (normal DOM stacking), so
       // it sits at the front of the stack. Earlier cards, underneath it,
       // get pushed further back as the gap widens. The whole stack also
-      // slides left together (shiftPx) and grows (scale) as it goes.
+      // slides left together (shiftPx) as it goes.
       const lastIndex = cardRefs.current.length - 1;
       cardRefs.current.forEach((el, i) => {
         if (!el) return;
-        el.style.transform = `translateX(${shiftPx + (lastIndex - i) * gapPx}px) scale(${scale})`;
+        el.style.transform = `translateX(${shiftPx + (lastIndex - i) * gapPx}px)`;
       });
 
       ticking = false;
@@ -153,12 +179,12 @@ export default function LearnSection() {
   return (
     <section
       ref={sectionRef}
-      className="section-learn relative h-[340vh] bg-[#06252e]"
+      className="section-learn relative h-[210vh] bg-[#06252e]"
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         <div
           ref={textRef}
-          className="absolute top-1/2 -translate-y-1/2 left-5 flex flex-col gap-[12px]"
+          className="absolute top-1/2 -translate-y-1/2 left-5 flex flex-col gap-[24px]"
         >
           <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-white whitespace-nowrap text-[clamp(40px,6.25vw,120px)] tracking-[clamp(-4px,-0.6vw,-12px)]">
             LEARN
