@@ -1,23 +1,26 @@
 import { useEffect, useRef, useState } from "react";
-import cardPhoto from "../assets/project/card-photo.avif";
-import cardViewBody from "../assets/project/card-view-hover-body.avif";
-import cardSantalBody from "../assets/project/card-santal-hover-body.avif";
-import screenImac from "../assets/project/mockup/screen-imac.avif";
-import screenIpad from "../assets/project/mockup/screen-ipad.avif";
-import screenPhone1 from "../assets/project/mockup/screen-phone-1.avif";
-import screenPhone2 from "../assets/project/mockup/screen-phone-2.avif";
-import screenPhone3 from "../assets/project/mockup/screen-phone-3.avif";
-import screenPhone4 from "../assets/project/mockup/screen-phone-4.avif";
-import santalHover from "../assets/project/hover/layer-hover.avif";
-import viewHoverCards from "../assets/project/hover/view-hover1.avif";
-import viewHoverPhones from "../assets/project/hover/view-hover2.avif";
+// Six folders, and for each one a face and the cluster that flies out of it on
+// hover. Both come straight from the design, rendered in isolation so they
+// carry their own transparency — an ordinary export bakes Figma's canvas grey
+// in behind them, which on a dark section reads as a grey box rather than a
+// drawing.
+import faceAquaWeb from "../assets/project/folder6/face-aqua-web.png";
+import faceAquaApp from "../assets/project/folder6/face-aqua-app.png";
+import faceLayerDark from "../assets/project/folder6/face-layer-dark.png";
+import faceLayerLight from "../assets/project/folder6/face-layer-light.png";
+import faceReviuApp from "../assets/project/folder6/face-reviu-app.png";
+import faceReviuSurvey from "../assets/project/folder6/face-reviu-survey.png";
+import clusterAquaWeb from "../assets/project/folder6/cl-aqua-web.png";
+import clusterAquaApp from "../assets/project/folder6/cl-aqua-app.png";
+import clusterLayerDark from "../assets/project/folder6/cl-layer-dark.png";
+import clusterLayerLight from "../assets/project/folder6/cl-layer-light.png";
+import clusterReviuApp from "../assets/project/folder6/cl-reviu-app.png";
+import clusterReviuSurvey from "../assets/project/folder6/cl-reviu-survey.png";
 import ProjectMockup from "./ProjectMockup";
 import ProjectHoverComposition from "./ProjectHoverComposition";
 import ProjectDetailOverlay from "./ProjectDetailOverlay";
 import ProjectAppWindow from "./ProjectAppWindow";
 import AquaplanetSpread from "./detail/AquaplanetSpread";
-import SnapkeepSpread from "./detail/SnapkeepSpread";
-import SnapkeepCardFace from "./SnapkeepCardFace";
 import ReviuSpread from "./detail/ReviuSpread";
 import LayerSpread from "./detail/LayerSpread";
 
@@ -56,15 +59,19 @@ const CARD_LEAN = 8;
 // CSS. This one is only used in inline styles, but keeping the pair adjacent is
 // what stops them drifting apart.)
 //
-// 1.15 rather than 1.5: pulling the ring in is what makes the folders overlap
-// each other as they come round, instead of being spaced far enough apart that
-// only one is ever really in play.
-const RADIUS_RATIO = 1.15;
-const CARD_RADIUS = "clamp(138px,13.8vw,263px)";
+// Up from 1.15, sized so the *gap* between neighbouring folders doubles — which
+// is not the same as doubling the radius. The folders sit 60deg apart whatever
+// the radius, and each one spans an angle set by its own width over that radius,
+// so the gap is what is left over after the card: at 1.15 a card covers 48.8 of
+// its 60deg and leaves 11.2, worth about 0.22 of a card width. Doubling the
+// radius to 2.3 leaves 35.6deg — 1.43 card widths, six times the gap, not twice.
+// 1.365 is the ratio that lands the leftover on 0.45 card widths instead.
+const RADIUS_RATIO = 1.365;
+const CARD_RADIUS = "clamp(163.8px,16.38vw,312.6px)";
 // A single DOM element cannot be bent in CSS 3D, so each card is rendered as a
 // row of vertical slices standing on the cube's own cylinder — the folder is a
 // section of the drum rather than a flat plate stuck to it, which is what makes
-// the spin read as rotation instead of as four rectangles swapping places.
+// the spin read as rotation instead of as flat rectangles swapping places.
 // Every slice shows the *whole* card, clipped to its own band, so the artwork
 // (and the live Snapkeep face) needs no slicing of its own.
 // 10 rather than a handful: with real perspective each slice projects at its
@@ -104,87 +111,141 @@ function shade(hex, amount) {
   const dim = (channel) => Math.round(channel * (1 - amount));
   return `rgb(${dim((n >> 16) & 255)}, ${dim((n >> 8) & 255)}, ${dim(n & 255)})`;
 }
-// Until a project has its own device screenshots, the hover cluster just shows
-// the card's own artwork on every screen. Drop a `mockup` on the card below to
-// replace it: { imac, ipad, phones: [1, 2, 3, 4] }.
-const fallbackMockup = (image) => ({
-  imac: image,
-  ipad: image,
-  phones: [image, image, image, image],
-});
-// crop replicates the exact framing from Figma (custom pan/zoom on the
+// `crop` replicates the exact framing from Figma (custom pan/zoom on the
 // source image), not a generic auto-cover fit.
-// Each card is a face of the same cube — a true 90deg apart, front/right/
-// back/left, sitting close to the cube's own center (small radius) instead
-// of spread out on a wide, flat-looking circle.
+//
+// The folders stand on a ring close to its own centre — a small radius, so
+// they overlap as they come round — rather than spread out on a wide, flat
+// circle. There are six of them now, so the spacing is a sixth of a turn; it
+// is derived below rather than written down, and nothing here should assume a
+// particular count.
+// Four of the six faces are exported 383 wide rather than the card's own 343.
+// That is deliberate: in the design the logo and the mascot are laid over the
+// card as siblings rather than inside it, so only the whole group carries
+// them, and the group is card + tab. The extra 40 is that tab, which the
+// folder already draws itself in `tabColor` — so the art is pinned to the left
+// edge at 383/343 and the card's own clip cuts the exported tab away. Anchored
+// left, not covered: `object-cover` would centre it and shave both sides.
+const WITH_TAB = { left: 0, top: 0, width: "111.662%", height: "100%" };
+
+// Six folders, 60deg apart — three projects, each seen twice. The two halves
+// of a project sit opposite each other on the drum, so they are never both in
+// view, and any half turn shows all three projects rather than one twice.
+//
+// Every `layout` below is the design's own geometry restated as a fraction of
+// the card: the cluster's offset from the card's top-left over 343 x 522. That
+// is what keeps a cluster hanging off the right corner at one size and every
+// other size too.
 const CARDS = [
   {
     angle: 0,
-    image: cardPhoto,
+    image: faceAquaWeb,
     tabColor: "#2686e7",
-    // Clicking a card only does something once it has a `detail` spread to
-    // open into; the other three stay hover-only until theirs are drawn.
     detail: AquaplanetSpread,
-    mockup: {
-      imac: screenImac,
-      ipad: screenIpad,
-      phones: [screenPhone1, screenPhone2, screenPhone3, screenPhone4],
+    hover: {
+      origin: "50% 50%",
+      assets: [
+        {
+          image: clusterAquaWeb,
+          layout: { width: "150.68%", left: "-71.72%", top: "70.79%" },
+        },
+      ],
     },
   },
   {
-    angle: 90,
-    image: cardViewBody,
+    angle: 60,
+    image: faceLayerDark,
+    crop: WITH_TAB,
+    tabColor: "#ff4800",
+    detail: LayerSpread,
+    // Layer's opened pages carry a 20% black wash over the tab colour.
+    pageColor: "#cc3a00",
+    hover: {
+      origin: "50% 50%",
+      assets: [
+        {
+          image: clusterLayerDark,
+          layout: { width: "107.17%", left: "27.11%", top: "82.76%" },
+        },
+      ],
+    },
+  },
+  {
+    angle: 120,
+    image: faceReviuApp,
+    crop: WITH_TAB,
     tabColor: "#78db44",
     detail: ReviuSpread,
     hover: {
       origin: "50% 50%",
       assets: [
         {
-          image: viewHoverCards,
-          layout: { width: "52%", left: "-27%", top: "4%" },
-        },
-        {
-          image: viewHoverPhones,
-          layout: { width: "85%", left: "55%", top: "66%" },
+          image: clusterReviuApp,
+          layout: { width: "96.08%", left: "-20.40%", top: "-24.90%" },
         },
       ],
     },
   },
   {
     angle: 180,
-    image: cardSantalBody,
-    tabColor: "#ff4800",
-    detail: LayerSpread,
-    // Layer's opened pages carry a 20% black wash over the tab colour.
-    pageColor: "#cc3a00",
+    image: faceAquaApp,
+    tabColor: "#2686e7",
+    detail: AquaplanetSpread,
     hover: {
-      origin: "50% 65%",
+      origin: "50% 50%",
       assets: [
         {
-          image: santalHover,
-          layout: { width: "91.5%", left: "60%", top: "63%" },
+          image: clusterAquaApp,
+          layout: { width: "100.32%", left: "-50.15%", top: "70.51%" },
         },
       ],
     },
   },
   {
-    angle: 270,
-    // Drawn rather than a screenshot: `face` replaces the card art with a
-    // component, so this one stays sharp at any card size and reads as the
-    // same shell the app it opens into uses.
-    face: SnapkeepCardFace,
-    tabColor: "#017c6e",
-    detail: SnapkeepSpread,
-    // Snapkeep is a working app rather than a case-study spread, so it opens
-    // straight into its own window — no folder unfolding first.
-    standalone: true,
+    angle: 240,
+    image: faceLayerLight,
+    crop: WITH_TAB,
+    tabColor: "#ff4800",
+    detail: LayerSpread,
+    pageColor: "#cc3a00",
+    hover: {
+      origin: "50% 50%",
+      assets: [
+        {
+          image: clusterLayerLight,
+          layout: { width: "89.36%", left: "-45.21%", top: "-18.51%" },
+        },
+      ],
+    },
+  },
+  {
+    angle: 300,
+    image: faceReviuSurvey,
+    crop: WITH_TAB,
+    tabColor: "#78db44",
+    detail: ReviuSpread,
+    hover: {
+      origin: "50% 50%",
+      assets: [
+        {
+          image: clusterReviuSurvey,
+          layout: { width: "52.01%", left: "-26.34%", top: "4.22%" },
+        },
+      ],
+    },
   },
 ].map((card) => ({
   ...card,
-  // A card that draws its own face is complete on its own — no device
-  // cluster and no hover art floats out of it.
-  mockup: card.face ? null : (card.mockup ?? fallbackMockup(card.image)),
+  // The device cluster is gone. Every folder now carries its own hover art
+  // straight from the design, with the devices already composed into it, and
+  // `hover` wins over `mockup` where both are set — so a fallback here would
+  // only ever be dead weight in the bundle.
+  mockup: card.mockup ?? null,
 }));
+// How far apart the folders stand on the drum. Derived, so that adding or
+// removing one moves the resting angles with it rather than leaving the spin
+// settling on gaps.
+const CARD_STEP_DEG = 360 / CARDS.length;
 // How far the drum turns over the whole section. The scroll it happens across
 // is fixed, so this alone sets how fast it turns. It has come down from 1500 in
 // two steps; 840 is a little over two turns, which is still enough for every
@@ -291,11 +352,16 @@ export default function ProjectSection() {
       const held = hoveredRef.current || openedRef.current;
       const chase = held ? SPIN_CHASE_HELD : SPIN_CHASE;
 
-      // Bias the goal toward the nearest card facing the viewer, so the cube
+      // Bias the goal toward the nearest card facing the viewer, so the drum
       // prefers to rest showing a card rather than an edge. At 0.4 the pull
-      // can only bend the angle by ~18deg, which reads as weight rather than
-      // as snapping into slots.
-      const facingDeg = Math.round(targetDeg / 90) * 90;
+      // can only bend the angle by a fraction of a step, which reads as weight
+      // rather than as snapping into slots.
+      //
+      // Off the card spacing, not a fixed 90: with six folders the slots are
+      // 60deg apart, and rounding to 90 would have pulled the drum toward
+      // angles no card actually sits at — settling it on an edge, which is the
+      // exact thing this is here to avoid.
+      const facingDeg = Math.round(targetDeg / CARD_STEP_DEG) * CARD_STEP_DEG;
       const goal = held
         ? targetDeg
         : targetDeg + (facingDeg - targetDeg) * FACING_PULL;
@@ -446,7 +512,10 @@ export default function ProjectSection() {
         {/* text-center, not just the parent's items-center — that only
             centers the block, which with two lines of different lengths
             still leaves them ragged against a shared left edge. */}
-        <p className="font-['Pretendard'] leading-[1.2] whitespace-nowrap text-center text-[clamp(14px,1.15vw,22px)] tracking-[-0.44px] text-white">
+        {/* 16px at the 1920 design width, and the vw term is scaled by the same
+            22->16 ratio so it keeps shrinking with the heading rather than
+            standing still while everything around it gets smaller. */}
+        <p className="font-['Pretendard'] leading-[1.2] whitespace-nowrap text-center text-[clamp(11px,0.833vw,16px)] tracking-[-0.44px] text-white">
           경험해 보신 것 처럼, 저는 이런 방식으로 만들어 갑니다
           <br />
           다른 프로젝트들도 보여드릴게요
@@ -550,8 +619,10 @@ export default function ProjectSection() {
                         onMouseLeave={() => setHover(false)}
                         onClick={(event) => open(card, event)}
                       >
+                        {/* 5px, and the tab below carries the same — the two
+                            are one object, so they round together. */}
                         <div
-                          className="absolute top-0 h-full rounded-[15px] overflow-hidden"
+                          className="absolute top-0 h-full rounded-[5px] overflow-hidden"
                           style={{
                             width: `${SLICES * 100}%`,
                             left: `${-s * 100}%`,
@@ -584,8 +655,10 @@ export default function ProjectSection() {
                         filter: "brightness(var(--card-br, 1))",
                       }}
                     >
+                      {/* Right corners only, at the folder body's 5px — the
+                          left side is where it meets the folder. */}
                       <div
-                        className="absolute right-0 top-[3.5%] h-[24%] translate-x-full rounded-r-[10px]"
+                        className="absolute right-0 top-[3.5%] h-[24%] translate-x-full rounded-r-[5px]"
                         style={{
                           width: `${11 * SLICES}%`,
                           backgroundColor: tabColor,

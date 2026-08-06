@@ -4,16 +4,42 @@ import SnapkeepSpread from "./detail/SnapkeepSpread";
 import ProjectAppWindow from "./ProjectAppWindow";
 
 import noteMark from "../assets/experience/note-mark.avif";
-import underlineWave from "../assets/experience/underline-wave.svg";
 import boxBase from "../assets/experience/box-base.svg";
 import boxLid from "../assets/experience/box-lid.svg";
-import searchMark from "../assets/experience/search-mark.svg";
-import tagMark from "../assets/experience/tag-mark.svg";
 import savedScreen from "../assets/experience/saved-screen.avif";
 import savedFigma from "../assets/experience/saved-figma.avif";
 import savedSiteMenu from "../assets/experience/saved-site-menu.avif";
 import archiveCapture from "../assets/experience/archive-capture.avif";
 import snapkeepGrid from "../assets/experience/snapkeep-grid.avif";
+
+// The drawn-on layer: lime marks scribbled over the panels and the blue
+// swashes that run under the headlines. All of it is exported straight from
+// the design — the composite ones (the sparkle clusters, the long arrow) as a
+// single SVG of the whole group rather than as the loose vector layers they
+// are built from, since nothing here needs to move independently.
+import archiveSparkles from "../assets/experience/doodle/archive-sparkles.svg";
+import savedArrowTop from "../assets/experience/doodle/saved-arrow-top.svg";
+import savedArrowLow from "../assets/experience/doodle/saved-arrow-low.svg";
+// These three are pure stroke paths, and they are inlined as source rather
+// than pointed at as files so the strokes can be reached and drawn on. An
+// <img> is an opaque box — nothing inside it can be animated. Same `?raw`
+// trick the hero uses for its eyes.
+import problemSquiggle from "../assets/experience/doodle/problem-squiggle.svg?raw";
+import problemArrow from "../assets/experience/doodle/problem-arrow.svg?raw";
+import solutionSparkle from "../assets/experience/doodle/solution-sparkle.svg?raw";
+import solutionTick from "../assets/experience/doodle/solution-tick.svg";
+import swashTag from "../assets/experience/doodle/swash-tag.svg";
+import swashSearch from "../assets/experience/doodle/swash-search.svg";
+import swashLayout from "../assets/experience/doodle/swash-layout.svg";
+import tagSparkle from "../assets/experience/doodle/tag-sparkle.svg";
+import tagMark from "../assets/experience/doodle/tag-mark.svg";
+import searchLoupe from "../assets/experience/doodle/search-loupe.svg";
+import searchPin from "../assets/experience/doodle/search-pin.svg";
+import searchBubble from "../assets/experience/doodle/search-bubble.svg";
+// One glyph at four sizes in the design, exported four times. It is the same
+// drawing each time — identical 1.2016 aspect — so it is imported once and
+// each instance keeps its own box.
+import folderIcon from "../assets/experience/doodle/folder.svg";
 
 // The archive capture is a screen recording. Figma will only hand out still
 // frames of a video fill, so the file has to be dropped in by hand — put it at
@@ -73,7 +99,7 @@ const PANELS = [
   { width: SCREEN },
   { width: SCREEN },
   { width: 3031 },
-  { width: 3966, stops: 4 },
+  { width: 4477, stops: 4 },
   { width: SCREEN },
 ];
 const TOTAL_WIDTH = PANELS.reduce((sum, panel) => sum + panel.width, 0);
@@ -87,7 +113,8 @@ const STOPS = PANELS.reduce(
   (acc, panel) => {
     const count = panel.stops ?? Math.max(1, Math.ceil(panel.width / SCREEN));
     for (let k = 0; k < count; k += 1) {
-      const offset = count === 1 ? 0 : ((panel.width - SCREEN) * k) / (count - 1);
+      const offset =
+        count === 1 ? 0 : ((panel.width - SCREEN) * k) / (count - 1);
       acc.stops.push(acc.at + offset);
     }
     acc.at += panel.width;
@@ -140,7 +167,52 @@ const DURATIONS = {
   popup: 560,
   pop: 640,
   type: 650,
+  // Longer than the rest on purpose: this one is meant to be watched being
+  // made, and at the others' pace the stroke is over before you find it. These
+  // are big marks — the arrow crosses 440px — so even a second reads as the
+  // line appearing rather than as a pen travelling along it.
+  draw: 1500,
 };
+
+/** A line drawing that draws itself. The SVG source is inlined so its paths
+ *  are real elements the animation can reach; `pathLength` is stamped on each
+ *  one up front so the frame loop only has to move the dash offset.
+ *
+ *  Kept out of the float set — a mark still being drawn must not also be
+ *  drifting, or the line lands somewhere other than where it started. */
+function DrawnMark({ raw, className, stop, delay }) {
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const paths = ref.current?.querySelectorAll("path") ?? [];
+    for (const path of paths) {
+      path.setAttribute("pathLength", "1");
+      path.style.strokeDasharray = "1";
+      path.style.strokeDashoffset = "1";
+    }
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      aria-hidden="true"
+      // The exported file carries its own width/height; this makes the svg
+      // fill the box the design gives it instead.
+      className={`pointer-events-none absolute [&>svg]:size-full ${className}`}
+      data-anim="draw"
+      data-stop={stop}
+      data-delay={delay}
+      dangerouslySetInnerHTML={{ __html: raw }}
+    />
+  );
+}
+
+// A highlighter is drawn over writing that is already there. So every marker
+// stroke — the bar behind "Needed", the block through "The problem wasn't
+// saving", the three swashes under the solution lines — starts only once its
+// own headline has finished being written in, rather than racing it. Derived
+// from the sweep's own length so retiming the text retimes the marker with it.
+const HIGHLIGHT_AFTER = DURATIONS.sweep + 60;
 
 // Left-to-right sharpen for headlines. The mask is three times the text's own
 // width — solid on the left, clear on the right — so sliding it from `100%` to
@@ -229,6 +301,22 @@ function applyAnim(el, kind, t, typedCounts) {
       el.style.transform = `scale(${0.3 + 0.7 * backOut(t)})`;
       break;
     }
+    case "draw": {
+      // Drawn on, stroke by stroke, the way a pen would. `pathLength="1"`
+      // renormalises every path to a length of 1 whatever its real geometry,
+      // so one dash of 1 and an offset walking 1 -> 0 uncovers any of them at
+      // the same rate without measuring anything.
+      //
+      // The paths share the clock rather than running one after another: these
+      // are single gestures — a loop, an arrow, a burst — so a strict relay
+      // reads as separate marks being placed rather than as one drawing.
+      const paths = el.querySelectorAll("path");
+      for (const path of paths) {
+        path.style.strokeDasharray = "1";
+        path.style.strokeDashoffset = String(1 - t);
+      }
+      break;
+    }
     case "type": {
       const chars = el.querySelectorAll("[data-char]");
       // Linear, not eased — an eased typewriter visibly speeds up and slows
@@ -281,18 +369,73 @@ function IntroPanel() {
 
 /** Panel 2 — what the thing actually is, before the story of building it.
  *
- *  One centred column: the line that names it, the app itself, and the line
- *  that hands off to the rest of the section. */
+ *  One centred column of three blocks 32 apart: what it is called and what it
+ *  claims to be, the app itself, and the line that hands off to the rest of
+ *  the section. The column is centred by transform rather than by a computed
+ *  top, so its height is whatever the three blocks come to. */
 function ArchivePanel() {
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
-      <div className="absolute left-1/2 top-[calc(50%+0.5px)] flex w-[710px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[50px]">
-        <TypedText
-          lines={["레퍼런스를 저장해 두었다가", "필요할 때 꺼내 쓰는 아카이브"]}
-          className="text-center font-['Pretendard'] text-[32px] font-medium leading-none text-white whitespace-nowrap"
-          stop={STOP.archive}
-          delay={0}
-        />
+      {/* Marker-pen highlight behind the last word of the headline. First in
+          the panel, so the white type sits on top of it — which is the whole
+          effect. `wipe` because a highlighter is drawn across, not popped in. */}
+      <div
+        className="absolute left-[1144px] top-[269px] flex h-[32.604px] w-[177.246px] items-center justify-center"
+        data-anim="wipe"
+        data-stop={STOP.archive}
+        data-delay={260 + HIGHLIGHT_AFTER}
+        style={{ clipPath: "inset(0 100% 0 0)" }}
+      >
+        <div className="rotate-[-3.01deg]">
+          <div className="h-[23.369px] w-[176.261px] bg-[#0492bd]" />
+        </div>
+      </div>
+
+      <div className="absolute left-1/2 top-[calc(50%+0.22px)] flex w-[710px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[32px]">
+        <div className="flex w-full flex-col items-center gap-[24px]">
+          {/* The credit line. It used to sit on the next panel against the
+              iMac; the design moves it here, shortened, to open the panel. */}
+          <TypedText
+            lines={["SNAPKEEP · 개인 프로젝트"]}
+            className="px-[10px] text-center font-['Pretendard'] text-[12px] font-medium leading-none text-white whitespace-nowrap"
+            stop={STOP.archive}
+            delay={0}
+          />
+
+          <div className="relative flex w-full flex-col items-center gap-[12px] leading-none text-white">
+            {/* Scribbled over the front of the headline, hanging above the
+                block's own top — hence the negative offset. */}
+            <img
+              src={archiveSparkles}
+              alt=""
+              className="pointer-events-none absolute left-[11px] top-[-48px] h-[157px] w-[186px] max-w-none"
+              data-anim="pop"
+              data-stop={STOP.archive}
+              data-delay={620}
+              data-float="10"
+              style={{ opacity: 0 }}
+            />
+
+            {/* Set at 42px, which is what makes this line come out just about
+                exactly the column's own 710 — so it reads as the width of the
+                block rather than as a line sitting inside it. */}
+            <p
+              className={`font-['Plus_Jakarta_Sans'] text-[42px] font-bold whitespace-nowrap ${SWEEP_BOX}`}
+              data-anim="sweep"
+              data-stop={STOP.archive}
+              data-delay={260}
+              style={sweepStyle}
+            >
+              {"The Archive You've Always Needed"}
+            </p>
+            <TypedText
+              lines={["모은 레퍼런스를 제때 꺼내 쓸 수 있는 경험"]}
+              className="w-full text-center font-['Pretendard'] text-[16px] font-medium leading-none"
+              stop={STOP.archive}
+              delay={620}
+            />
+          </div>
+        </div>
 
         {/* 710 x 444.35 is the design's 778:487 box resolved at this column's
             width; the capture is exported at exactly that size. */}
@@ -300,7 +443,7 @@ function ArchivePanel() {
           className="h-[444.35px] w-[710px] overflow-hidden rounded-[8px]"
           data-anim="popup"
           data-stop={STOP.archive}
-          data-delay={520}
+          data-delay={1000}
           style={{ opacity: 0 }}
         >
           {ARCHIVE_VIDEO ? (
@@ -335,7 +478,7 @@ function ArchivePanel() {
 
         <TypedText
           lines={["이걸 만들기까지의 이야기입니다"]}
-          className="text-center font-['Pretendard'] text-[32px] font-medium leading-none text-white whitespace-nowrap"
+          className="text-center font-['Pretendard'] text-[22px] font-medium leading-none text-white whitespace-nowrap"
           stop={STOP.archive}
           delay={1100}
         />
@@ -489,21 +632,92 @@ function StackedWindow({ index, children }) {
 function SavedPanel() {
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
-      {/* Right-aligned to x=748, hence the translate rather than a left
-          offset — the two lines differ in length. */}
+      {/* The design lays this panel out as one centred row: a 466-wide column,
+          34, then the 738 monitor. That comes to 1238, so the row starts at
+          341 and the column's right edge — which everything in it hangs off —
+          lands at 807.
+
+          The column's height is what sets the two tops, and it is added up
+          rather than guessed: 84 for the headline (two 42px lines at
+          leading-none), 12 for the gap, 44.8 for the line below (two 16px
+          lines at 1.4). 140.8 in all, centred on the monitor's own middle at
+          540, so it starts at 469.6 and the lower block at 565.6. */}
+      {/* The two thumb marks come before the headline so they paint under it —
+          they are meant to sit behind the words, not across them. Nothing here
+          uses z-index: within one stacking context the later element wins, so
+          the running order *is* the depth. */}
+      <img
+        src={savedArrowTop}
+        alt=""
+        className="pointer-events-none absolute left-[608px] top-[471.6px] h-[44px] w-[35px] max-w-none"
+        data-anim="pop"
+        data-stop={STOP.saved}
+        data-delay={200}
+        data-float="9"
+        style={{ opacity: 0 }}
+      />
+      {/* The turn goes on an inner element on purpose: `pop` and the drift
+          after it both write this element's own transform every frame, so a
+          rotate on the same node would be overwritten on the first one. */}
+      <div
+        className="absolute left-[743px] top-[545px] h-[44px] w-[35px]"
+        data-anim="pop"
+        data-stop={STOP.saved}
+        data-delay={280}
+        data-float="9"
+        style={{ opacity: 0 }}
+      >
+        <img
+          src={savedArrowLow}
+          alt=""
+          className="pointer-events-none block h-[44px] w-[35px] max-w-none rotate-180"
+        />
+      </div>
+
       <TypedText
-        lines={["Saved it,", "But can’t find it"]}
-        className="absolute left-[748px] top-[472px] -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[50px] font-bold leading-none text-white"
+        lines={["Saved it,", "can’t find it"]}
+        className="absolute left-[807px] top-[469.6px] -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[42px] font-bold leading-none text-white"
         stop={STOP.saved}
         delay={0}
       />
 
-      {/* The credit line, on the same right edge as the headline. 572 is the
-          headline's own bottom — two 50px lines at leading-none — plus the
-          section's usual 24. */}
+      {/* "But" is no longer part of the headline — the design lifts it out into
+          a chip tipped off the horizontal, sitting where the word used to be.
+          The offsets are the design's own, measured from the 466 column (left
+          341) and the headline block (top 469.6). */}
+      <div
+        className="absolute left-[500px] top-[512.6px] flex h-[50.704px] w-[74.174px] items-center justify-center"
+        data-anim="pop"
+        data-stop={STOP.saved}
+        data-delay={340}
+        data-float="8"
+        style={{ opacity: 0 }}
+      >
+        <div className="rotate-[11.41deg]">
+          <div className="flex items-center justify-center rounded-[10px] bg-[#0492bd] px-[10px] py-[5px]">
+            <p className="font-['Plus_Jakarta_Sans'] text-[28px] font-bold leading-none text-white whitespace-nowrap">
+              But
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* The line that says what the picture beside it is evidence of. Ranged
+          right, so both of its lines end on the same 807 the headline above
+          ends on — the column's right edge is the edge everything in it is
+          read against. It keeps the full 466 rather than shrink-wrapping so
+          that edge is the box's own, not wherever the longer line happens to
+          reach.
+
+          Leading of 1.4 rather than the leading-none used everywhere else
+          here: at one line that choice is invisible, but broken across two it
+          would butt 16px Korean lines straight up against each other. */}
       <TypedText
-        lines={["SNAPKEEP · 개인 프로젝트 · 기획 · UX/UI 디자인 · 프로토타이핑"]}
-        className="absolute left-[748px] top-[596px] -translate-x-full text-right font-['Pretendard'] text-[12px] leading-none tracking-[-0.24px] text-white"
+        lines={[
+          "사용자들이 레퍼런스는 많이 저장하지만,",
+          " 정작 필요할 때 찾지 못하는 문제",
+        ]}
+        className="absolute left-[341px] top-[565.6px] w-[466px] text-right font-['Pretendard'] text-[16px] font-medium leading-[1.4] text-white"
         stop={STOP.saved}
         delay={620}
       />
@@ -511,7 +725,7 @@ function SavedPanel() {
       {/* `popup` rather than `pop`: a screen full of saved work should open
           like a window, not spring in from a third of its size. */}
       <div
-        className="absolute left-[800px] top-[229px] h-[622px] w-[738px]"
+        className="absolute left-[841px] top-[229px] h-[622px] w-[738px]"
         data-anim="popup"
         data-stop={STOP.saved}
         data-delay={400}
@@ -580,39 +794,50 @@ function SavedPanel() {
 function ProblemPanel() {
   return (
     <div className="relative h-full w-[3031px] shrink-0 overflow-hidden bg-[#06252e]">
-      <p
-        className={`absolute left-[calc(50%+50.5px)] top-[calc(50%-139px)] -translate-x-full text-right font-['Pretendard'] text-[100px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
-        data-anim="sweep"
-        data-stop={STOP.problemA}
-        style={sweepStyle}
-      >
-        The problem wasn&rsquo;t saving
-      </p>
-
-      {/* Wipes open from its left edge, chasing the headline above it, with
-          the note mark popping in beside them on the same beat. */}
+      {/* What used to be a drawn wave under the first headline is now a plain
+          block of colour struck through it. Ahead of the headline in the panel
+          so the type sits on top, and wiped open left to right the way the
+          wave was. */}
       <div
-        className="absolute left-[307px] top-[501px] h-[20px] w-[594px]"
+        className="absolute left-[285px] top-[457px] h-[36px] w-[505px] bg-[#0492bd]"
         data-anim="wipe"
         data-stop={STOP.problemA}
-        data-delay={450}
+        data-delay={HIGHLIGHT_AFTER}
         style={{ clipPath: "inset(0 100% 0 0)" }}
-      >
-        {/* The stroke overshoots its own box top and bottom, which is what the
-            negative inset is — without it the wave's crests get clipped. */}
-        <div className="absolute inset-[-7.5%_-0.13%_-7.5%_-0.15%]">
-          <img
-            src={underlineWave}
-            alt=""
-            className="block size-full max-w-none"
+      />
+
+      {/* Both halves of this panel are the design's own flex group, dropped on
+          the canvas at its top-left corner rather than unpacked into separate
+          absolute boxes. The group has no width of its own, so the headline
+          sets it and `items-end` hangs the line underneath off that same right
+          edge — which is the whole point of the arrangement and is not
+          something a fixed left offset can reproduce, since it depends on how
+          wide the headline actually renders. */}
+      <div className="absolute left-[307px] top-[401px] flex flex-col items-end gap-[12px]">
+        <p
+          className={`text-right font-['Pretendard'] text-[80px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
+          data-anim="sweep"
+          data-stop={STOP.problemA}
+          style={sweepStyle}
+        >
+          The problem wasn&rsquo;t saving
+        </p>
+
+        <div className="flex items-center justify-center pr-[10px]">
+          <TypedText
+            lines={["현재 있는 저장기능은 충분히 다양하게 존재합니다"]}
+            className="w-[435px] text-right font-['Pretendard'] text-[16px] font-medium leading-none text-white"
+            stop={STOP.problemA}
+            delay={700}
           />
         </div>
+
       </div>
 
       <img
         src={noteMark}
         alt=""
-        className="absolute left-[1426px] top-[299px] size-[140px] max-w-none object-cover"
+        className="absolute left-[1158px] top-[278px] size-[140px] max-w-none object-cover"
         data-anim="pop"
         data-stop={STOP.problemA}
         data-delay={450}
@@ -620,18 +845,34 @@ function ProblemPanel() {
         style={{ opacity: 0 }}
       />
 
-      <p
-        className={`absolute left-[calc(50%+1012.5px)] top-[calc(50%+124px)] -translate-x-full text-right font-['Pretendard'] text-[100px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
-        data-anim="sweep"
-        data-stop={STOP.problemB}
-        style={sweepStyle}
-      >
-        it was getting it back out
-      </p>
+      {/* The second half. This one the design does give a width — 809 — and
+          the headline fills it, so the line below hangs off that edge rather
+          than off the text's own. */}
+      <div className="absolute left-[1205px] top-[605px] flex w-[809px] flex-col items-end gap-[12px]">
+        <p
+          className={`w-full text-right font-['Pretendard'] text-[70px] font-bold leading-none text-white ${SWEEP_BOX}`}
+          data-anim="sweep"
+          data-stop={STOP.problemB}
+          style={sweepStyle}
+        >
+          it was getting it back out
+        </p>
+
+        <div className="flex items-center justify-center pr-[10px]">
+          <TypedText
+            lines={[
+              "핵심는 저장된 데이터를 조직하고 검색하는 경험의 부재였습니다",
+            ]}
+            className="w-[435px] text-right font-['Pretendard'] text-[16px] font-medium leading-none text-white"
+            stop={STOP.problemB}
+            delay={450}
+          />
+        </div>
+      </div>
 
       {/* Two pieces that make one open box: the base, and a lid tipped off it. */}
       <div
-        className="absolute left-[2427px] top-[574px] h-[90px] w-[91.5px]"
+        className="absolute left-[1869px] top-[526px] h-[90px] w-[91.5px]"
         data-anim="pop"
         data-stop={STOP.problemB}
         data-delay={450}
@@ -653,126 +894,309 @@ function ProblemPanel() {
           </div>
         </div>
       </div>
+
+      {/* Both marks are drawn over the top of everything — last in the panel,
+          as the design has them. Each is exported as a single SVG of the whole
+          group, and each keeps the square box the design gives it: the drawing
+          sits inside that box with its own slack, so cropping to the ink would
+          move it. */}
+      <DrawnMark
+        raw={problemSquiggle}
+        className="left-[357px] top-[266px] size-[216.784px]"
+        stop={STOP.problemA}
+        delay={HIGHLIGHT_AFTER}
+      />
+      <DrawnMark
+        raw={problemArrow}
+        className="left-[1818px] top-[429px] size-[439.666px]"
+        stop={STOP.problemB}
+        delay={HIGHLIGHT_AFTER}
+      />
     </div>
   );
 }
 
 /** Panel 5 — the three answers, stepped down and across.
  *
- *  Each row is a mark and its line side by side rather than the two being
- *  parked at opposite ends of the panel, and the rows now stagger diagonally
- *  across three screens, so each one gets its own stop. */
-const ROW_LEAD = 260; // ms from a row's line to its own mark
+ *  The rows used to be a mark and its line side by side. They are not any
+ *  more: each row is now just its two lines, with a blue swash struck under
+ *  the headline and the drawn marks scattered around and over the type rather
+ *  than lined up beside it. The rows still stagger diagonally across the
+ *  panel, so each one keeps its own stop.
+ *
+ *  Every offset below is the design's own. The ones inside a row are relative
+ *  to that row's text column — including the negative ones, which is how a
+ *  swash starts to the left of the word it runs under. */
+const ROW_LEAD = 260; // ms from a row's line to its own marks
 const rowLineClass =
   "shrink-0 text-right font-['Plus_Jakarta_Sans'] text-[70px] font-bold leading-none tracking-[-1.4px] text-white whitespace-nowrap";
+// The Korean line under each headline. The design sets two of these in Plus
+// Jakarta Sans and two in Pretendard, which is a distinction without a
+// difference — Plus Jakarta Sans carries no Hangul, so all four fall back to
+// the same face anyway. Pretendard for all of them says that on purpose.
+const rowSubClass =
+  "w-full shrink-0 text-center font-['Pretendard'] text-[16px] font-medium leading-none text-white";
+
+/** The blue swash that runs under a row's headline. Wiped open left to right,
+ *  behind the type — so it has to be the first thing in the row's column.
+ *
+ *  The box comes in with the size on it rather than being fixed here: the two
+ *  long swashes are 584.5 x 34.5 and the short one 380 x 35, and each has to
+ *  match its own export exactly or the drawing stretches. */
+function Swash({ src, className, stop, delay }) {
+  return (
+    <div
+      className={`pointer-events-none absolute ${className}`}
+      data-anim="wipe"
+      data-stop={stop}
+      data-delay={delay}
+      style={{ clipPath: "inset(0 100% 0 0)" }}
+    >
+      <img src={src} alt="" className="block size-full max-w-none" />
+    </div>
+  );
+}
+
+/** One of the folder icons scattered over the end of the first row. The design
+ *  exports this glyph once per size; it is the same drawing every time, so the
+ *  box carries the size and the inset is the design's own padding inside it. */
+function FolderIcon({ size, left, top, stop, delay }) {
+  return (
+    <div
+      className="absolute overflow-hidden"
+      style={{ left, top, width: size, height: size, opacity: 0 }}
+      data-anim="pop"
+      data-stop={stop}
+      data-delay={delay}
+      data-float="7"
+    >
+      <div className="absolute inset-[6.25%_1.19%_12.5%_1.18%]">
+        <img src={folderIcon} alt="" className="block size-full max-w-none" />
+      </div>
+    </div>
+  );
+}
 
 function SolutionPanel() {
   return (
-    <div className="relative h-full w-[3966px] shrink-0 overflow-hidden bg-[#06252e]">
-      {/* Right-aligned to x=1166 — the design's calc(50% - 817px) on this
-          panel's own width. */}
-      <p
-        className={`absolute left-[calc(50%-817px)] top-[calc(50%-74px)] -translate-x-full text-right font-['Pretendard'] text-[100px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
-        data-anim="sweep"
-        data-stop={STOP.solutionLead}
-        // Held until the panel has finished sliding in. Armed at zero, the
-        // whole sharpen plays out while the strip is still travelling, so by
-        // the time anything is still to look at it has already happened.
-        data-delay={TWEEN_MS}
-        style={sweepStyleGhosted}
-      >
-        Produce <span className="text-[#0492bd]">3</span>solution
-      </p>
+    <div className="relative h-full w-[4477px] shrink-0 overflow-hidden bg-[#06252e]">
+      {/* The second row's swash is the one piece the design parks on the panel
+          rather than inside its row, so it stays here at panel coordinates. */}
+      <Swash
+        src={swashSearch}
+        className="left-[2519.5px] top-[516.5px] h-[34.5px] w-[584.5px]"
+        stop={STOP.solutionSearch}
+        delay={HIGHLIGHT_AFTER}
+      />
 
-      {/* Row 1 — AI tagging */}
-      <div className="absolute left-[1426px] top-[225px] flex items-center gap-[40px]">
-        <div
-          className="flex h-[104.755px] w-[81.731px] shrink-0 items-center justify-center"
-          data-anim="pop"
-          data-stop={STOP.solutionTag}
-          data-delay={ROW_LEAD}
-          data-float="11"
-          style={{ opacity: 0 }}
-        >
-          <div className="rotate-[2.14deg]">
-            <img
-              src={tagMark}
-              alt=""
-              className="h-[101.911px] w-[77.976px] max-w-none"
-            />
-          </div>
-        </div>
+      {/* Anchored by its left edge at the design's own 372, with the line under
+          it centred on the headline rather than hung off either end. */}
+      <div className="absolute left-[372px] top-[442px] flex flex-col items-center gap-[16px]">
         <p
-          className={`${rowLineClass} ${SWEEP_BOX}`}
+          className={`text-right font-['Pretendard'] text-[100px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
           data-anim="sweep"
-          data-stop={STOP.solutionTag}
-          data-delay={0}
-          style={sweepStyle}
+          data-stop={STOP.solutionLead}
+          // Held until the panel has finished sliding in. Armed at zero, the
+          // whole sharpen plays out while the strip is still travelling, so by
+          // the time anything is still to look at it has already happened.
+          data-delay={TWEEN_MS}
+          style={sweepStyleGhosted}
         >
-          AI tagging instead of folders
+          Produce <span className="text-[#0492bd]">3 </span>solution
         </p>
+        <TypedText
+          lines={["사용자의 행동 패턴에서 도출한 3가지 핵심 기능"]}
+          className={rowSubClass}
+          stop={STOP.solutionLead}
+          delay={TWEEN_MS + 400}
+        />
       </div>
 
-      {/* Row 2 — search in design language */}
-      <div className="absolute left-[2237px] top-[466px] flex w-[957px] items-center gap-[40px]">
-        {/* The magnifier sits in a rotated box, and its own stroke overshoots
-            that box — the negative inset is what keeps the glass from being
-            clipped flat. */}
-        <div
-          className="flex h-[71.6px] w-[66.936px] shrink-0 items-center justify-center"
-          data-anim="pop"
-          data-stop={STOP.solutionSearch}
-          data-delay={ROW_LEAD}
-          data-float="11"
-          style={{ opacity: 0 }}
-        >
-          <div className="-scale-y-100 rotate-[-174.14deg] skew-x-[3.86deg]">
-            <div className="relative size-[65px]">
-              <div className="absolute inset-[-7.69%]">
-                <img
-                  src={searchMark}
-                  alt=""
-                  className="block size-full max-w-none"
-                />
-              </div>
+      <DrawnMark
+        raw={solutionSparkle}
+        className="left-[734px] top-[326px] h-[203px] w-[170px]"
+        stop={STOP.solutionLead}
+        delay={TWEEN_MS + HIGHLIGHT_AFTER}
+      />
+      <img
+        src={solutionTick}
+        alt=""
+        className="pointer-events-none absolute inset-[37.87%_21.68%_59.91%_77.71%] max-w-none"
+        data-anim="pop"
+        data-stop={STOP.solutionLayout}
+        data-delay={ROW_LEAD}
+        data-float="8"
+        style={{ opacity: 0 }}
+      />
+
+      {/* Row 1 — AI tagging */}
+      <div className="absolute left-[2011px] top-[227px] flex items-center">
+        <div className="relative flex flex-col items-center gap-[16px]">
+          <Swash
+            src={swashTag}
+            className="left-[-25.73px] top-[51.62px] h-[35px] w-[380px]"
+            stop={STOP.solutionTag}
+            delay={HIGHLIGHT_AFTER}
+          />
+          <p
+            className={`${rowLineClass} ${SWEEP_BOX}`}
+            data-anim="sweep"
+            data-stop={STOP.solutionTag}
+            data-delay={0}
+            style={sweepStyle}
+          >
+            AI tagging instead of folders
+          </p>
+          <TypedText
+            lines={["폴더 체계 대신 AI 기반 태그로 자동 분류"]}
+            className={rowSubClass}
+            stop={STOP.solutionTag}
+            delay={420}
+          />
+          {/* Turn on an inner element — `pop` owns the outer one's transform. */}
+          <div
+            className="pointer-events-none absolute left-[95.27px] top-[1.62px] flex size-[28.316px] items-center justify-center"
+            data-anim="pop"
+            data-stop={STOP.solutionTag}
+            data-delay={ROW_LEAD + 120}
+            data-float="7"
+            style={{ opacity: 0 }}
+          >
+            <div className="rotate-[-34.27deg]">
+              <img
+                src={tagSparkle}
+                alt=""
+                className="block size-[20.379px] max-w-none"
+              />
             </div>
           </div>
         </div>
-        <p
-          className={`${rowLineClass} ${SWEEP_BOX}`}
-          data-anim="sweep"
-          data-stop={STOP.solutionSearch}
-          data-delay={0}
-          style={sweepStyle}
-        >
-          Search in design language
-        </p>
       </div>
+      <img
+        src={tagMark}
+        alt=""
+        className="pointer-events-none absolute left-[1986px] top-[191px] h-[66px] w-[49px] max-w-none"
+        data-anim="pop"
+        data-stop={STOP.solutionTag}
+        data-delay={ROW_LEAD}
+        data-float="9"
+        style={{ opacity: 0 }}
+      />
+      {/* Piled at the tail of the line, over the word "folders". */}
+      <FolderIcon size={18} left={2830} top={196} stop={STOP.solutionTag} delay={ROW_LEAD + 60} />
+      <FolderIcon size={33} left={2852} top={209} stop={STOP.solutionTag} delay={ROW_LEAD + 120} />
+      <FolderIcon size={24} left={2868} top={183} stop={STOP.solutionTag} delay={ROW_LEAD + 180} />
+      <FolderIcon size={24} left={2896} top={205} stop={STOP.solutionTag} delay={ROW_LEAD + 240} />
 
-      {/* Row 3 — layout structure. Drawn, not exported: the design builds this
-          from four plain rectangles, so there is no asset to render. */}
-      <div className="absolute left-[3022px] top-[719px] flex items-center gap-[40px]">
-        <div
-          className="relative h-[88.361px] w-[94px] shrink-0 rounded-[10px] bg-white"
-          data-anim="pop"
-          data-stop={STOP.solutionLayout}
-          data-delay={ROW_LEAD}
-          data-float="11"
-          style={{ opacity: 0 }}
-        >
-          <div className="absolute left-[5.55px] top-[3.17px] h-[81.597px] w-[22.974px] rounded-[5px] bg-[#0492bd]" />
-          <div className="absolute left-[33.27px] top-[4.75px] h-[19.013px] w-[56.247px] rounded-[5px] bg-[#0492bd]" />
-          <div className="absolute left-[33.27px] top-[27.73px] h-[54.662px] w-[56.247px] rounded-[5px] bg-[#0492bd]" />
+      {/* Row 2 — search in design language */}
+      <div className="absolute left-[2516px] top-[466px] flex items-center">
+        <div className="relative flex flex-col items-center gap-[16px]">
+          <p
+            className={`${rowLineClass} ${SWEEP_BOX}`}
+            data-anim="sweep"
+            data-stop={STOP.solutionSearch}
+            data-delay={0}
+            style={sweepStyle}
+          >
+            Search in design language
+          </p>
+          <TypedText
+            lines={["디자인언어를 사용한 태깅 및 검색 제공"]}
+            className={rowSubClass}
+            stop={STOP.solutionSearch}
+            delay={420}
+          />
+          <img
+            src={searchLoupe}
+            alt=""
+            className="pointer-events-none absolute inset-[-18.63%_39.33%_81.58%_56.31%] max-w-none"
+            data-anim="pop"
+            data-stop={STOP.solutionSearch}
+            data-delay={ROW_LEAD + 120}
+            data-float="8"
+            style={{ opacity: 0 }}
+          />
         </div>
-        <p
-          className={`${rowLineClass} ${SWEEP_BOX}`}
-          data-anim="sweep"
-          data-stop={STOP.solutionLayout}
-          data-delay={0}
-          style={sweepStyle}
-        >
-          Layout structure
-        </p>
+      </div>
+      <div
+        className="pointer-events-none absolute left-[2571px] top-[447px] h-[32.391px] w-[116.653px]"
+        data-anim="pop"
+        data-stop={STOP.solutionSearch}
+        data-delay={ROW_LEAD + 60}
+        data-float="8"
+        style={{ opacity: 0 }}
+      >
+        {/* The drawing runs a shade wider than its frame on the left. */}
+        <div className="absolute inset-[0_0_0_-0.72%]">
+          <img src={searchPin} alt="" className="block size-full max-w-none" />
+        </div>
+      </div>
+      <img
+        src={searchBubble}
+        alt=""
+        className="pointer-events-none absolute left-[3249px] top-[429px] h-[58.055px] w-[59.74px] max-w-none"
+        data-anim="pop"
+        data-stop={STOP.solutionSearch}
+        data-delay={ROW_LEAD + 180}
+        data-float="9"
+        style={{ opacity: 0 }}
+      />
+
+      {/* Row 3 — layout structure */}
+      <div className="absolute left-[3357px] top-[668px] flex items-center gap-[40px]">
+        <Swash
+          src={swashLayout}
+          className="left-[-24px] top-[47.75px] h-[34.5px] w-[584.5px]"
+          stop={STOP.solutionLayout}
+          delay={HIGHLIGHT_AFTER}
+        />
+        <div className="flex flex-col items-center gap-[16px]">
+          <p
+            className={`${rowLineClass} ${SWEEP_BOX}`}
+            data-anim="sweep"
+            data-stop={STOP.solutionLayout}
+            data-delay={0}
+            style={sweepStyle}
+          >
+            Layout structure
+          </p>
+          <TypedText
+            lines={["원본뿐만 아니라 구조 분석 후 구조도 및 컴포넌트 제공"]}
+            className={rowSubClass}
+            stop={STOP.solutionLayout}
+            delay={420}
+          />
+        </div>
+      </div>
+      {/* Three loose blocks standing in for a layout, in place of the drawn
+          card the row used to carry. */}
+      <div
+        className="absolute left-[3290px] top-[717px] size-[29px] bg-white"
+        data-anim="pop"
+        data-stop={STOP.solutionLayout}
+        data-delay={ROW_LEAD + 60}
+        data-float="7"
+        style={{ opacity: 0 }}
+      />
+      <div
+        className="absolute left-[3302px] top-[683px] size-[29px] bg-[#c9e529]"
+        data-anim="pop"
+        data-stop={STOP.solutionLayout}
+        data-delay={ROW_LEAD + 120}
+        data-float="7"
+        style={{ opacity: 0 }}
+      />
+      <div
+        className="absolute left-[3250px] top-[688px] flex h-[61.751px] w-[35.113px] items-center justify-center"
+        data-anim="pop"
+        data-stop={STOP.solutionLayout}
+        data-delay={ROW_LEAD + 180}
+        data-float="7"
+        style={{ opacity: 0 }}
+      >
+        <div className="rotate-[-6.11deg]">
+          <div className="h-[59px] w-[29px] bg-[#0492bd]" />
+        </div>
       </div>
     </div>
   );
@@ -791,13 +1215,54 @@ const GRID_BOX = { width: 710, height: 443.4 };
 function SnapkeepPanel({ onOpen }) {
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
-      <div className="absolute left-1/2 top-[calc(50%+0.5px)] flex w-[710px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[50px]">
-        <TypedText
-          lines={["저장만 하던 레퍼런스, 이번엔 꺼내보세요."]}
-          className="text-center font-['Pretendard'] text-[32px] font-medium leading-none text-white whitespace-nowrap"
-          stop={STOP.snapkeep}
-          delay={0}
-        />
+      {/* The design gives this panel real copy now: a 42px title over one
+          Korean line, 12 apart, then the capture 32 below — the same block the
+          archive panel opens with, which is what makes the two read as the
+          bookends they are. */}
+      <div className="absolute left-1/2 top-[calc(50%+0.5px)] flex w-[710px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[32px]">
+        <div className="relative flex w-full flex-col items-center justify-center gap-[12px] leading-none text-white">
+          {/* The leading space is the design's own, and it is load-bearing:
+              the word is pushed right so the "Try" chip pinned above its left
+              shoulder sits beside it rather than over the S. Needs
+              `whitespace-pre` or the browser collapses it away and the chip
+              lands back on the letter. */}
+          <p
+            className={`font-['Plus_Jakarta_Sans'] text-[42px] font-bold whitespace-pre ${SWEEP_BOX}`}
+            data-anim="sweep"
+            data-stop={STOP.snapkeep}
+            data-delay={0}
+            style={sweepStyle}
+          >
+            {"          Snapkeep"}
+          </p>
+          <TypedText
+            lines={["완성된 서비스 경험  클릭해서 직접 체험해보세요"]}
+            className="w-full text-center font-['Pretendard'] text-[16px] font-medium leading-none"
+            stop={STOP.snapkeep}
+            delay={420}
+          />
+
+          {/* The design's own call to action — the same tipped chip the saved
+              panel puts "But" in. It replaces the hover pill this panel used to
+              invent for itself, so the invitation is now on screen rather than
+              only appearing once you are already over the picture. */}
+          <div
+            className="absolute left-[213px] top-[-11px] flex h-[49.318px] w-[67.313px] items-center justify-center"
+            data-anim="pop"
+            data-stop={STOP.snapkeep}
+            data-delay={760}
+            data-float="8"
+            style={{ opacity: 0 }}
+          >
+            <div className="rotate-[11.41deg]">
+              <div className="flex items-center justify-center rounded-[10px] bg-[#0492bd] px-[10px] py-[5px]">
+                <p className="font-['Plus_Jakarta_Sans'] text-[28px] font-bold leading-none text-white whitespace-nowrap">
+                  Try
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* `data-interactive` so the section's wheel handler leaves gestures
             that start here alone — otherwise a click-drag on the app would be
@@ -811,20 +1276,13 @@ function SnapkeepPanel({ onOpen }) {
           style={{ width: GRID_BOX.width, height: GRID_BOX.height, opacity: 0 }}
           data-anim="popup"
           data-stop={STOP.snapkeep}
-          data-delay={520}
+          data-delay={1000}
         >
           <img
             src={snapkeepGrid}
             alt=""
             className="absolute left-[-1.69%] top-[-2.71%] h-[105.9%] w-[104.12%] max-w-none transition-transform duration-500 group-hover:scale-[1.03]"
           />
-          {/* Nothing in the design says this is clickable, so the panel says
-              it — on hover only, so the still frame stays the design's. */}
-          <span className="absolute inset-0 flex items-end justify-center bg-[rgba(6,37,46,0)] pb-[22px] opacity-0 transition-opacity duration-300 group-hover:bg-[rgba(6,37,46,0.35)] group-hover:opacity-100">
-            <span className="rounded-full bg-white px-[18px] py-[8px] font-['Pretendard'] text-[14px] font-semibold text-[#06252e]">
-              직접 써보기
-            </span>
-          </span>
         </button>
       </div>
     </div>
@@ -898,17 +1356,44 @@ export default function ExperienceSection() {
     let stopCentres = [];
     function measureStops() {
       const trackLeft = trackRef.current.getBoundingClientRect().left;
-      const { stripScale } = metrics();
+      // The scale the strip is *wearing right now*, read back off the canvas,
+      // rather than the one it is supposed to end up with. Converting measured
+      // screen px into design px is only correct if the divisor is the scale
+      // those px were actually rendered at, and the two disagree for a frame
+      // or two after mount and after a resize. Read it back and they cannot
+      // drift apart.
+      const canvas = trackRef.current.firstElementChild;
+      const renderedWidth = canvas?.getBoundingClientRect().width ?? 0;
+      const stripScale =
+        renderedWidth > 0 ? renderedWidth / TOTAL_WIDTH : metrics().stripScale;
       const bounds = STOPS.map(() => null);
+      // Measure the laid-out box, with any entrance transform set aside and put
+      // back afterwards. `pop` and `popup` scale their element, and a scaled
+      // element measures smaller — so measuring one mid-entrance records a
+      // centre that stays wrong for the rest of the session. Resetting them to
+      // t=0 does not help: at t=0 a pop is scale(0.3), which is smaller still.
+      // On a cold load nothing has played yet, but that is not the case that
+      // matters — a hot reload with the section on screen re-runs this over
+      // elements still carrying the previous run's transforms.
+      const heldTransforms = animated.map((item) => item.el.style.transform);
+      for (const item of animated) item.el.style.transform = "none";
+
       for (const item of animated) {
         const rect = item.el.getBoundingClientRect();
         const left = (rect.left - trackLeft) / stripScale;
         const right = (rect.right - trackLeft) / stripScale;
         const seen = bounds[item.stop];
         bounds[item.stop] = seen
-          ? { left: Math.min(seen.left, left), right: Math.max(seen.right, right) }
+          ? {
+              left: Math.min(seen.left, left),
+              right: Math.max(seen.right, right),
+            }
           : { left, right };
       }
+      animated.forEach((item, i) => {
+        item.el.style.transform = heldTransforms[i];
+      });
+
       stopCentres = bounds.map((box, i) =>
         box ? (box.left + box.right) / 2 : STOPS[i] + SCREEN / 2,
       );
@@ -959,13 +1444,33 @@ export default function ExperienceSection() {
       trackRef.current.style.transform = `translate3d(${-x}px, 0, 0)`;
     }
 
+    /** Is this element's middle actually inside the viewport right now? */
+    function inView(el) {
+      const rect = el.getBoundingClientRect();
+      const middle = rect.left + rect.width / 2;
+      return middle > 0 && middle < document.documentElement.clientWidth;
+    }
+
     // Arm everything belonging to stops we have reached, and rearm anything
     // above them so scrolling back and returning replays it.
     function refreshTriggers() {
       const beforeSection = section.getBoundingClientRect().top > 0;
       let started = false;
       for (const item of animated) {
-        const reached = !beforeSection && stepIndex >= item.stop;
+        // Reaching a mark's stop is not the same as being able to see it. The
+        // strip is one long horizontal panel, a stop frames its own group, and
+        // a mark can sit well off to one side of that — so `stepIndex >= stop`
+        // would start the line being drawn while it is still past the edge of
+        // the screen, and it is already finished by the time it slides into
+        // view. That is the whole of this effect missed.
+        //
+        // Only the drawn marks are held this way. Everything else is either
+        // inside the group its stop frames anyway, or is text, which is read
+        // rather than watched and does not suffer from having started early.
+        const reached =
+          !beforeSection &&
+          stepIndex >= item.stop &&
+          (item.kind !== "draw" || inView(item.el));
         if (item.startAt === null) {
           if (reached) {
             item.startAt = performance.now() + item.delay;
@@ -1191,13 +1696,38 @@ export default function ExperienceSection() {
     measureStops();
     applyX(targetXFor(stepIndex));
     refreshTriggers();
-    // Headlines are the widest things here, and a webfont arriving after this
-    // changes how wide they are — so the centres are taken again once the
-    // fonts are actually in.
-    document.fonts?.ready.then(() => {
+
+    // Re-measure, and re-park on the stop, whenever something that changes how
+    // wide things are has landed.
+    //
+    // This is not belt-and-braces, it is the fix for a real bug: the fitted
+    // scale is set from a *different* effect, so at this point React has only
+    // scheduled it and the strip is still sitting at scale 1. Measuring here
+    // and dividing by the scale it is *about* to have inflated every centre by
+    // 1/scale, and the strip parked well off to one side.
+    //
+    // It only showed up on reload because of what used to correct it. The
+    // fonts.ready pass below re-measures, and on a cold load the fonts are
+    // still downloading, so that lands late — after the scale has painted —
+    // and quietly fixed the numbers. On a refresh the fonts are cached, it
+    // resolves almost immediately, and the second measurement was as early and
+    // as wrong as the first. Hence: fine the first time, off on every reload.
+    function settle() {
       measureStops();
       if (!busy) applyX(targetXFor(stepIndex));
+    }
+
+    // Two frames: one for React to commit the scale, one for the browser to
+    // lay out with it.
+    let settleId = requestAnimationFrame(() => {
+      settleId = requestAnimationFrame(settle);
     });
+    // Headlines are the widest things here, and a webfont arriving late
+    // changes how wide they are.
+    document.fonts?.ready.then(settle);
+    // The capture and the drawn marks carry real size too, and a stop framing
+    // one of them is measured wrong until it has decoded.
+    window.addEventListener("load", settle);
 
     window.addEventListener("wheel", onWheel, { passive: false });
     window.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -1211,8 +1741,10 @@ export default function ExperienceSection() {
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("load", settle);
       if (paintId !== null) cancelAnimationFrame(paintId);
       if (tweenId !== null) cancelAnimationFrame(tweenId);
+      if (settleId !== null) cancelAnimationFrame(settleId);
     };
   }, []);
 

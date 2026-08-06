@@ -64,72 +64,70 @@ const ROLES = [
   },
 ];
 
-// Fixed screen slots the 5 circles occupy during the wheel (absolute px
-// on the design canvas), shifted as a whole group so the composition
-// sits centered on the canvas. CENTER holds the currently-focused role,
-// and each circle steps CENTER -> A -> C -> D -> B -> CENTER as the
-// wheel advances one role at a time.
-const CENTER_OFFSET = { x: -50, y: -49 };
 const CIRCLE_SIZE = 80;
-const GROWN_SIZE = 878;
+// Both blobs in the design are 620 across — the handoff one at "Role / Led me
+// to a career" (node 154:3911) and the closing one behind the contact card
+// (node 154:3984) — and both sit dead centre of the canvas, so this is the size
+// the survivor circle grows to and every blob position below is derived from it.
+const GROWN_SIZE = 620;
 
-// The slots read straight off the design's own frame, where the cluster is
-// bottom-anchored.
-const RAW_SLOTS = {
-  center: { x: 920.5, y: 792 },
-  a: { x: 705.5, y: 844 },
-  c: { x: 563, y: 950 },
-  d: { x: 1278, y: 950 },
-  b: { x: 1135.5, y: 844 },
-};
-// ...and then the whole cluster is moved as one piece so that what it occupies
-// is centred across the canvas. Derived rather than five hand-adjusted pairs,
-// so the wheel's own geometry — which slot sits where relative to the others —
-// is untouched by the centring and stays exactly as designed.
+// The wheel is a ring hung off the bottom of the canvas with five 80px slots
+// spaced around its top arc. CENTER holds the currently-focused role, and each
+// circle steps CENTER -> A -> C -> D -> B -> CENTER as the wheel advances one
+// role at a time.
 //
-// Centred across, and hung this far off the bottom. Not centred vertically:
-// the wheel sits under the role photo and its copy, and centring it as well
-// drives it up through both of them.
-const CLUSTER_BOTTOM_GAP = 50;
-const CLUSTER_SHIFT = (() => {
-  const slots = Object.values(RAW_SLOTS);
-  const left = Math.min(...slots.map((p) => p.x));
-  const right = Math.max(...slots.map((p) => p.x)) + CIRCLE_SIZE;
-  const bottom = Math.max(...slots.map((p) => p.y)) + CIRCLE_SIZE;
-  return {
-    x: DESIGN_WIDTH / 2 - (left + right) / 2,
-    y: DESIGN_HEIGHT - CLUSTER_BOTTOM_GAP - bottom,
-  };
-})();
-const centred = (p) => ({
-  x: p.x + CLUSTER_SHIFT.x,
-  y: p.y + CLUSTER_SHIFT.y,
-});
-const CENTER_POS = centred(RAW_SLOTS.center);
-const A_POS = centred(RAW_SLOTS.a);
-const C_POS = centred(RAW_SLOTS.c);
-const D_POS = centred(RAW_SLOTS.d);
-const B_POS = centred(RAW_SLOTS.b);
-const SLOT_SEQUENCE = [CENTER_POS, A_POS, C_POS, D_POS, B_POS];
-
-// x is derived from the canvas rather than carried over from the design's own
-// offsets — those put the photo half a pixel and the copy eleven pixels off
-// centre, which reads as the block leaning left against a wheel that is exactly
-// centred. Only the horizontal is taken over; the vertical stays as designed.
-const centredX = (width) => DESIGN_WIDTH / 2 - width / 2;
-const IMAGE_BOX = {
-  x: centredX(647),
-  y: 232 + CENTER_OFFSET.y,
-  width: 647,
-  height: 350,
+// The ring is read straight off the design (node 154:3788). The slots are not:
+// the design's five boxes do not all sit the same distance from it — the centre
+// one and the bottom pair are 414.5 out, the top pair 434.5 — so lifting the
+// literal coordinates put two of the circles ~20px further from the line than
+// the other three, which shows plainly on a shape as regular as a circle.
+//
+// So a slot is stated as an angle instead, and its position is computed from
+// the ring: every one sits SLOT_GAP clear of the line, and moving between two
+// of them means interpolating the *angle* (see slotFor), so a circle keeps that
+// clearance the whole way round rather than cutting the chord across the ring.
+const RING = { x: 634, y: 760, size: 651 };
+const RING_CENTER = {
+  x: RING.x + RING.size / 2,
+  y: RING.y + RING.size / 2,
 };
-// Derived from the image rather than given its own y, so the 24px between the
-// photo and the role copy stays 24 whatever the image box does.
-const ROLE_TEXT_GAP = 24;
+// Taken from the three slots the design does agree on: 414.5 out from the ring's
+// centre, which off a radius of 325.5 and a circle of 40 leaves this much air.
+const SLOT_GAP = 49;
+const SLOT_RADIUS = RING.size / 2 + SLOT_GAP + CIRCLE_SIZE / 2;
+// Five slots evenly spaced around the top of the ring, measured in degrees from
+// straight up: CENTER at 0, two to each side. The order is the wheel's own —
+// CENTER -> A -> C -> D -> B -> CENTER — so the circles run down the left side,
+// cross the bottom unseen, and come back up the right.
+const SLOT_STEP_DEG = 41.15;
+const SLOT_ANGLES = [0, -1, -2, 2, 1].map((step) => step * SLOT_STEP_DEG);
+
+/** Top-left corner of the 80px box for a circle sitting `deg` around the ring. */
+function slotAt(deg) {
+  const rad = (deg * Math.PI) / 180;
+  return {
+    x: RING_CENTER.x + SLOT_RADIUS * Math.sin(rad) - CIRCLE_SIZE / 2,
+    y: RING_CENTER.y - SLOT_RADIUS * Math.cos(rad) - CIRCLE_SIZE / 2,
+  };
+}
+const CENTER_POS = slotAt(0);
+
+// Only the circle sitting at CENTER is filled; the other four are white
+// outlines. This is how wide the crossfade between those two states is, in
+// legs — so a circle is solid only while it is really the focused role, and
+// spends the middle of its trip out to A as an outline like the rest.
+const FOCUS_WINDOW = 0.5;
+
+const centredX = (width) => DESIGN_WIDTH / 2 - width / 2;
+const IMAGE_BOX = { x: centredX(647), y: 232, width: 647, height: 350 };
+// The role's name and line now sit *inside* the ring rather than under the
+// photo, so the box is stated as the design's own offset into the ring and
+// moves with it instead of being measured off the canvas twice.
+const ROLE_TEXT_WIDTH = 560;
 const TEXT_BOX = {
-  x: centredX(560),
-  y: IMAGE_BOX.y + IMAGE_BOX.height + ROLE_TEXT_GAP,
-  width: 560,
+  x: RING.x + (RING.size - ROLE_TEXT_WIDTH) / 2,
+  y: RING.y + 120,
+  width: ROLE_TEXT_WIDTH,
 };
 
 // "START" isn't a separate page — it's simply what sits at the CENTER
@@ -139,21 +137,15 @@ const TEXT_BOX = {
 // circle stays hidden there and this title/START content shows in its
 // place until the wheel starts turning and role 5 rotates out to reveal
 // its own circle underneath.
-// It takes the role photo's own box: START is the slot's content before role 1
-// arrives in it, so it belongs where that content will be, not floating above
-// the wheel on a measurement of its own. Nudged down a touch — the photo is a
-// filled rectangle and this is two lines of type, so sharing the box exactly
-// left it reading high against the photo it replaces.
-const START_TITLE_DROP = 40;
-const START_TITLE_BOX = {
-  ...IMAGE_BOX,
-  y: IMAGE_BOX.y + START_TITLE_DROP,
-};
+// The title has its own box in the design (node 154:3770) rather than sharing
+// the role photo's — it sits higher and narrower than the photo does, so that
+// the START circle below it still lands on the wheel's CENTER slot.
+const START_TITLE_BOX = { x: centredX(560), y: 393, width: 560 };
 const START_FADE_WINDOW = 0.35;
 
 // Where role 5's circle goes once it stops being a wheel slot and becomes the
 // sole background blob: dead centre of the canvas. It cannot simply grow where
-// the wheel left it — the wheel sits low, and an 878px circle grown from there
+// the wheel left it — the wheel sits low, and a 620px circle grown from there
 // hangs off the bottom of the screen — so it travels here as it grows, and the
 // step lands with it centred.
 const BLOB_CENTER_X = DESIGN_WIDTH / 2;
@@ -170,8 +162,10 @@ const BLOB_STEPS = [
   { x: -570, y: -86, size: 1252 }, // 11: UXUI DESIGNER
 ];
 // Steps run 0-11 below (12 positions); the outro/contact card is the
-// 12th and reuses the same blob-tween mechanism.
-const OUTRO_BLOB = { x: 519, y: 99, size: 882 };
+// 12th and reuses the same blob-tween mechanism. It comes back to the same
+// 620 dead-centre circle the handoff step used (node 154:3984) rather than
+// stopping somewhere of its own, so the story closes where it turned.
+const OUTRO_BLOB = BLOB_STEPS[0];
 
 // The blob sits still at this same spot for all three chapters — so this
 // is also the fixed pivot each chapter's word/title/paragraph rotates
@@ -457,11 +451,11 @@ const TWEEN_DURATION_MS = 600;
 const SWIPE_THRESHOLD = 40;
 
 // C -> D is the one leg that would run straight across the bottom of the
-// canvas, and the role's description sits right in its path — same
-// height, and spanning most of the width the circle would cross. So this
-// leg is never travelled: the circle fades out standing still at C, is
-// moved over to D while nobody can see it, and fades back in there. The
-// crossing has no on-screen motion of any kind.
+// canvas, cutting a chord clean through the ring the other four slots sit
+// on — which reads as a circle rolling through the middle of the wheel
+// rather than round it. So this leg is never travelled: the circle fades
+// out standing still at C, is moved over to D while nobody can see it, and
+// fades back in there. The crossing has no on-screen motion of any kind.
 //
 // C itself is never left empty by this — one circle fading out of C and
 // the next arriving into it from A are two different circles, and the
@@ -478,26 +472,29 @@ function slotFor(r, centerValue) {
   const e = (((centerValue - r) % 5) + 5) % 5;
   const i = Math.floor(e);
   const frac = smoothstep(e - i);
-  const from = SLOT_SEQUENCE[i];
-  const to = SLOT_SEQUENCE[(i + 1) % 5];
+  const from = SLOT_ANGLES[i];
+  const to = SLOT_ANGLES[(i + 1) % 5];
+  // How much this circle is *the* focused one: 1 sitting at CENTER, 0 anywhere
+  // else on the ring. The wheel is a 5-cycle, so a circle is as near CENTER at
+  // e = 4.8 (arriving) as at e = 0.2 (leaving) — hence the distance is measured
+  // both ways round.
+  const focus = 1 - smoothstep(clamp01(Math.min(e, 5 - e) / FOCUS_WINDOW));
   if (i !== HIDDEN_LEG) {
-    return {
-      x: lerp(from.x, to.x, frac),
-      y: lerp(from.y, to.y, frac),
-      visible: 1,
-    };
+    // The angle is what travels, not the x/y. Interpolating the positions drew
+    // a straight line between two points on a circle, which dips inside it —
+    // the circle visibly closed on the ring mid-leg and pulled away again.
+    return { ...slotAt(lerp(from, to, frac)), visible: 1, focus };
   }
   // The jump from one end to the other happens at the halfway point,
   // where both fades have already bottomed out at zero — so the circle
   // is never once drawn anywhere between C and D.
   const landed = frac >= 0.5;
-  const slot = landed ? to : from;
   return {
-    x: slot.x,
-    y: slot.y,
+    ...slotAt(landed ? to : from),
     visible: landed
       ? smoothstep(clamp01((frac - (1 - HIDDEN_FADE)) / HIDDEN_FADE))
       : 1 - smoothstep(clamp01(frac / HIDDEN_FADE)),
+    focus,
   };
 }
 
@@ -510,7 +507,9 @@ export default function CareerSection() {
   const startCircleRef = useRef(null);
   const roleRefs = useRef([]);
   const circleRefs = useRef([]);
-  const numberRefs = useRef([]);
+  // [outline, lime, blue] per circle — see the crossfade in applyRaw.
+  const coatRefs = useRef([]);
+  const ringRef = useRef(null);
   const changeWipeRef = useRef(null);
   const changeWhiteLayerRef = useRef(null);
   const changeWhiteCanvasRef = useRef(null);
@@ -651,7 +650,6 @@ export default function CareerSection() {
       const collapsePos = clamp01(stepPos - 5);
       const convergeT = smoothstep(clamp01(collapsePos / 0.6));
       const growT = smoothstep(clamp01((collapsePos - 0.3) / 0.7));
-      const numberT = smoothstep(clamp01(collapsePos / 0.15));
       const circleScale = lerp(1, GROWN_SIZE / CIRCLE_SIZE, growT);
       const circleOpacity = lerp(1, 0.5, growT);
 
@@ -697,11 +695,22 @@ export default function CareerSection() {
         el.style.opacity = String(
           circleOpacity * (r === 5 ? startT : 1) * survivorFade * base.visible,
         );
-        const numberEl = numberRefs.current[r - 1];
-        if (numberEl) {
-          numberEl.style.opacity = String(1 - numberT);
-          numberEl.style.fontSize = `${48 * s}px`;
+
+        // Three coats, one circle. On the ring a circle is a white outline
+        // until it reaches CENTER, where it fills lime; once the wheel is over
+        // and the survivor is swelling into the background blob it turns blue.
+        // Crossfades rather than swapped classes, so a circle on its way to
+        // CENTER is genuinely halfway between the two states.
+        const [ringEl, limeEl, blueEl] = coatRefs.current[r - 1] ?? [];
+        if (ringEl) {
+          ringEl.style.opacity = String((1 - base.focus) * (1 - growT));
+          // The circles live in real screen px rather than on the scaled
+          // canvas, so the outline has to be scaled by hand or it would sit at
+          // a flat 2px however far the canvas has been shrunk.
+          ringEl.style.borderWidth = `${2 * s}px`;
         }
+        if (limeEl) limeEl.style.opacity = String(base.focus * (1 - growT));
+        if (blueEl) blueEl.style.opacity = String(growT);
       }
 
       // Circles paint above the role photos during the wheel (so the one
@@ -853,6 +862,11 @@ export default function CareerSection() {
         const visible = 1 - smoothstep(clamp01(dist / REVEAL_WINDOW));
         el.style.opacity = String(visible * (1 - convergeT));
       });
+
+      // The ring the slots stand on is the wheel itself, so it is there for
+      // every role and for START, and gone the moment the circles leave their
+      // slots and gather in the middle.
+      ringRef.current.style.opacity = String(1 - convergeT);
 
       const titleDist = Math.abs(stepPos - 6);
       chapterTitleRef.current.style.opacity = String(
@@ -1166,7 +1180,7 @@ export default function CareerSection() {
         <div ref={circlesLayerRef} className="absolute inset-0">
           <div
             ref={startCircleRef}
-            className="absolute bg-[#0492bd] rounded-full flex items-center justify-center"
+            className="absolute bg-[#c9e529] rounded-full flex items-center justify-center"
             style={{
               left: 0,
               top: 0,
@@ -1175,20 +1189,25 @@ export default function CareerSection() {
             }}
           >
             <p
-              className="font-['Plus_Jakarta_Sans'] font-bold text-[#06252e] tracking-[-0.02em] leading-[1.2]"
+              className="font-['JetBrains_Mono'] font-bold text-[#06252e] leading-none"
               style={{ fontSize: 24 * scale }}
             >
               START
             </p>
           </div>
 
+          {/* No numbers on the circles any more — the design marks the current
+              role by filling its circle, and the four waiting ones are bare
+              outlines. All three coats are always mounted and only their
+              opacities move (see applyRaw), so a circle can be caught halfway
+              between outline and fill on its way in or out of CENTER. */}
           {[1, 2, 3, 4, 5].map((r) => (
             <div
               key={r}
               ref={(el) => {
                 circleRefs.current[r - 1] = el;
               }}
-              className="absolute bg-[#0492bd] rounded-full flex items-center justify-center"
+              className="absolute rounded-full"
               style={{
                 left: 0,
                 top: 0,
@@ -1196,15 +1215,21 @@ export default function CareerSection() {
                 height: CIRCLE_SIZE * scale,
               }}
             >
-              <p
-                ref={(el) => {
-                  numberRefs.current[r - 1] = el;
-                }}
-                className="font-['Plus_Jakarta_Sans'] font-bold text-[#06252e] tracking-[-0.02em] leading-[1.2]"
-                style={{ fontSize: 48 * scale }}
-              >
-                {r}
-              </p>
+              {[
+                "absolute inset-0 rounded-full border-solid border-white",
+                "absolute inset-0 rounded-full bg-[#c9e529]",
+                "absolute inset-0 rounded-full bg-[#0492bd]",
+              ].map((className, coat) => (
+                <div
+                  key={coat}
+                  ref={(el) => {
+                    coatRefs.current[r - 1] ??= [];
+                    coatRefs.current[r - 1][coat] = el;
+                  }}
+                  className={className}
+                  style={{ opacity: 0, borderWidth: coat === 0 ? 2 : 0 }}
+                />
+              ))}
             </div>
           ))}
         </div>
@@ -1222,22 +1247,37 @@ export default function CareerSection() {
               transform: `scale(${scale})`,
             }}
           >
+            {/* The ring the five slots stand on. It sits on the canvas rather
+                than in the circles layer above, so it paints behind them and
+                the circles read as beads threaded on it. Its centre is below
+                the canvas's bottom edge on purpose — only the top of the arc
+                is ever meant to be seen. */}
+            <div
+              ref={ringRef}
+              className="absolute rounded-full border border-solid border-white"
+              style={{
+                left: RING.x,
+                top: RING.y,
+                width: RING.size,
+                height: RING.size,
+              }}
+            />
+
             <div
               ref={startPanelRef}
-              className="absolute flex flex-col items-center justify-center gap-[37px]"
+              className="absolute flex flex-col items-center gap-[24px] leading-none"
               style={{
                 left: START_TITLE_BOX.x,
                 top: START_TITLE_BOX.y,
                 width: START_TITLE_BOX.width,
-                height: START_TITLE_BOX.height,
               }}
             >
-              <div className="flex items-start gap-[20px] font-['Plus_Jakarta_Sans'] font-bold text-[#0492bd] text-[84px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap">
+              <div className="flex items-start gap-[20px] font-['Plus_Jakarta_Sans'] font-bold text-[#0492bd] text-[84px] whitespace-nowrap">
                 <p>EVERY</p>
                 <p className="text-right">ROLE</p>
               </div>
-              <p className="font-['Pretendard'] font-medium text-white text-[24px] tracking-[-0.02em] leading-[1.2] text-center">
-                화면 밖에서도, 저는 사람을 읽어왔습니다
+              <p className="font-['Pretendard'] font-medium text-white text-[24px] text-center">
+                제가 맡고 있는 역할로 저를 소개합니다
               </p>
             </div>
 
@@ -1280,18 +1320,22 @@ export default function CareerSection() {
                     />
                   )}
                 </div>
+                {/* Inside the ring now rather than under the photo, and
+                    correspondingly smaller — the wheel is the frame the copy
+                    is read in, so it has the ring's width to work with rather
+                    than the canvas's. */}
                 <div
-                  className="absolute flex flex-col items-center gap-[29px]"
+                  className="absolute flex flex-col items-center gap-[12px] leading-none"
                   style={{
                     left: TEXT_BOX.x,
                     top: TEXT_BOX.y,
                     width: TEXT_BOX.width,
                   }}
                 >
-                  <p className="font-['Plus_Jakarta_Sans'] font-bold text-[#0492bd] text-[58px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap">
+                  <p className="font-['Plus_Jakarta_Sans'] font-bold text-[#0492bd] text-[42px] whitespace-nowrap">
                     {role.title}
                   </p>
-                  <p className="font-['Pretendard'] font-medium text-white text-[24px] tracking-[-0.02em] leading-[1.2] text-center whitespace-pre-line">
+                  <p className="font-['Pretendard'] font-medium text-white text-[16px] text-center whitespace-pre-line">
                     {role.desc}
                   </p>
                 </div>
@@ -1312,7 +1356,7 @@ export default function CareerSection() {
               {/* Every text property here is restated rather than inherited —
                   the wrapper carries the 120px bold heading style, which this
                   caption would otherwise pick up wholesale. */}
-              <p className="mt-[24px] font-['Pretendard'] font-medium text-[22px] tracking-[-0.02em] leading-[1.2]">
+              <p className="mt-[24px] font-['Pretendard'] font-medium text-[16px] tracking-[-0.02em] leading-[1.2]">
                 이 모습 그대로, 디자이너가 되었습니다
               </p>
             </div>

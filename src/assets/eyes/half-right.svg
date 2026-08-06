@@ -6,7 +6,5 @@
 <ellipse id="Ellipse 3" cx="65.0131" cy="126.353" rx="18.0131" ry="18.3529" fill="white"/>
 </g>
 <path id="Ellipse 4" d="M181.131 104C181.131 46.5624 140.807 0 91.0654 0C41.3237 0 1 46.5624 1 104C1 104 36.2583 104 86 104C135.742 104 181.131 104 181.131 104Z" fill="#0492BD"/>
-<line id="Line 11" x1="2.5" y1="-2.5" x2="41.3121" y2="-2.5" transform="matrix(0.700468 -0.713684 0.700468 0.713684 153.445 36.7061)" stroke="#0492BD" stroke-width="5" stroke-linecap="round"/>
-<line id="Line 12" x1="2.5" y1="-2.5" x2="26.6727" y2="-2.5" transform="matrix(0.913779 -0.406212 0.393653 0.919259 168.15 59.4317)" stroke="#0492BD" stroke-width="5" stroke-linecap="round"/>
 </g>
 </svg>

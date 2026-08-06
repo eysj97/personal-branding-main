@@ -86,7 +86,16 @@ export default function ProjectAppWindow({ card, onClose }) {
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#06252e]">
+    // `data-interactive` because this is rendered inside whichever section
+    // opened it, and those sections claim the wheel to drive themselves — the
+    // Experience strip calls preventDefault on every tick it takes. That kills
+    // scrolling inside anything here, which is how the reference detail panel
+    // ended up unable to scroll. The sections check for this attribute and
+    // leave gestures that start inside it alone.
+    <div
+      data-interactive
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[#06252e]"
+    >
       {/* The outer box takes the scaled footprint so the app stays centred;
           the inner one is the app at its own size, scaled from its top-left. */}
       <div

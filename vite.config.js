@@ -119,6 +119,25 @@ const LAYOUT_BLOCK = {
   additionalProperties: false,
 }
 
+// One reusable component, located precisely enough that the client can crop it
+// straight out of the screenshot. Cropping is the whole point: it shows the
+// real thing rather than a redrawn approximation of it, which is what the
+// built-in references do with their own artwork.
+const COMPONENT_PART = {
+  type: 'object',
+  properties: {
+    role: { type: 'string', enum: ELEMENTS },
+    label: { type: 'string', description: '이 컴포넌트를 부르는 짧은 한국어 이름.' },
+    x: { type: 'number', description: '왼쪽 위치. 화면 너비 대비 0~1 비율.' },
+    y: { type: 'number', description: '위쪽 위치. 화면 높이 대비 0~1 비율.' },
+    w: { type: 'number', description: '너비. 화면 너비 대비 0~1 비율.' },
+    h: { type: 'number', description: '높이. 화면 높이 대비 0~1 비율.' },
+    spec: { type: 'string', description: '모서리, 채움, 상태 등 눈에 보이는 특징 한 줄.' },
+  },
+  required: ['role', 'label', 'x', 'y', 'w', 'h', 'spec'],
+  additionalProperties: false,
+}
+
 const TAG_SCHEMA = {
   type: 'object',
   properties: {
@@ -126,6 +145,11 @@ const TAG_SCHEMA = {
       type: 'array',
       description: '화면을 와이어프레임으로 다시 그리기 위한 블록 목록. 위에서 아래 순서.',
       items: LAYOUT_BLOCK,
+    },
+    parts: {
+      type: 'array',
+      description: '화면에서 다시 쓸 만한 UI 컴포넌트 목록. 각각 잘라낼 수 있는 상자로 잡습니다.',
+      items: COMPONENT_PART,
     },
     platform: { type: 'string', enum: PLATFORMS },
     service: { type: 'string', enum: SERVICES },
@@ -136,7 +160,7 @@ const TAG_SCHEMA = {
     note: { type: 'string', description: '이 화면의 구성과 의도를 설명하는 한국어 2~3문장.' },
     basis: { type: 'string', description: '무엇을 근거로 이렇게 분류했는지 한국어 한 문장.' },
   },
-  required: ['platform', 'service', 'screen', 'elements', 'mood', 'accent', 'note', 'basis', 'layout'],
+  required: ['platform', 'service', 'screen', 'elements', 'mood', 'accent', 'note', 'basis', 'layout', 'parts'],
   additionalProperties: false,
 }
 
@@ -155,6 +179,13 @@ const SYSTEM_PROMPT = `당신은 UI 레퍼런스를 정리하는 디자인 어�
   - 위에서 아래, 같은 높이면 왼쪽에서 오른쪽 순서로 나열합니다.
   - 반복되는 카드나 목록 항목은 각각 하나의 블록으로 잡아, 그 반복 자체가 구조로 보이게 합니다.
   - 배경이나 화면 전체를 덮는 블록은 넣지 마세요. 구조가 드러나지 않습니다.
+- parts: 이 화면에서 다시 쓸 만한 UI 컴포넌트를 3~6개 고릅니다.
+  - 상자를 그대로 잘라내어 보여줄 것이므로, 그 컴포넌트만 딱 감싸게 잡습니다.
+    여백을 크게 두거나 옆 요소를 함께 물면 잘린 그림이 무엇인지 알 수 없습니다.
+  - 화면 전체나 큰 영역은 컴포넌트가 아닙니다. 버튼 하나, 카드 한 장, 칩 하나처럼
+    떼어내서 다른 화면에 쓸 수 있는 단위만 고릅니다.
+  - 같은 컴포넌트가 여러 번 반복되면 그중 하나만 고르고, spec에 반복된다고 적습니다.
+  - label은 화면에 적힌 말이 아니라 그 컴포넌트의 역할로 짓습니다.
 
 모든 한국어 문장은 존댓말로 씁니다. 확신이 없으면 가장 가까운 선택지를 고르고 basis에 그 불확실함을 적으세요.`
 

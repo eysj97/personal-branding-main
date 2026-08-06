@@ -11,6 +11,10 @@ import card3 from "../assets/learn/card-3.avif";
 import card4 from "../assets/learn/card-4.avif";
 import card5 from "../assets/learn/card-5.avif";
 import card6 from "../assets/learn/card-6.avif";
+// The tab that hangs off each card's right edge, exported from Figma
+// (node 283:206). Not a plain rounded rectangle: its top edge slants up
+// slightly to the right, matching the perspective the mockups are drawn in.
+import tab from "../assets/learn/tab.svg";
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (from, to, x) => {
@@ -189,7 +193,7 @@ export default function LearnSection() {
           <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-white whitespace-nowrap text-[clamp(40px,6.25vw,120px)] tracking-[clamp(-4px,-0.6vw,-12px)]">
             LEARN
           </p>
-          <p className="font-['Pretendard'] text-white text-[clamp(13px,1.15vw,22px)] tracking-[-0.05em] leading-[1.2]">
+          <p className="font-['Pretendard'] text-white text-[clamp(11px,0.833vw,16px)] tracking-[-0.05em] leading-[1.2]">
             이 결과물들이 나오기까지,
             <br />
             계속 배우고 만들어봤습니다
@@ -244,8 +248,32 @@ export default function LearnSection() {
                     className="absolute inset-0 w-full h-full object-cover"
                   />
                   {/* The tab hangs off the card's right edge; what you see to
-                      the left of a card is the tab of the one behind it. */}
-                  <div className="absolute right-0 top-[5%] h-[28.7%] w-[7.2%] translate-x-full rounded-r-[10px] bg-[#0492bd]" />
+                      the left of a card is the tab of the one behind it.
+
+                      Width stays the 7.2% of the card it always was — that is
+                      how far it protrudes, and it is what reads against the
+                      fanned row. The height then follows from the artwork's own
+                      41 x 122.372 rather than being set separately, so the
+                      slanted top edge keeps its designed angle at every card
+                      size.
+
+                      The 1px is an overlap, not a nudge. A percentage width of
+                      a clamp()ed card lands on a fractional pixel, so a flush
+                      100% left the tab's left edge and the card's right edge on
+                      different device pixels and a hairline of background
+                      showed between them. Tucking it under by a whole pixel
+                      covers that at any card size; the artwork is opaque to its
+                      right edge along the tab's whole height, so nothing of the
+                      card is lost. */}
+                  <img
+                    src={tab}
+                    alt=""
+                    className="absolute right-0 top-[5%] w-[7.2%] max-w-none"
+                    style={{
+                      aspectRatio: "41 / 122.372",
+                      transform: "translateX(calc(100% - 1px))",
+                    }}
+                  />
                 </div>
               </Card>
             );

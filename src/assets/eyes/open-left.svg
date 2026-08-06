@@ -5,7 +5,5 @@
 <ellipse id="Ellipse 2" cx="76.0552" cy="91.3791" rx="53.3721" ry="54.3791" fill="#0492BD"/>
 <ellipse id="Ellipse 3" cx="18.0131" cy="18.3529" rx="18.0131" ry="18.3529" transform="matrix(-1 0 0 1 112.081 47.5811)" fill="white"/>
 </g>
-<line id="Line 11" x1="2.5" y1="-2.5" x2="41.3121" y2="-2.5" transform="matrix(0.700468 -0.713684 0.700468 0.713684 153.445 36.7058)" stroke="#0492BD" stroke-width="5" stroke-linecap="round"/>
-<line id="Line 12" x1="2.5" y1="-2.5" x2="26.6727" y2="-2.5" transform="matrix(0.913779 -0.406212 0.393653 0.919259 168.151 59.4316)" stroke="#0492BD" stroke-width="5" stroke-linecap="round"/>
 </g>
 </svg>

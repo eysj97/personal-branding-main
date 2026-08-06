@@ -68,11 +68,17 @@ function Eye({ closed, half, open, mirrored = false }) {
   );
 }
 
-// Shared by both languages of the bottom-left copy — see the note on the grid
-// that stacks them.
-const heroLeadClass =
-  "font-semibold leading-[1.2] text-[clamp(22px,2.4vw,36px)] tracking-[-0.02em]";
-const heroBodyClass = "leading-[1.2] text-[clamp(14px,1.6vw,16px)]";
+// The bottom-left copy — see the note on the grid that stacks the two
+// languages. Everything except the size is shared; Hangul fills more of its em
+// box than Latin does, so matching the px would leave the Korean looking the
+// heavier of the two. It is set about 10% smaller so the two read at the same
+// weight rather than the same number.
+const heroLeadBase = "font-semibold leading-[1.2] tracking-[-0.02em]";
+const heroBodyBase = "leading-[1.2]";
+const heroLeadEnClass = `${heroLeadBase} text-[clamp(22px,2.4vw,36px)]`;
+const heroBodyEnClass = `${heroBodyBase} text-[clamp(14px,1.6vw,16px)]`;
+const heroLeadKoClass = `${heroLeadBase} text-[clamp(20px,2.133vw,32px)]`;
+const heroBodyKoClass = `${heroBodyBase} text-[clamp(13px,1.5vw,15px)]`;
 
 // `null` means the very top of the page; the others are the section each label
 // should land on. ABOUT is the career section — that is where the "about me"
@@ -130,14 +136,14 @@ export default function Hero() {
     //
     const pupils = [...openFrames].flatMap((frame) => {
       const sign = frame.hasAttribute("data-mirrored") ? -1 : 1;
-      return [...frame.querySelectorAll('[id="Ellipse 2"], [id="Ellipse 3"]')].map(
-        (el) => ({
-          el,
-          sign,
-          glint: el.getAttribute("id") === "Ellipse 3",
-          base: el.getAttribute("transform") ?? "",
-        }),
-      );
+      return [
+        ...frame.querySelectorAll('[id="Ellipse 2"], [id="Ellipse 3"]'),
+      ].map((el) => ({
+        el,
+        sign,
+        glint: el.getAttribute("id") === "Ellipse 3",
+        base: el.getAttribute("transform") ?? "",
+      }));
     });
 
     // One wheel tick per beat, rather than the animation tracking the
@@ -243,11 +249,13 @@ export default function Hero() {
       // `look + 1` rather than `look`: at hard left this is zero, which leaves
       // the highlight exactly where the artwork draws it, and it works its way
       // across from there.
-      const glint =
-        iris + GLINT_SWING * (look + 1) * openAmount;
+      const glint = iris + GLINT_SWING * (look + 1) * openAmount;
       for (const { el, sign, glint: isGlint, base } of pupils) {
         const travel = (isGlint ? glint : iris) * sign;
-        el.setAttribute("transform", `translate(${travel.toFixed(2)}, 0) ${base}`);
+        el.setAttribute(
+          "transform",
+          `translate(${travel.toFixed(2)}, 0) ${base}`,
+        );
       }
       gazeId = requestAnimationFrame(gaze);
     }
@@ -398,7 +406,7 @@ export default function Hero() {
             every click on it. */}
         <nav
           ref={navRef}
-          className="font-['Plus_Jakarta_Sans'] absolute top-0 right-0 z-20 pt-3 pr-7 flex flex-col items-end gap-2 font-bold leading-none text-[22px] opacity-0"
+          className="font-['Plus_Jakarta_Sans'] absolute top-0 right-0 z-20 pt-3 pr-7 flex flex-col items-end gap-2 font-normal leading-none text-[16px] opacity-0"
         >
           {NAV.map(({ label, target }) => (
             <button
@@ -425,16 +433,24 @@ export default function Hero() {
             anything that measures differently between them reads as the copy
             jumping at the switch. They are given the same sizes, the same
             explicit leading (the two fonts' own line heights differ) and the
-            same gap, so only the words change. */}
-        <div className="absolute bottom-0 left-0 p-5 grid">
+            same gap, so only the words change.
+
+            `items-end` is what actually holds them still. The lead is two lines
+            in English and one in Korean, and stretched children both start at
+            the cell's top — which pushed the Korean paragraph a whole lead-line
+            up. Aligned to the bottom instead, the paragraph and the last line of
+            the lead land on the same baselines in both, and the extra English
+            line grows upward into empty space. */}
+        <div className="absolute bottom-0 left-0 p-5 grid items-end">
           <div
             ref={textEnRef}
             className="col-start-1 row-start-1 flex flex-col gap-[12px] opacity-0"
           >
-            <p className={heroLeadClass}>
-              Discover user&apos;s unknown needs and design experiences
+            <p className={heroLeadEnClass}>
+              Discover user&apos;s unknown needs <br />
+              and design experiences
             </p>
-            <p className={heroBodyClass}>
+            <p className={heroBodyEnClass}>
               With the sense of reading clients&rsquo; needs in the field of
               social welfare,
               <br />
@@ -447,12 +463,13 @@ export default function Hero() {
             ref={textKoRef}
             className="col-start-1 row-start-1 flex flex-col gap-[12px] opacity-0 font-['Pretendard']"
           >
-            <p className={heroLeadClass}>
-              사용자의 숨은 니즈를 발견하고 경험을 설계합니다
+            <p className={heroLeadKoClass}>
+              사용자의 숨은 니즈를 발견하고 <br />
+              경험을 설계합니다
             </p>
             {/* Two lines, like the English, so the block ends at the same
                 height as well as starting at it. */}
-            <p className={heroBodyClass}>
+            <p className={heroBodyKoClass}>
               사회복지 현장에서 클라이언트의 니즈를 읽던 감각으로,
               <br />
               사용자 경험을 개선하는 UX/UI 디자이너 윤수정입니다.

@@ -128,6 +128,39 @@ function tagGroupsFor(reference, overrides) {
 const searchTextFor = (reference, groups) =>
   [reference.title, reference.note, ...groups.flatMap((group) => group.tags)].join(" ").toLowerCase();
 
+/** Shows one analysed component by cropping it out of the screenshot it came
+ *  from, rather than redrawing it.
+ *
+ *  The analysis gives each part a box in 0-1 coordinates. Scaling the image up
+ *  by 1/w and 1/h makes that box exactly one container wide and tall; the
+ *  position is then the box's origin expressed against the *scrollable* range
+ *  (`x / (1 - w)`), which is what background-position takes — 100% means "the
+ *  far edge", not "one image width across". */
+const cropStyle = (image, part) => {
+  const w = Math.min(1, Math.max(part.w, 0.02));
+  const h = Math.min(1, Math.max(part.h, 0.02));
+  const x = Math.min(Math.max(part.x, 0), 1 - w);
+  const y = Math.min(Math.max(part.y, 0), 1 - h);
+  return {
+    backgroundImage: `url(${image})`,
+    backgroundRepeat: "no-repeat",
+    backgroundSize: `${(100 / w).toFixed(2)}% ${(100 / h).toFixed(2)}%`,
+    backgroundPosition: `${w >= 1 ? 50 : (x / (1 - w)) * 100}% ${
+      h >= 1 ? 50 : (y / (1 - h)) * 100
+    }%`,
+  };
+};
+
+// The crop's own proportions: the box is a fraction of a screenshot whose shape
+// is `aspect`, so its shape is that scaled by the box's own ratio. Without this
+// every crop would be squashed into whatever box the row gives it.
+const cropAspect = (part, aspect) => {
+  const ratio = ((part.w || 1) / (part.h || 1)) * (Number(aspect) > 0 ? Number(aspect) : 0.5);
+  // Clamped: a full-width divider is not worth a row 20 screens wide, and a
+  // hairline is not worth one 20 screens tall.
+  return Math.min(6, Math.max(0.6, ratio));
+};
+
 // Colour-swatch stand-ins, used only by references that have no real component
 // artwork of their own.
 const swatchesOf = (reference) => [
@@ -330,40 +363,146 @@ function Wireframe({ accent }) {
   );
 }
 
-// How each block role is drawn. The point of the structure view is placement
-// and weight, so roles differ only by fill and outline — nothing here draws
-// content, because content is exactly what this view is stripping away.
-// `pill: true` rounds by half the block's own height, which is what makes a
-// search bar or a chip read as one without knowing its size up front.
-const BLOCK_STYLES = {
-  헤더: { fill: "#ffffff", stroke: "#b9c1bd", rx: 0 },
-  탭바: { fill: "#e4e8e6", stroke: "#b9c1bd", rx: 0 },
-  검색바: { fill: "#ffffff", stroke: "#b9c1bd", pill: true },
-  이미지: { fill: "#dfe4e2", stroke: "#b9c1bd", rx: 6 },
-  카드: { fill: "#ffffff", stroke: "#b9c1bd", rx: 14 },
-  리스트: { fill: "#ffffff", stroke: "#c7cecb", rx: 8 },
-  텍스트: { fill: "#cbd1ce", stroke: "none", pill: true },
-  버튼: { fill: "accent", stroke: "none", rx: 12 },
-  칩: { fill: "#eef1f0", stroke: "#b9c1bd", pill: true },
-  입력: { fill: "#ffffff", stroke: "#b9c1bd", rx: 8 },
-  아이콘: { fill: "none", stroke: "#aeb7b3", pill: true },
-};
-const DEFAULT_BLOCK = { fill: "#ffffff", stroke: "#b9c1bd", rx: 6 };
+// Wireframe drawing language. Monochrome and unfilled on purpose: a wireframe
+// says *what kind of thing goes here and how big*, and the moment blocks carry
+// their real colours it stops reading as a plan and starts reading as a bad
+// mock-up of the screen it came from. So each role gets a notation instead —
+// the crossed box for an image, ruled lines for text, an outlined pill for a
+// button — which is what makes the drawing legible without any labels.
+const WIRE_STROKE = "#8d9995";
+const WIRE_SOFT = "#c2cac7";
+const WIRE_TINT = "#f1f4f3";
+// In viewBox units, and the drawing is usually shown at about a third of that,
+// so a hairline here would disappear on screen.
+const WIRE_LINE = 4;
 
 const clampUnit = (value) => Math.min(1, Math.max(0, Number(value) || 0));
 
 // The viewBox is the screenshot's own proportions, so a tall phone stays tall.
 const WIREFRAME_UNITS = 1000;
 
+/** One block, drawn in the notation for whatever it is. */
+function WireBlock({ role, x, y, w, h }) {
+  const outline = { fill: "none", stroke: WIRE_STROKE, strokeWidth: WIRE_LINE };
+  const pad = Math.min(w, h) * 0.18;
+  const mid = y + h / 2;
+
+  switch (role) {
+    // The crossed rectangle: the one piece of wireframe notation everybody
+    // already reads as "a picture goes here".
+    case "이미지":
+      return (
+        <g>
+          <rect x={x} y={y} width={w} height={h} rx={6} fill={WIRE_TINT} stroke={WIRE_STROKE} strokeWidth={WIRE_LINE} />
+          <path
+            d={`M${x} ${y} L${x + w} ${y + h} M${x + w} ${y} L${x} ${y + h}`}
+            stroke={WIRE_SOFT}
+            strokeWidth={WIRE_LINE}
+            fill="none"
+          />
+        </g>
+      );
+
+    // Ruled lines rather than a grey slab — a slab is a shape, lines are copy.
+    // The last one is short, the way a last line of a paragraph is.
+    case "텍스트": {
+      const count = Math.max(1, Math.min(4, Math.round(h / 26)));
+      const gap = h / count;
+      return (
+        <g>
+          {Array.from({ length: count }, (_, i) => {
+            const lineY = y + gap * (i + 0.5);
+            const lineW = i === count - 1 && count > 1 ? w * 0.55 : w;
+            return (
+              <line key={i} x1={x} y1={lineY} x2={x + lineW} y2={lineY} stroke={WIRE_SOFT} strokeWidth={WIRE_LINE * 1.6} strokeLinecap="round" />
+            );
+          })}
+        </g>
+      );
+    }
+
+    case "버튼":
+      return (
+        <g>
+          <rect x={x} y={y} width={w} height={h} rx={Math.min(h / 2, 14)} {...outline} />
+          <line x1={x + w * 0.3} y1={mid} x2={x + w * 0.7} y2={mid} stroke={WIRE_SOFT} strokeWidth={WIRE_LINE * 1.6} strokeLinecap="round" />
+        </g>
+      );
+
+    case "검색바":
+      return (
+        <g>
+          <rect x={x} y={y} width={w} height={h} rx={h / 2} {...outline} />
+          <circle cx={x + h * 0.55} cy={mid} r={Math.min(h * 0.22, 9)} {...outline} />
+          <line x1={x + h * 0.95} y1={mid} x2={x + w * 0.55} y2={mid} stroke={WIRE_SOFT} strokeWidth={WIRE_LINE * 1.4} strokeLinecap="round" />
+        </g>
+      );
+
+    case "아이콘":
+      return <circle cx={x + w / 2} cy={mid} r={Math.min(w, h) / 2} {...outline} />;
+
+    case "칩":
+      return <rect x={x} y={y} width={w} height={h} rx={h / 2} {...outline} />;
+
+    // An outlined box with its rows ruled in, so a list reads as repetition
+    // rather than as one tall empty rectangle.
+    case "리스트": {
+      const rows = Math.max(2, Math.min(5, Math.round(h / 60)));
+      return (
+        <g>
+          <rect x={x} y={y} width={w} height={h} rx={8} {...outline} />
+          {Array.from({ length: rows - 1 }, (_, i) => (
+            <line key={i} x1={x} y1={y + (h / rows) * (i + 1)} x2={x + w} y2={y + (h / rows) * (i + 1)} stroke={WIRE_SOFT} strokeWidth={WIRE_LINE} />
+          ))}
+        </g>
+      );
+    }
+
+    // A band with a few marks in it: enough to say "navigation", not enough to
+    // pretend to be the real thing.
+    case "헤더":
+    case "탭바": {
+      const marks = 3;
+      return (
+        <g>
+          <rect x={x} y={y} width={w} height={h} rx={4} fill={WIRE_TINT} stroke={WIRE_STROKE} strokeWidth={WIRE_LINE} />
+          {Array.from({ length: marks }, (_, i) => (
+            <line
+              key={i}
+              x1={x + (w / (marks + 1)) * (i + 1) - w * 0.06}
+              y1={mid}
+              x2={x + (w / (marks + 1)) * (i + 1) + w * 0.06}
+              y2={mid}
+              stroke={WIRE_SOFT}
+              strokeWidth={WIRE_LINE * 1.6}
+              strokeLinecap="round"
+            />
+          ))}
+        </g>
+      );
+    }
+
+    case "입력":
+      return (
+        <g>
+          <rect x={x} y={y} width={w} height={h} rx={8} {...outline} />
+          <line x1={x + pad} y1={mid} x2={x + w * 0.45} y2={mid} stroke={WIRE_SOFT} strokeWidth={WIRE_LINE * 1.4} strokeLinecap="round" />
+        </g>
+      );
+
+    // 카드, and anything the model names that this does not know about.
+    default:
+      return <rect x={x} y={y} width={w} height={h} rx={12} {...outline} />;
+  }
+}
+
 /** A wireframe redrawn from the analysis's own block list, so the structure
     tab shows this screenshot's layout rather than a generic placeholder.
-    Buttons take the reference's accent — the one place colour still carries
-    meaning once everything else is stripped to boxes.
 
     Drawn as SVG rather than positioned divs because `preserveAspectRatio`
     letterboxes the whole drawing to whatever box it is given. Percentage
     divs would stretch a 9:19.5 phone layout flat across a wide panel. */
-function LayoutWireframe({ layout, accent, aspect }) {
+function LayoutWireframe({ layout, aspect, compact }) {
   const height = WIREFRAME_UNITS;
   const width = Math.round(height * (Number(aspect) > 0 ? Number(aspect) : 0.5));
 
@@ -371,9 +510,11 @@ function LayoutWireframe({ layout, accent, aspect }) {
     <svg
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="xMidYMid meet"
-      // Height from the viewBox, not the container — the well has no fixed
-      // height any more, so `h-full` would resolve to nothing.
-      className="block h-auto w-full bg-[#eff1f0]"
+      // On a card the well is a fixed 1.43:1 box, so the drawing letterboxes
+      // itself into it. In the detail panel the well has no height of its own,
+      // so `h-full` would resolve to nothing and the height comes from the
+      // viewBox instead.
+      className={`block bg-[#eff1f0] ${compact ? "size-full" : "h-auto w-full"}`}
       role="img"
       aria-label="화면 구조 와이어프레임"
     >
@@ -385,21 +526,23 @@ function LayoutWireframe({ layout, accent, aspect }) {
         // trimmed at the edge instead of pushing past it.
         const w = Math.min(1 - x, clampUnit(block.w)) * width;
         const h = Math.min(1 - y, clampUnit(block.h)) * height;
-        const style = BLOCK_STYLES[block.role] ?? DEFAULT_BLOCK;
+        if (w < 2 || h < 2) return null;
         return (
-          <rect
-            key={index}
-            x={x * width}
-            y={y * height}
-            width={w}
-            height={h}
-            rx={style.pill ? h / 2 : style.rx}
-            fill={style.fill === "accent" ? accent : style.fill}
-            stroke={style.stroke}
-            strokeWidth={style.stroke === "none" ? 0 : 3}
-          />
+          <WireBlock key={index} role={block.role} x={x * width} y={y * height} w={w} h={h} />
         );
       })}
+      {/* The device outline, drawn last so it sits over anything that runs to
+          the edge — a wireframe reads as a screen only if it has a screen. */}
+      <rect
+        x={WIRE_LINE / 2}
+        y={WIRE_LINE / 2}
+        width={width - WIRE_LINE}
+        height={height - WIRE_LINE}
+        rx={14}
+        fill="none"
+        stroke={WIRE_STROKE}
+        strokeWidth={WIRE_LINE}
+      />
     </svg>
   );
 }
@@ -419,6 +562,36 @@ function ComponentSheet({ reference, compact }) {
               <img src={component.default} alt="" className="max-h-[64px] min-w-0 flex-1 object-contain" />
               <img src={component.selected} alt="" className="max-h-[64px] min-w-0 flex-1 object-contain" />
             </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // An analysed upload: the components the model picked out, cut from the
+  // screenshot itself. Real pixels, so it can be checked against the original.
+  if (reference.parts?.length && reference.image) {
+    return (
+      <div className={`flex h-full flex-col justify-center bg-[#eff1f0] ${compact ? "gap-[6px] p-[12px]" : "gap-[10px] p-[18px]"}`}>
+        {reference.parts.slice(0, compact ? 3 : 5).map((part, index) => (
+          <div
+            key={`${part.label}-${index}`}
+            className="flex items-center gap-[10px] rounded-[10px] border border-[#e2e6e3] bg-white p-[8px]"
+          >
+            <span
+              className="shrink-0 overflow-hidden rounded-[6px] border border-black/10 bg-[#f2f4f3]"
+              style={{
+                ...cropStyle(reference.image, part),
+                height: compact ? 26 : 34,
+                width: (compact ? 26 : 34) * cropAspect(part, reference.aspect),
+              }}
+            />
+            <span className={`min-w-0 flex-1 truncate ${compact ? "text-[10px]" : "text-[11px]"} font-semibold`}>
+              {part.label}
+            </span>
+            {!compact && (
+              <span className="shrink-0 text-[10px] text-[#7c847f]">{part.role}</span>
+            )}
           </div>
         ))}
       </div>
@@ -451,11 +624,7 @@ function ReferencePreview({ reference, view, compact }) {
     }
     if (reference.layout?.length) {
       return (
-        <LayoutWireframe
-          layout={reference.layout}
-          accent={reference.accent}
-          aspect={reference.aspect}
-        />
+        <LayoutWireframe layout={reference.layout} aspect={reference.aspect} compact={compact} />
       );
     }
     return <Wireframe accent={reference.accent} />;
@@ -660,15 +829,40 @@ function DetailPanel({ reference, groups, onAddTag, onRemoveTag, onClose, onDele
                   </div>
                 </div>
               ))
-            : swatchesOf(reference).map(({ name, spec, color }) => (
-                <div key={name} className="flex items-center gap-[12px] rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
-                  <span className="size-[35px] rounded-[9px] border border-black/5" style={{ backgroundColor: color }} />
-                  <div>
-                    <p className="text-[13px] font-semibold">{name}</p>
-                    <p className="mt-[2px] text-[11px] text-[#7c847f]">{spec}</p>
+            : reference.parts?.length && reference.image
+              ? reference.parts.map((part, index) => (
+                  /* Cut from this screenshot, at the box the analysis gave —
+                     so what is shown can be checked against the original
+                     rather than taken on trust. */
+                  <div key={`${part.label}-${index}`} className="rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
+                    <div className="flex items-baseline justify-between gap-[10px]">
+                      <p className="text-[13px] font-semibold">{part.label}</p>
+                      <span className="shrink-0 text-[11px] text-[#7c847f]">{part.role}</span>
+                    </div>
+                    <div className="mt-[10px] flex justify-center rounded-[9px] bg-[#eff1f0] p-[10px]">
+                      <span
+                        className="max-w-full rounded-[6px] border border-black/10 bg-white"
+                        style={{
+                          ...cropStyle(reference.image, part),
+                          height: 84,
+                          width: 84 * cropAspect(part, reference.aspect),
+                        }}
+                      />
+                    </div>
+                    {part.spec && (
+                      <p className="mt-[8px] text-[11px] leading-[1.5] text-[#7c847f]">{part.spec}</p>
+                    )}
                   </div>
-                </div>
-              ))}
+                ))
+              : swatchesOf(reference).map(({ name, spec, color }) => (
+                  <div key={name} className="flex items-center gap-[12px] rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
+                    <span className="size-[35px] rounded-[9px] border border-black/5" style={{ backgroundColor: color }} />
+                    <div>
+                      <p className="text-[13px] font-semibold">{name}</p>
+                      <p className="mt-[2px] text-[11px] text-[#7c847f]">{spec}</p>
+                    </div>
+                  </div>
+                ))}
         </div>
       ) : (
         <>
