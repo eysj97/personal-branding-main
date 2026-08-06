@@ -10,12 +10,12 @@ import {
 // Sized to 2x what each well actually paints — the Figma exports were 4K
 // screen captures. JPEG for the photographic ones, PNG where the flat document
 // screenshot still compresses smaller.
-import ticketPage from "../../assets/project/detail/aquaplanet/ticket-page.jpg";
-import visual from "../../assets/project/detail/aquaplanet/visual.jpg";
-import planning from "../../assets/project/detail/aquaplanet/planning.png";
-import ai2 from "../../assets/project/detail/aquaplanet/ai-2.jpg";
-import retrospect from "../../assets/project/detail/aquaplanet/retrospect.jpg";
-import problem from "../../assets/project/detail/aquaplanet/problem.jpg";
+import ticketPage from "../../assets/project/detail/aquaplanet/ticket-page.avif";
+import visual from "../../assets/project/detail/aquaplanet/visual.avif";
+import planning from "../../assets/project/detail/aquaplanet/planning.avif";
+import ai2 from "../../assets/project/detail/aquaplanet/ai-2.avif";
+import retrospect from "../../assets/project/detail/aquaplanet/retrospect.avif";
+import problem from "../../assets/project/detail/aquaplanet/problem.avif";
 
 // Figma frame 154:4041. Dark page, so the panels are translucent white with
 // white type — the bright Reviu and Layer pages invert that.

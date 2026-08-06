@@ -1,6 +1,6 @@
-import imacFrame from '../assets/project/mockup/imac.png'
-import ipadFrame from '../assets/project/mockup/ipad.png'
-import phoneFrame from '../assets/project/mockup/iphone.png'
+import imacFrame from '../assets/project/mockup/imac.avif'
+import ipadFrame from '../assets/project/mockup/ipad.avif'
+import phoneFrame from '../assets/project/mockup/iphone.avif'
 
 // Every number below is a percentage of the card box the cluster sits on
 // (343x522 in Figma), so the whole rig scales with the card's clamp() size.

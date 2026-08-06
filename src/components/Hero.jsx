@@ -127,10 +127,16 @@ export default function Hero() {
     // The highlight already carries a transform in one of them, so each one's
     // own is kept and the travel is prepended to it. The mirrored eye needs the
     // sign flipped, or the two look in opposite directions.
+    //
     const pupils = [...openFrames].flatMap((frame) => {
       const sign = frame.hasAttribute("data-mirrored") ? -1 : 1;
       return [...frame.querySelectorAll('[id="Ellipse 2"], [id="Ellipse 3"]')].map(
-        (el) => ({ el, sign, base: el.getAttribute("transform") ?? "" }),
+        (el) => ({
+          el,
+          sign,
+          glint: el.getAttribute("id") === "Ellipse 3",
+          base: el.getAttribute("transform") ?? "",
+        }),
       );
     });
 
@@ -219,20 +225,29 @@ export default function Hero() {
     // quick rather than just cycling more often.
     const GAZE_MOVE = 0.44;
     const GAZE_FROM = (1 - GAZE_MOVE) / 2;
+    // How far off the iris's middle the catchlight sits, measured off the
+    // drawing: its ellipse is 18 units to one side of the iris's. That drawn
+    // position is the eye looking all the way *left*, so the highlight has to
+    // cross the iris — from -18 to +18 — as the gaze goes left to right. Moving
+    // it with the iris instead would leave it stuck on the same side forever,
+    // which is what a sticker does rather than a reflection.
+    const GLINT_SWING = 18;
     let gazeId = null;
 
     function gaze(now) {
       const phase = (now % GAZE_PERIOD) / GAZE_PERIOD;
       const triangle = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-      const x =
-        (smoothstep(GAZE_FROM, 1 - GAZE_FROM, triangle) * 2 - 1) *
-        GAZE_TRAVEL *
-        openAmount;
-      for (const { el, sign, base } of pupils) {
-        el.setAttribute(
-          "transform",
-          `translate(${(x * sign).toFixed(2)}, 0) ${base}`,
-        );
+      // -1 hard left, +1 hard right.
+      const look = smoothstep(GAZE_FROM, 1 - GAZE_FROM, triangle) * 2 - 1;
+      const iris = look * GAZE_TRAVEL * openAmount;
+      // `look + 1` rather than `look`: at hard left this is zero, which leaves
+      // the highlight exactly where the artwork draws it, and it works its way
+      // across from there.
+      const glint =
+        iris + GLINT_SWING * (look + 1) * openAmount;
+      for (const { el, sign, glint: isGlint, base } of pupils) {
+        const travel = (isGlint ? glint : iris) * sign;
+        el.setAttribute("transform", `translate(${travel.toFixed(2)}, 0) ${base}`);
       }
       gazeId = requestAnimationFrame(gaze);
     }

@@ -7,19 +7,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // To add one: drop the file in that folder, import it here, and point a
 // REFERENCES entry's `image` at it. An entry with `image: null` renders the
 // built-in wireframe placeholder instead, which is what the last two do.
-import aquaPlanet from "../../assets/snapkeep/aqua-planet.jpg";
-import santal33 from "../../assets/snapkeep/santal-33.jpg";
-import viewApp from "../../assets/snapkeep/view.jpg";
-import dailyRoutine from "../../assets/snapkeep/daily-routine.jpg";
+import aquaPlanet from "../../assets/snapkeep/aqua-planet.avif";
+import santal33 from "../../assets/snapkeep/santal-33.avif";
+import viewApp from "../../assets/snapkeep/view.avif";
+import dailyRoutine from "../../assets/snapkeep/daily-routine.avif";
 // A fully documented reference: the screen itself, its wireframe, and each
 // component in both states. `structure` and `components` are optional — an
 // entry without them falls back to the drawn wireframe and colour swatches.
-import activityOriginal from "../../assets/snapkeep/activity-original.jpg";
-import activityStructure from "../../assets/snapkeep/activity-structure.png";
-import activityChipDefault from "../../assets/snapkeep/activity-chip-default.png";
-import activityChipSelected from "../../assets/snapkeep/activity-chip-selected.png";
-import activityLabelDefault from "../../assets/snapkeep/activity-label-default.png";
-import activityLabelSelected from "../../assets/snapkeep/activity-label-selected.png";
+import activityOriginal from "../../assets/snapkeep/activity-original.avif";
+import activityStructure from "../../assets/snapkeep/activity-structure.avif";
+import activityChipDefault from "../../assets/snapkeep/activity-chip-default.avif";
+import activityChipSelected from "../../assets/snapkeep/activity-chip-selected.avif";
+import activityLabelDefault from "../../assets/snapkeep/activity-label-default.avif";
+import activityLabelSelected from "../../assets/snapkeep/activity-label-selected.avif";
 import bookmarkIcon from "../../assets/bookmark.svg";
 
 // The whole screen is styled from index.css with structural selectors

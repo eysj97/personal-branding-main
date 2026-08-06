@@ -9,13 +9,13 @@ import {
 } from "./primitives";
 // Sized to 2x what each well actually paints; the Figma exports were 4K
 // captures. See AquaplanetSpread for the same treatment.
-import problem from "../../assets/project/detail/reviu/problem.jpg";
-import reviewTiming from "../../assets/project/detail/reviu/review-timing.jpg";
-import solution from "../../assets/project/detail/reviu/solution.jpg";
-import notification from "../../assets/project/detail/reviu/notification.jpg";
-import retrospect from "../../assets/project/detail/reviu/retrospect.jpg";
-import cornell from "../../assets/project/detail/reviu/cornell.jpg";
-import ai from "../../assets/project/detail/reviu/ai.jpg";
+import problem from "../../assets/project/detail/reviu/problem.avif";
+import reviewTiming from "../../assets/project/detail/reviu/review-timing.avif";
+import solution from "../../assets/project/detail/reviu/solution.avif";
+import notification from "../../assets/project/detail/reviu/notification.avif";
+import retrospect from "../../assets/project/detail/reviu/retrospect.avif";
+import cornell from "../../assets/project/detail/reviu/cornell.avif";
+import ai from "../../assets/project/detail/reviu/ai.avif";
 
 // Figma frame 154:4088. Bright green page, so the panels are solid white with
 // black type rather than the translucent panels the dark Aquaplanet page uses.

@@ -5,12 +5,12 @@ import { useEffect, useRef } from "react";
 // scale turns a trapezoid into a rectangle, so nothing here tries. The card
 // simply shows the file, and the transparent corners around the mockup are part
 // of how it is drawn.
-import card1 from "../assets/learn/card-1.svg";
-import card2 from "../assets/learn/card-2.svg";
-import card3 from "../assets/learn/card-3.svg";
-import card4 from "../assets/learn/card-4.svg";
-import card5 from "../assets/learn/card-5.svg";
-import card6 from "../assets/learn/card-6.svg";
+import card1 from "../assets/learn/card-1.avif";
+import card2 from "../assets/learn/card-2.avif";
+import card3 from "../assets/learn/card-3.avif";
+import card4 from "../assets/learn/card-4.avif";
+import card5 from "../assets/learn/card-5.avif";
+import card6 from "../assets/learn/card-6.avif";
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (from, to, x) => {
@@ -234,12 +234,18 @@ export default function LearnSection() {
                     outer element's transform every frame, so a hover transform
                     on that same element would be wiped on the next scroll. */}
                 <div className="relative h-full w-full transition-transform duration-300 ease-out group-hover:translate-x-1/3">
+                  {/* No radius. The captures are drawn in perspective, so the
+                      left edge is the short one and its corners sit inset from
+                      the card — a radius only ever cut the right-hand pair,
+                      which read as lopsided rather than as rounding. */}
                   <img
                     src={image}
                     alt={label ?? ""}
                     className="absolute inset-0 w-full h-full object-cover"
                   />
-                  <div className="absolute right-0 top-[2.5%] h-[28.7%] w-[7.2%] translate-x-full rounded-r-[10px] bg-[#0492bd]" />
+                  {/* The tab hangs off the card's right edge; what you see to
+                      the left of a card is the tab of the one behind it. */}
+                  <div className="absolute right-0 top-[5%] h-[28.7%] w-[7.2%] translate-x-full rounded-r-[10px] bg-[#0492bd]" />
                 </div>
               </Card>
             );

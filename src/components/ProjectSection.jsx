@@ -1,16 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import cardPhoto from "../assets/project/card-photo.png";
-import cardViewBody from "../assets/project/card-view-hover-body.png";
-import cardSantalBody from "../assets/project/card-santal-hover-body.png";
-import screenImac from "../assets/project/mockup/screen-imac.png";
-import screenIpad from "../assets/project/mockup/screen-ipad.png";
-import screenPhone1 from "../assets/project/mockup/screen-phone-1.png";
-import screenPhone2 from "../assets/project/mockup/screen-phone-2.png";
-import screenPhone3 from "../assets/project/mockup/screen-phone-3.png";
-import screenPhone4 from "../assets/project/mockup/screen-phone-4.png";
-import santalHover from "../assets/project/hover/layer-hover.png";
-import viewHoverCards from "../assets/project/hover/view-hover1.png";
-import viewHoverPhones from "../assets/project/hover/view-hover2.png";
+import cardPhoto from "../assets/project/card-photo.avif";
+import cardViewBody from "../assets/project/card-view-hover-body.avif";
+import cardSantalBody from "../assets/project/card-santal-hover-body.avif";
+import screenImac from "../assets/project/mockup/screen-imac.avif";
+import screenIpad from "../assets/project/mockup/screen-ipad.avif";
+import screenPhone1 from "../assets/project/mockup/screen-phone-1.avif";
+import screenPhone2 from "../assets/project/mockup/screen-phone-2.avif";
+import screenPhone3 from "../assets/project/mockup/screen-phone-3.avif";
+import screenPhone4 from "../assets/project/mockup/screen-phone-4.avif";
+import santalHover from "../assets/project/hover/layer-hover.avif";
+import viewHoverCards from "../assets/project/hover/view-hover1.avif";
+import viewHoverPhones from "../assets/project/hover/view-hover2.avif";
 import ProjectMockup from "./ProjectMockup";
 import ProjectHoverComposition from "./ProjectHoverComposition";
 import ProjectDetailOverlay from "./ProjectDetailOverlay";
@@ -185,10 +185,16 @@ const CARDS = [
   // cluster and no hover art floats out of it.
   mockup: card.face ? null : (card.mockup ?? fallbackMockup(card.image)),
 }));
-// Not a multiple of 360 on purpose — lands slightly off the baseline
-// angles at rest, so the 0deg/180deg cards don't end up perfectly
-// eclipsing each other.
-const TOTAL_SPIN_DEG = 660;
+// How far the drum turns over the whole section. The scroll it happens across
+// is fixed, so this alone sets how fast it turns. It has come down from 1500 in
+// two steps; 840 is a little over two turns, which is still enough for every
+// folder to come round twice and is as gentle as it can get before the movement
+// stops reading as rotation — 660 was already past that line.
+//
+// Not a multiple of 360 on purpose — it lands slightly off the baseline angles
+// at rest, so the 0deg/180deg cards do not end up perfectly eclipsing each
+// other.
+const TOTAL_SPIN_DEG = 840;
 
 // Scroll-progress (0-1) at which the folder locks into its final,
 // permanent resting frame.
@@ -332,6 +338,11 @@ export default function ProjectSection() {
           "--card-back",
           clamp01((EDGE_FADE - facing) / EDGE_FADE).toFixed(3),
         );
+        // The tab is welded to the folder's right edge, so once the folder has
+        // turned past edge-on that edge is round the back and the tab with it.
+        // Left visible it comes round the other side and draws a coloured bar
+        // straight across the front of the card — measured at up to 159px in.
+        el.style.setProperty("--card-tab", clamp01(facing / EDGE_FADE).toFixed(3));
         // Cards further from head-on sit back in the light, which is what
         // makes four curved panels read as one solid object.
         el.style.setProperty(
@@ -569,7 +580,7 @@ export default function ProjectSection() {
                       style={{
                         ...SLICE_BAND,
                         transform: `rotateY(${angle + SLICE_ANGLES[SLICES - 1]}deg) translateZ(${CARD_RADIUS})`,
-                        opacity: "var(--card-op, 1)",
+                        opacity: "calc(var(--card-op, 1) * var(--card-tab, 1))",
                         filter: "brightness(var(--card-br, 1))",
                       }}
                     >

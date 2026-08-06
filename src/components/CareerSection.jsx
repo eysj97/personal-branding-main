@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import role1Img from "../assets/role/1.png";
-import role2Img from "../assets/role/2.png";
-import role3Img from "../assets/role/3.png";
-import role4Img from "../assets/role/4.png";
-import role5Img from "../assets/role/5.png";
+import role1Img from "../assets/role/1.avif";
+import role2Img from "../assets/role/2.avif";
+import role3Img from "../assets/role/3.avif";
+import role4Img from "../assets/role/4.avif";
+import role5Img from "../assets/role/5.avif";
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (t) => {

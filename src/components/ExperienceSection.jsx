@@ -3,17 +3,17 @@ import { useEffect, useRef, useState } from "react";
 import SnapkeepSpread from "./detail/SnapkeepSpread";
 import ProjectAppWindow from "./ProjectAppWindow";
 
-import noteMark from "../assets/experience/note-mark.png";
+import noteMark from "../assets/experience/note-mark.avif";
 import underlineWave from "../assets/experience/underline-wave.svg";
 import boxBase from "../assets/experience/box-base.svg";
 import boxLid from "../assets/experience/box-lid.svg";
 import searchMark from "../assets/experience/search-mark.svg";
 import tagMark from "../assets/experience/tag-mark.svg";
-import savedScreen from "../assets/experience/saved-screen.png";
-import savedFigma from "../assets/experience/saved-figma.png";
-import savedSiteMenu from "../assets/experience/saved-site-menu.png";
-import archiveCapture from "../assets/experience/archive-capture.png";
-import snapkeepGrid from "../assets/experience/snapkeep-grid.png";
+import savedScreen from "../assets/experience/saved-screen.avif";
+import savedFigma from "../assets/experience/saved-figma.avif";
+import savedSiteMenu from "../assets/experience/saved-site-menu.avif";
+import archiveCapture from "../assets/experience/archive-capture.avif";
+import snapkeepGrid from "../assets/experience/snapkeep-grid.avif";
 
 // The archive capture is a screen recording. Figma will only hand out still
 // frames of a video fill, so the file has to be dropped in by hand — put it at
@@ -34,7 +34,7 @@ const ARCHIVE_VIDEO =
 const ARCHIVE_SPEED = 2;
 // The same monitor the project cards' hover cluster uses — one asset, one
 // download, rather than a second copy of the identical frame.
-import imacFrame from "../assets/project/mockup/imac.png";
+import imacFrame from "../assets/project/mockup/imac.avif";
 import sfSidebar from "../assets/experience/safari/sidebar-leading.svg";
 import sfChevronDown from "../assets/experience/safari/chevron-down.svg";
 import sfChevronLeft from "../assets/experience/safari/chevron-left.svg";
@@ -878,7 +878,12 @@ export default function ExperienceSection() {
 
     function metrics() {
       const stripScale = window.innerHeight / DESIGN_HEIGHT;
-      const viewportWidth = window.innerWidth;
+      // clientWidth, not innerWidth. innerWidth — and CSS `100vw` — count the
+      // vertical scrollbar, which is not part of what you can actually see, so
+      // centring on half of it puts everything half a scrollbar's width off to
+      // the right. About 8px on a desktop browser, and invisible in a headless
+      // test because there is no scrollbar there to get it wrong.
+      const viewportWidth = document.documentElement.clientWidth;
       return { stripScale, viewportWidth };
     }
 

@@ -10,11 +10,11 @@ import {
 import bottle from "../../assets/project/detail/layer/bottle.svg";
 // Sized to 2x what each well actually paints; the Figma exports were 4K
 // captures. See AquaplanetSpread for the same treatment.
-import survey from "../../assets/project/detail/layer/survey.jpg";
-import retrospect from "../../assets/project/detail/layer/retrospect.jpg";
-import magazine from "../../assets/project/detail/layer/magazine.jpg";
-import ai1 from "../../assets/project/detail/layer/ai-1.jpg";
-import ai2 from "../../assets/project/detail/layer/ai-2.jpg";
+import survey from "../../assets/project/detail/layer/survey.avif";
+import retrospect from "../../assets/project/detail/layer/retrospect.avif";
+import magazine from "../../assets/project/detail/layer/magazine.avif";
+import ai1 from "../../assets/project/detail/layer/ai-1.avif";
+import ai2 from "../../assets/project/detail/layer/ai-2.avif";
 
 // Figma frame 154:4094.
 const PAD = { top: 40, bottom: 40, left: 95, right: 195 };
