@@ -1012,11 +1012,16 @@ function SolutionPanel() {
         />
       </div>
 
+      {/* Plain HIGHLIGHT_AFTER, not TWEEN_MS + HIGHLIGHT_AFTER. The strip's own
+          travel used to be part of every delay here, from when the sequences
+          were armed as the tween began; they are armed when it lands now, so
+          carrying it still would hold this mark back for over a second after
+          the panel had settled — long enough to be scrolled past unseen. */}
       <DrawnMark
         raw={solutionSparkle}
         className="left-[734px] top-[326px] h-[203px] w-[170px]"
         stop={STOP.solutionLead}
-        delay={TWEEN_MS + HIGHLIGHT_AFTER}
+        delay={HIGHLIGHT_AFTER}
       />
       <img
         src={solutionTick}
