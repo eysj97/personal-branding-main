@@ -134,17 +134,50 @@ export default function Hero() {
     // own is kept and the travel is prepended to it. The mirrored eye needs the
     // sign flipped, or the two look in opposite directions.
     //
-    const pupils = [...openFrames].flatMap((frame) => {
-      const sign = frame.hasAttribute("data-mirrored") ? -1 : 1;
-      return [
+    // Grouped by eye rather than flattened into one list of parts: each eye now
+    // aims at the pointer from where it actually sits on screen, so it needs its
+    // own box and its own eased gaze, and the two of them look slightly
+    // different directions at anything nearer than the far side of the room —
+    // which is the whole reason this reads as a pair of eyes.
+    // The artwork draws the iris up and to the left of the eye's own middle —
+    // the character looking slightly off — and taking that as "straight ahead"
+    // is what left almost no room to look left or up. Measured against the
+    // white, the drawn position is already halfway to the rim on the up-left
+    // diagonal, so the travel had to stay tiny to keep the iris inside.
+    //
+    // Neutral is the eye's actual centre instead, read off the white rather
+    // than written down, and the drawn position simply becomes one of the
+    // places the gaze passes through. That leaves the same room in every
+    // direction — which is what lets the travel below be as large as it is.
+    function neutralFor(frame) {
+      const white = frame.querySelector('[id="Ellipse 1"]');
+      const iris = frame.querySelector('[id="Ellipse 2"]');
+      if (!white || !iris) return { x: 0, y: 0 };
+      const box = white.getBBox();
+      return {
+        x: box.x + box.width / 2 - iris.cx.baseVal.value,
+        y: box.y + box.height / 2 - iris.cy.baseVal.value,
+      };
+    }
+
+    const eyes = [...openFrames].map((frame) => ({
+      frame,
+      sign: frame.hasAttribute("data-mirrored") ? -1 : 1,
+      // Not flipped for the mirrored eye: the middle of a drawing is its middle
+      // whichever way round it is shown. Only the travel takes the sign.
+      neutral: neutralFor(frame),
+      parts: [
         ...frame.querySelectorAll('[id="Ellipse 2"], [id="Ellipse 3"]'),
       ].map((el) => ({
         el,
-        sign,
         glint: el.getAttribute("id") === "Ellipse 3",
         base: el.getAttribute("transform") ?? "",
-      }));
-    });
+      })),
+      // Where this eye is currently looking, -1..1 on each axis. Chased toward
+      // the target rather than set from it, so the gaze carries a little weight.
+      x: 0,
+      y: 0,
+    }));
 
     // One wheel tick per beat, rather than the animation tracking the
     // scrollbar: eyes shut, then eyes open with the copy in, then the copy in
@@ -219,18 +252,36 @@ export default function Hero() {
       step();
     }
 
-    // Once the eyes are open they look about. A triangle wave eased hard at
-    // both ends, so the gaze travels and then dwells at each side rather than
-    // sliding back and forth at a constant rate, which reads as a mechanism.
-    // In the drawing's own units, which is why it is set as an attribute and
-    // not as a CSS transform — those would be in screen px.
-    const GAZE_TRAVEL = 13;
-    const GAZE_PERIOD = 2600;
-    // How much of each half-cycle the eye spends travelling. The rest is the
-    // dwell at either side — narrowing this is what makes the move itself
-    // quick rather than just cycling more often.
-    const GAZE_MOVE = 0.44;
-    const GAZE_FROM = (1 - GAZE_MOVE) / 2;
+    // How far the iris may travel from where the drawing puts it, in the
+    // drawing's own units — which is why all of this is set as an attribute and
+    // not as a CSS transform, since that would be in screen px.
+    //
+    // The eye white is 175 x 203 and the iris is a 107 x 109 disc, so centred
+    // it has 34 units of room across and 47 up and down before it touches the
+    // rim. These are about 64% of each — the same fraction on both axes, which
+    // matters: the gaze is clamped to a circle and then scaled by this pair, so
+    // an equal fraction means the iris sits the same distance from the rim
+    // whichever way it looks, instead of grazing it on the diagonals.
+    //
+    // Ratios rather than the flat 13 x 10 they replace. Equal numbers on a
+    // taller-than-wide eye are not equal movement, which is why the vertical
+    // read as barely moving at all.
+    const GAZE_TRAVEL_X = 22;
+    const GAZE_TRAVEL_Y = 30;
+    // How far the pointer has to be from an eye before it is looking as far
+    // that way as it can. Off the viewport rather than a fixed number of px, so
+    // crossing the screen sweeps the whole range on any display. Nearer than
+    // this the eye only turns part way — which is what makes it read as
+    // watching something close rather than snapping between extremes.
+    //
+    // A third of the screen, not half: at half the pointer had to be most of a
+    // screen away before the eye committed, so in ordinary use the gaze only
+    // ever showed a fraction of the travel it had.
+    const GAZE_REACH = 0.34;
+    // How hard the gaze chases the pointer, per frame. Low enough to lag it
+    // visibly: eyes that track a cursor exactly read as a readout of the mouse
+    // position rather than as something looking at you.
+    const GAZE_CHASE = 0.12;
     // How far off the iris's middle the catchlight sits, measured off the
     // drawing: its ellipse is 18 units to one side of the iris's. That drawn
     // position is the eye looking all the way *left*, so the highlight has to
@@ -238,25 +289,79 @@ export default function Hero() {
     // it with the iris instead would leave it stuck on the same side forever,
     // which is what a sticker does rather than a reflection.
     const GLINT_SWING = 18;
+
+    // The wander the eyes used to do on their own, kept as the fallback: it is
+    // what they do until a mouse has actually moved. A touch device never sends
+    // one, and eyes locked dead ahead for the whole visit read as broken.
+    const GAZE_PERIOD = 2600;
+    // How much of each half-cycle the eye spends travelling. The rest is the
+    // dwell at either side — narrowing this is what makes the move itself
+    // quick rather than just cycling more often.
+    const GAZE_MOVE = 0.44;
+    const GAZE_FROM = (1 - GAZE_MOVE) / 2;
+
     let gazeId = null;
+    // Screen px, and null until the mouse has genuinely moved. `mousemove`
+    // rather than `pointermove` on purpose: a touch only sends events while the
+    // finger is down, so following it would leave the eyes frozen wherever the
+    // last tap happened to be, which is worse than the wander.
+    let pointer = null;
+    function onMouseMove(e) {
+      pointer = { x: e.clientX, y: e.clientY };
+    }
 
     function gaze(now) {
+      // Every box is measured before anything is written, so the frame costs one
+      // layout rather than one per eye: setting an SVG transform below dirties
+      // layout, and a getBoundingClientRect after that forces it to be redone.
+      const boxes = eyes.map((eye) => eye.frame.getBoundingClientRect());
+      const reach =
+        Math.min(window.innerWidth, window.innerHeight) * GAZE_REACH;
+
+      // -1 hard left, +1 hard right. Shared by both eyes, since a wandering
+      // gaze is the pair looking about together rather than each on its own.
       const phase = (now % GAZE_PERIOD) / GAZE_PERIOD;
       const triangle = phase < 0.5 ? phase * 2 : (1 - phase) * 2;
-      // -1 hard left, +1 hard right.
-      const look = smoothstep(GAZE_FROM, 1 - GAZE_FROM, triangle) * 2 - 1;
-      const iris = look * GAZE_TRAVEL * openAmount;
-      // `look + 1` rather than `look`: at hard left this is zero, which leaves
-      // the highlight exactly where the artwork draws it, and it works its way
-      // across from there.
-      const glint = iris + GLINT_SWING * (look + 1) * openAmount;
-      for (const { el, sign, glint: isGlint, base } of pupils) {
-        const travel = (isGlint ? glint : iris) * sign;
-        el.setAttribute(
-          "transform",
-          `translate(${travel.toFixed(2)}, 0) ${base}`,
-        );
-      }
+      const wander = smoothstep(GAZE_FROM, 1 - GAZE_FROM, triangle) * 2 - 1;
+
+      eyes.forEach((eye, i) => {
+        let targetX = wander;
+        let targetY = 0;
+        if (pointer) {
+          const box = boxes[i];
+          const dx = pointer.x - (box.left + box.width / 2);
+          const dy = pointer.y - (box.top + box.height / 2);
+          // Direction and distance kept apart: the direction is where the eye
+          // turns, the distance only says how far. Scaling the axes
+          // independently instead would have the eye look along the wrong line
+          // whenever the pointer is off to a corner.
+          const away = Math.hypot(dx, dy) || 1;
+          const amount = Math.min(away / reach, 1);
+          targetX = (dx / away) * amount;
+          targetY = (dy / away) * amount;
+        }
+        eye.x += (targetX - eye.x) * GAZE_CHASE;
+        eye.y += (targetY - eye.y) * GAZE_CHASE;
+
+        const irisX = eye.x * GAZE_TRAVEL_X * openAmount;
+        const irisY = eye.y * GAZE_TRAVEL_Y * openAmount;
+        // `eye.x + 1` rather than `eye.x`: at hard left this is zero, which
+        // leaves the highlight exactly where the artwork draws it, and it works
+        // its way across from there.
+        const glintX = irisX + GLINT_SWING * (eye.x + 1) * openAmount;
+        for (const { el, glint, base } of eye.parts) {
+          // Only the horizontal is flipped for the mirrored eye. The drawing is
+          // mirrored across its vertical axis, so up is still up in it — giving
+          // the vertical the same sign would have one eye look down while the
+          // other looked up.
+          const tx = eye.neutral.x + (glint ? glintX : irisX) * eye.sign;
+          const ty = eye.neutral.y + irisY;
+          el.setAttribute(
+            "transform",
+            `translate(${tx.toFixed(2)}, ${ty.toFixed(2)}) ${base}`,
+          );
+        }
+      });
       gazeId = requestAnimationFrame(gaze);
     }
 
@@ -368,6 +473,7 @@ export default function Hero() {
     window.addEventListener("touchmove", onTouchMove, { passive: false });
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
+    window.addEventListener("mousemove", onMouseMove, { passive: true });
 
     return () => {
       window.removeEventListener("wheel", onWheel);
@@ -375,6 +481,7 @@ export default function Hero() {
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("mousemove", onMouseMove);
       visibility.disconnect();
       if (gazeId !== null) cancelAnimationFrame(gazeId);
       if (tweenId !== null) cancelAnimationFrame(tweenId);

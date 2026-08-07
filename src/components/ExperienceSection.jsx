@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import SnapkeepSpread from "./detail/SnapkeepSpread";
 import ProjectAppWindow from "./ProjectAppWindow";
@@ -17,13 +17,17 @@ import snapkeepGrid from "../assets/experience/snapkeep-grid.avif";
 // the design — the composite ones (the sparkle clusters, the long arrow) as a
 // single SVG of the whole group rather than as the loose vector layers they
 // are built from, since nothing here needs to move independently.
-import archiveSparkles from "../assets/experience/doodle/archive-sparkles.svg";
 import savedArrowTop from "../assets/experience/doodle/saved-arrow-top.svg";
 import savedArrowLow from "../assets/experience/doodle/saved-arrow-low.svg";
-// These three are pure stroke paths, and they are inlined as source rather
-// than pointed at as files so the strokes can be reached and drawn on. An
-// <img> is an opaque box — nothing inside it can be animated. Same `?raw`
-// trick the hero uses for its eyes.
+// Inlined as source rather than pointed at as files, because an <img> is an
+// opaque box — nothing inside one can be animated. Same `?raw` trick the hero
+// uses for its eyes.
+//
+// The star cluster is inlined for its twinkle: each star in it is a group the
+// loop has to reach to make it flash. It is *not* drawn on — it pops in like
+// the rest of the artwork.
+import archiveSparkles from "../assets/experience/doodle/archive-sparkles.svg?raw";
+// These three are the marks that are drawn stroke by stroke.
 import problemSquiggle from "../assets/experience/doodle/problem-squiggle.svg?raw";
 import problemArrow from "../assets/experience/doodle/problem-arrow.svg?raw";
 import solutionSparkle from "../assets/experience/doodle/solution-sparkle.svg?raw";
@@ -174,21 +178,30 @@ const DURATIONS = {
   draw: 1500,
 };
 
-/** A line drawing that draws itself. The SVG source is inlined so its paths
- *  are real elements the animation can reach; `pathLength` is stamped on each
- *  one up front so the frame loop only has to move the dash offset.
+/** A line drawing that draws itself. The SVG source is inlined so its paths are
+ *  real elements the animation can reach, and each one is measured up front so
+ *  the frame loop only has to move the dash offset.
+ *
+ *  Measured with getTotalLength rather than normalised with `pathLength="1"`,
+ *  which is what this used to do. A dash pattern of 1 only hides the line if
+ *  the browser has actually renormalised the path to a length of 1 — and where
+ *  it has not, `stroke-dasharray: 1` on a 400-unit path is a 1-unit dash every
+ *  1 unit, which with a 5-wide round cap overlaps into what looks exactly like
+ *  a solid, finished line. The mark then sits there fully drawn and the offset
+ *  moving from 1 to 0 changes nothing you can see. Real lengths in real user
+ *  units cannot fail that way.
  *
  *  Kept out of the float set — a mark still being drawn must not also be
  *  drifting, or the line lands somewhere other than where it started. */
 function DrawnMark({ raw, className, stop, delay }) {
   const ref = useRef(null);
 
-  useEffect(() => {
-    const paths = ref.current?.querySelectorAll("path") ?? [];
-    for (const path of paths) {
-      path.setAttribute("pathLength", "1");
-      path.style.strokeDasharray = "1";
-      path.style.strokeDashoffset = "1";
+  // Layout, not plain effect: nothing here sets opacity, so the only thing
+  // hiding the mark before its turn is the dash offset. Set after a paint,
+  // the finished drawing flashes up on screen first.
+  useLayoutEffect(() => {
+    for (const path of ref.current?.querySelectorAll("path") ?? []) {
+      hidePath(path);
     }
   }, []);
 
@@ -202,6 +215,40 @@ function DrawnMark({ raw, className, stop, delay }) {
       data-anim="draw"
       data-stop={stop}
       data-delay={delay}
+      dangerouslySetInnerHTML={{ __html: raw }}
+    />
+  );
+}
+
+// The twinkle each star settles into once its mark has been drawn.
+//
+// How bright a star sits between flashes. Not much below 1: these are line
+// drawings on a dark panel, and dimming them far enough to make the flash
+// dramatic just makes them look half-erased for most of the time.
+const TWINKLE_REST = 0.72;
+// How much of each cycle is actually spent flashing. The rest is the star
+// sitting still — which is what separates a twinkle from a pulse.
+const TWINKLE_FLASH = 0.22;
+// How far a star swells at the top of its flash. Small: the point is that it
+// catches the light, not that it grows.
+const TWINKLE_SWELL = 0.12;
+
+/** A line drawing that pops in like the rest of the artwork, but is inlined all
+ *  the same so the pieces inside it can be reached — the star cluster needs
+ *  that for its twinkle. Nothing here is drawn on: an <img> would do for the
+ *  entrance, but not for anything that has to keep moving afterwards.
+ *
+ *  Unlike DrawnMark this stays in the float set, so it drifts once it lands. */
+function InlineMark({ raw, className, stop, delay, float }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`pointer-events-none absolute [&>svg]:size-full ${className}`}
+      data-anim="pop"
+      data-stop={stop}
+      data-delay={delay}
+      data-float={float}
+      style={{ opacity: 0 }}
       dangerouslySetInnerHTML={{ __html: raw }}
     />
   );
@@ -273,6 +320,23 @@ function TypedText({ lines, className, style, stop, delay = 0 }) {
   );
 }
 
+/** A path's own length in user units, measured once and remembered on the
+ *  element. Every frame of a draw needs it, and measuring a path is not free. */
+function pathLength(path) {
+  const cached = Number(path.dataset.length);
+  if (cached > 0) return cached;
+  const length = path.getTotalLength();
+  path.dataset.length = String(length);
+  return length;
+}
+
+/** Wind a path back to before it was drawn. */
+function hidePath(path) {
+  const length = pathLength(path);
+  path.style.strokeDasharray = `${length} ${length}`;
+  path.style.strokeDashoffset = String(length);
+}
+
 function applyAnim(el, kind, t, typedCounts) {
   switch (kind) {
     case "sweep": {
@@ -302,18 +366,19 @@ function applyAnim(el, kind, t, typedCounts) {
       break;
     }
     case "draw": {
-      // Drawn on, stroke by stroke, the way a pen would. `pathLength="1"`
-      // renormalises every path to a length of 1 whatever its real geometry,
-      // so one dash of 1 and an offset walking 1 -> 0 uncovers any of them at
-      // the same rate without measuring anything.
+      // Drawn on, the way a pen would. One dash as long as the whole line
+      // followed by a gap just as long, slid along by the offset: at a full
+      // length the dash sits entirely past the end of the path and nothing
+      // shows, and as the offset comes down to zero the line is uncovered from
+      // its start.
       //
       // The paths share the clock rather than running one after another: these
       // are single gestures — a loop, an arrow, a burst — so a strict relay
       // reads as separate marks being placed rather than as one drawing.
-      const paths = el.querySelectorAll("path");
-      for (const path of paths) {
-        path.style.strokeDasharray = "1";
-        path.style.strokeDashoffset = String(1 - t);
+      for (const path of el.querySelectorAll("path")) {
+        const length = pathLength(path);
+        path.style.strokeDasharray = `${length} ${length}`;
+        path.style.strokeDashoffset = String(length * (1 - t));
       }
       break;
     }
@@ -404,16 +469,23 @@ function ArchivePanel() {
 
           <div className="relative flex w-full flex-col items-center gap-[12px] leading-none text-white">
             {/* Scribbled over the front of the headline, hanging above the
-                block's own top — hence the negative offset. */}
-            <img
-              src={archiveSparkles}
-              alt=""
-              className="pointer-events-none absolute left-[11px] top-[-48px] h-[157px] w-[186px] max-w-none"
-              data-anim="pop"
-              data-stop={STOP.archive}
-              data-delay={620}
-              data-float="10"
-              style={{ opacity: 0 }}
+                block's own top — hence the negative offset.
+
+                The design hangs it off the column that carries the credit line
+                as well (node 285:3243, at 7 / -43); this sits inside the
+                headline block, which starts 36 lower — the 12px credit line
+                and the 24 gap under it — so the same position is -79 here.
+
+                Pops in and then drifts, like the rest of the artwork — the
+                marks that write themselves on are the ones over on the problem
+                and solution panels. It is inlined anyway so that the three
+                stars in it can be reached and twinkled. */}
+            <InlineMark
+              raw={archiveSparkles}
+              className="left-[7px] top-[-79px] h-[157px] w-[186px]"
+              stop={STOP.archive}
+              delay={620}
+              float="10"
             />
 
             {/* Set at 42px, which is what makes this line come out just about
@@ -633,15 +705,15 @@ function SavedPanel() {
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
       {/* The design lays this panel out as one centred row: a 466-wide column,
-          34, then the 738 monitor. That comes to 1238, so the row starts at
-          341 and the column's right edge — which everything in it hangs off —
-          lands at 807.
+          58, then the 738 monitor. That comes to 1262, so the row starts at
+          315 and the column's right edge — which the headline hangs off —
+          lands at 781.
 
-          The column's height is what sets the two tops, and it is added up
-          rather than guessed: 84 for the headline (two 42px lines at
-          leading-none), 12 for the gap, 44.8 for the line below (two 16px
-          lines at 1.4). 140.8 in all, centred on the monitor's own middle at
-          540, so it starts at 469.6 and the lower block at 565.6. */}
+          The column's height is what sets the tops, and it is added up rather
+          than guessed: 84 for the headline (two 42px lines at leading-none), 12
+          for the gap, 16 for the single line below. 112 in all, centred on the
+          monitor's own middle at 540, so it starts at 484 and the line below at
+          580. */}
       {/* The two thumb marks come before the headline so they paint under it —
           they are meant to sit behind the words, not across them. Nothing here
           uses z-index: within one stacking context the later element wins, so
@@ -649,7 +721,7 @@ function SavedPanel() {
       <img
         src={savedArrowTop}
         alt=""
-        className="pointer-events-none absolute left-[608px] top-[471.6px] h-[44px] w-[35px] max-w-none"
+        className="pointer-events-none absolute left-[555px] top-[484px] h-[44px] w-[35px] max-w-none"
         data-anim="pop"
         data-stop={STOP.saved}
         data-delay={200}
@@ -660,7 +732,7 @@ function SavedPanel() {
           after it both write this element's own transform every frame, so a
           rotate on the same node would be overwritten on the first one. */}
       <div
-        className="absolute left-[743px] top-[545px] h-[44px] w-[35px]"
+        className="absolute left-[786px] top-[522px] h-[44px] w-[35px]"
         data-anim="pop"
         data-stop={STOP.saved}
         data-delay={280}
@@ -676,7 +748,7 @@ function SavedPanel() {
 
       <TypedText
         lines={["Saved it,", "can’t find it"]}
-        className="absolute left-[807px] top-[469.6px] -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[42px] font-bold leading-none text-white"
+        className="absolute left-[781px] top-[484px] -translate-x-full text-right font-['Plus_Jakarta_Sans'] text-[42px] font-bold leading-none text-white"
         stop={STOP.saved}
         delay={0}
       />
@@ -684,9 +756,9 @@ function SavedPanel() {
       {/* "But" is no longer part of the headline — the design lifts it out into
           a chip tipped off the horizontal, sitting where the word used to be.
           The offsets are the design's own, measured from the 466 column (left
-          341) and the headline block (top 469.6). */}
+          315) and the headline block (top 484). */}
       <div
-        className="absolute left-[500px] top-[512.6px] flex h-[50.704px] w-[74.174px] items-center justify-center"
+        className="absolute left-[474px] top-[527px] flex h-[50.704px] w-[74.174px] items-center justify-center"
         data-anim="pop"
         data-stop={STOP.saved}
         data-delay={340}
@@ -702,22 +774,18 @@ function SavedPanel() {
         </div>
       </div>
 
-      {/* The line that says what the picture beside it is evidence of. Ranged
-          right, so both of its lines end on the same 807 the headline above
-          ends on — the column's right edge is the edge everything in it is
-          read against. It keeps the full 466 rather than shrink-wrapping so
-          that edge is the box's own, not wherever the longer line happens to
-          reach.
+      {/* The line that says what the picture beside it is evidence of. One line
+          now rather than two, and centred on the column instead of ranged right
+          against its edge — so it is a caption under the headline rather than
+          another thing lined up with it.
 
-          Leading of 1.4 rather than the leading-none used everywhere else
-          here: at one line that choice is invisible, but broken across two it
-          would butt 16px Korean lines straight up against each other. */}
+          It is wider than the 466 column it is centred in, and deliberately
+          keeps that width rather than shrink-wrapping: the overhang falls
+          evenly on both sides, which is what centres it on the headline above
+          rather than on itself. */}
       <TypedText
-        lines={[
-          "사용자들이 레퍼런스는 많이 저장하지만,",
-          " 정작 필요할 때 찾지 못하는 문제",
-        ]}
-        className="absolute left-[341px] top-[565.6px] w-[466px] text-right font-['Pretendard'] text-[16px] font-medium leading-[1.4] text-white"
+        lines={["사용자들이 레퍼런스는 많이 저장하지만,  정작 필요할 때 찾지 못하는 문제"]}
+        className="absolute left-[315px] top-[580px] w-[466px] text-center font-['Pretendard'] text-[16px] font-medium leading-none text-white"
         stop={STOP.saved}
         delay={620}
       />
@@ -725,7 +793,7 @@ function SavedPanel() {
       {/* `popup` rather than `pop`: a screen full of saved work should open
           like a window, not spring in from a third of its size. */}
       <div
-        className="absolute left-[841px] top-[229px] h-[622px] w-[738px]"
+        className="absolute left-[839px] top-[229px] h-[622px] w-[738px]"
         data-anim="popup"
         data-stop={STOP.saved}
         data-delay={400}
@@ -1494,16 +1562,45 @@ export default function ExperienceSection() {
     // static while you read them. Each gets its own phase and period, or they
     // bob in lockstep and read as one rigid sheet moving.
     // Everything that pops in drifts afterwards — the chips, cards and layout
-    // blocks beside the headlines as much as the drawn marks, since they read
-    // as the same family of floating pieces. `data-float` overrides how far.
+    // blocks beside the headlines read as the same family of floating pieces.
+    // `data-float` overrides how far.
+    //
+    // Except anything that twinkles. A star is meant to catch the light where
+    // it is, and a point of light that is also wandering around the panel
+    // stops reading as a star at all — so the flash replaces the drift rather
+    // than being added on top of it.
     const floaters = animated
-      .filter((item) => item.kind === "pop")
+      .filter(
+        (item) => item.kind === "pop" && !item.el.querySelector("[data-twinkle]"),
+      )
       .map((item, n) => ({
         item,
         amplitude: Number(item.el.dataset.float) || 9,
         phase: n * 1.9,
         period: 2600 + n * 220,
       }));
+    // Once a mark has landed, the stars in it keep twinkling. Each star is its
+    // own group in the artwork (`data-twinkle`, carrying the centre it should
+    // swell about), and each gets its own period and phase — flashing in step
+    // would read as the whole cluster blinking rather than as separate points
+    // of light.
+    //
+    // Found by looking inside every animated element rather than by which
+    // entrance it uses: a star twinkles whether its mark was popped in or
+    // drawn on, and nothing about the flash depends on how it arrived.
+    const twinklers = animated
+      .filter((item) => item.el.querySelector("[data-twinkle]"))
+      .flatMap((item) =>
+        [...item.el.querySelectorAll("[data-twinkle]")].map((group, n) => ({
+          item,
+          group,
+          cx: Number(group.dataset.cx) || 0,
+          cy: Number(group.dataset.cy) || 0,
+          phase: n * 0.37,
+          period: 1900 + n * 520,
+          lit: false,
+        })),
+      );
     let floatId = null;
 
     function floatTick(now) {
@@ -1513,6 +1610,41 @@ export default function ExperienceSection() {
         const y = Math.sin((now / period) * Math.PI * 2 + phase) * amplitude;
         item.el.style.transform = `translate3d(0, ${y.toFixed(2)}px, 0) scale(1)`;
       }
+
+      for (const star of twinklers) {
+        // The entrance owns the mark until it is finished — a star cannot swell
+        // about its own centre while the whole cluster is still popping in.
+        if (!star.item.done) {
+          if (star.lit) {
+            star.group.style.opacity = "1";
+            star.group.removeAttribute("transform");
+            star.lit = false;
+          }
+          continue;
+        }
+        star.lit = true;
+        const cycle = (((now / star.period + star.phase) % 1) + 1) % 1;
+        // A twinkle is a flash, not a throb. A plain sine would spend half of
+        // every cycle dimmed, which reads as slow breathing; this sits at rest
+        // for most of the period and then briefly catches the light.
+        const spike =
+          cycle < TWINKLE_FLASH
+            ? Math.sin((cycle / TWINKLE_FLASH) * Math.PI)
+            : 0;
+        star.group.style.opacity = (
+          TWINKLE_REST +
+          (1 - TWINKLE_REST) * spike
+        ).toFixed(3);
+        // Out to the star's own centre, scaled, and back — an SVG group has no
+        // box of its own to be a transform-origin, so the swell has to be
+        // carried out to the middle of the drawing and returned.
+        const swell = 1 + TWINKLE_SWELL * spike;
+        star.group.setAttribute(
+          "transform",
+          `translate(${star.cx} ${star.cy}) scale(${swell.toFixed(4)}) translate(${-star.cx} ${-star.cy})`,
+        );
+      }
+
       floatId = requestAnimationFrame(floatTick);
     }
 
