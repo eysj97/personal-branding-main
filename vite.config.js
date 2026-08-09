@@ -198,3 +198,19 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss(), snapkeepAnalyze(env.ANTHROPIC_API_KEY)],
   }
 })
+
+// A note on `npm run build`, if it fails with "Rolldown failed to resolve
+// import 'react'" or "지정된 경로를 찾을 수 없습니다 (os error 3)":
+//
+// That is the path this folder lives under, not the code. Vite 8 bundles with
+// Rolldown, whose Windows native binding cannot read files under a path
+// containing Hangul — and this one sits in …/문서/윤수정/uxui디자이너/….
+// Copying the project verbatim (same node_modules) to an ASCII-only path and
+// running the same command builds it in under a second.
+//
+// The dev server is unaffected: it resolves and serves per request in JS and
+// never hands these paths to that binding.
+//
+// Aliasing react/react-dom to absolute paths does not fix it — it only moves
+// the failure from resolving the package to opening the file. The fix is to
+// keep the project somewhere ASCII, e.g. C:\dev\personal-branding.

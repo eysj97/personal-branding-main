@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import SnapkeepSpread from "./detail/SnapkeepSpread";
 import ProjectAppWindow from "./ProjectAppWindow";
+import { driveWithScroll } from "../lib/scrollDriver";
 
 import noteMark from "../assets/experience/note-mark.avif";
 import boxBase from "../assets/experience/box-base.svg";
@@ -12,11 +13,15 @@ import savedSiteMenu from "../assets/experience/saved-site-menu.avif";
 import archiveCapture from "../assets/experience/archive-capture.avif";
 import snapkeepGrid from "../assets/experience/snapkeep-grid.avif";
 
-// The drawn-on layer: lime marks scribbled over the panels and the blue
-// swashes that run under the headlines. All of it is exported straight from
-// the design — the composite ones (the sparkle clusters, the long arrow) as a
-// single SVG of the whole group rather than as the loose vector layers they
-// are built from, since nothing here needs to move independently.
+// The drawn-on layer: lime and pink marks scribbled over the panels, and the
+// blue swashes that run under the headlines. All of it is exported straight
+// from the design — the composite ones (the sparkle clusters, the long arrow)
+// as a single SVG of the whole group rather than as the loose vector layers
+// they are built from, since nothing here needs to move independently.
+//
+// The colour lives inside each file, so a mark that changes colour in the
+// design is a new export, not a class here. Where one drawing appears in more
+// than one colour there is a file per colour (see the folder icons).
 import savedArrowTop from "../assets/experience/doodle/saved-arrow-top.svg";
 import savedArrowLow from "../assets/experience/doodle/saved-arrow-low.svg";
 // Inlined as source rather than pointed at as files, because an <img> is an
@@ -31,19 +36,24 @@ import archiveSparkles from "../assets/experience/doodle/archive-sparkles.svg?ra
 import problemSquiggle from "../assets/experience/doodle/problem-squiggle.svg?raw";
 import problemArrow from "../assets/experience/doodle/problem-arrow.svg?raw";
 import solutionSparkle from "../assets/experience/doodle/solution-sparkle.svg?raw";
-import solutionTick from "../assets/experience/doodle/solution-tick.svg";
-import swashTag from "../assets/experience/doodle/swash-tag.svg";
-import swashSearch from "../assets/experience/doodle/swash-search.svg";
-import swashLayout from "../assets/experience/doodle/swash-layout.svg";
+// The three drawn swashes that used to run under the solution headlines, and
+// the tick beside the third row, are gone from the design — the swashes are
+// plain blue rectangles now (see Swash) and the tick was dropped. Their files
+// are left in place unimported, since nothing else is drawn like them and
+// getting them back is a one-line import rather than another export.
 import tagSparkle from "../assets/experience/doodle/tag-sparkle.svg";
 import tagMark from "../assets/experience/doodle/tag-mark.svg";
 import searchLoupe from "../assets/experience/doodle/search-loupe.svg";
 import searchPin from "../assets/experience/doodle/search-pin.svg";
 import searchBubble from "../assets/experience/doodle/search-bubble.svg";
-// One glyph at four sizes in the design, exported four times. It is the same
-// drawing each time — identical 1.2016 aspect — so it is imported once and
-// each instance keeps its own box.
-import folderIcon from "../assets/experience/doodle/folder.svg";
+// One glyph at four sizes in the design. The drawing is identical every time —
+// same path, same 1.2016 aspect — so the size stays on the box and is not what
+// these files are for: the cluster is three colours now, and a flat-filled SVG
+// carries its colour inside itself. One file per colour, each straight from the
+// design; the sizes are still CSS.
+import folderIconLime from "../assets/experience/doodle/folder.svg";
+import folderIconPink from "../assets/experience/doodle/folder-pink.svg";
+import folderIconBlue from "../assets/experience/doodle/folder-blue.svg";
 
 // The archive capture is a screen recording. Figma will only hand out still
 // frames of a video fill, so the file has to be dropped in by hand — put it at
@@ -108,11 +118,10 @@ const PANELS = [
 ];
 const TOTAL_WIDTH = PANELS.reduce((sum, panel) => sum + panel.width, 0);
 
-// One wheel tick moves the strip one screenful, rather than the strip tracking
-// the scrollbar continuously. These are only the *order* of the steps and a
-// fallback position — where each one actually lands is measured off its own
-// content at runtime, so that a stop frames what it is for rather than a fixed
-// slice of the strip.
+// The stops the strip travels between as the page is scrolled. These are only
+// the *order* of them and a fallback position — where each one actually lands
+// is measured off its own content at runtime, so that a stop frames what it is
+// for rather than a fixed slice of the strip.
 const STOPS = PANELS.reduce(
   (acc, panel) => {
     const count = panel.stops ?? Math.max(1, Math.ceil(panel.width / SCREEN));
@@ -127,11 +136,24 @@ const STOPS = PANELS.reduce(
   { stops: [], at: 0 },
 ).stops;
 
-// The section only needs enough range to park each stop at a distinct scroll
-// position — the travel itself is driven by the wheel, not by this height.
-const TRACK_VH = 200;
-const STEP_RAW = STOPS.map((_, i) => i / Math.max(1, STOPS.length - 1));
-const TWEEN_MS = 520;
+// How much page scroll each leg of the strip's journey costs. The travel is
+// read off the scroll position now rather than played back per wheel tick, so
+// this is the section's actual pace: one screen of scrolling carries you a
+// little past one stop to the next.
+//
+// Plus the one screen the sticky stage itself occupies, which is scrolled
+// through without moving the strip at all.
+const STOP_VH = 80;
+const TRACK_VH = 100 + (STOPS.length - 1) * STOP_VH;
+
+// A hold for the handful of sequences that must not start until their panel is
+// actually settled under them. Sequences are armed a little before the strip
+// finishes arriving (see TRIGGER_LEAD), which is right for most of them — the
+// entrance and the last of the travel overlap, and the panel is alive by the
+// time it is centred. It is wrong for a headline sweep, which is the first
+// thing the eye goes to and reads as having already happened if it plays while
+// the panel is still sliding.
+const SETTLE_DELAY = 520;
 
 // Which stop shows each panel. Elements name the stop they belong to and are
 // sequenced entirely by `data-delay` from there.
@@ -154,13 +176,16 @@ const STOP = {
 // Every animated element carries `data-anim` (which effect), `data-stop` (the
 // stop it belongs to) and `data-delay` (ms after that stop lands). Once the
 // strip has arrived, each effect runs on its own clock and finishes at its own
-// pace — playback is never tied to scroll position, which would stall every
-// animation the moment the reader stops moving.
+// pace — playback is deliberately *not* tied to scroll position, unlike the
+// strip's travel. A half-drawn line held at whatever fraction of a stroke the
+// reader stopped on is not a drawing, it is a broken one; and a typewriter
+// that runs backwards when you scroll up is a gimmick. The travel is scrubbed,
+// what lands on the panels is played.
 //
 // Keying off the stop rather than the element's own position is what makes the
-// sequencing readable: a whole panel arrives in one 520ms tween, so triggering
-// on x meant everything in it fired within a few frames of everything else no
-// matter how far apart the pieces sat.
+// sequencing readable: triggering on x meant everything in a panel fired
+// within a few frames of everything else no matter how far apart the pieces
+// sat.
 // ---------------------------------------------------------------------------
 
 // Text is quick — it is read, not watched. The artwork is the opposite: the
@@ -192,8 +217,13 @@ const DURATIONS = {
  *  units cannot fail that way.
  *
  *  Kept out of the float set — a mark still being drawn must not also be
- *  drifting, or the line lands somewhere other than where it started. */
-function DrawnMark({ raw, className, stop, delay }) {
+ *  drifting, or the line lands somewhere other than where it started.
+ *
+ *  `relay` draws the paths one after another in the order the file lists them,
+ *  rather than all on the same clock. For a mark whose strokes are genuinely
+ *  sequential — an arrow, where the head is added once the shaft is there —
+ *  see the `draw` case in applyAnim. */
+function DrawnMark({ raw, className, stop, delay, relay, duration }) {
   const ref = useRef(null);
 
   // Layout, not plain effect: nothing here sets opacity, so the only thing
@@ -215,6 +245,8 @@ function DrawnMark({ raw, className, stop, delay }) {
       data-anim="draw"
       data-stop={stop}
       data-delay={delay}
+      data-relay={relay ? "" : undefined}
+      data-duration={duration}
       dangerouslySetInnerHTML={{ __html: raw }}
     />
   );
@@ -371,11 +403,44 @@ function applyAnim(el, kind, t, typedCounts) {
       // length the dash sits entirely past the end of the path and nothing
       // shows, and as the offset comes down to zero the line is uncovered from
       // its start.
+      const paths = el.querySelectorAll("path");
+
+      // `data-relay` — one path after another instead of all at once.
       //
-      // The paths share the clock rather than running one after another: these
-      // are single gestures — a loop, an arrow, a burst — so a strict relay
+      // The default below is all together, because most of these marks are a
+      // single gesture: a loop, a burst. Their strokes are one movement of the
+      // hand that happens to be exported as several paths, and relaying those
       // reads as separate marks being placed rather than as one drawing.
-      for (const path of el.querySelectorAll("path")) {
+      //
+      // An arrow is the exception, and it is the one case where the default is
+      // actually wrong: the shaft and the head are two strokes, in that order,
+      // and nobody draws an arrowhead at the same time as the line it caps.
+      // Drawn together the head is already sitting there while the line is
+      // still crawling towards it, which reads as the arrow fading up rather
+      // than being drawn at all.
+      //
+      // The share of the clock each path gets is its share of the total
+      // length, not an equal slice — that is one nib moving at one speed
+      // across the whole mark, so the short head takes the short time it
+      // should rather than as long as the long shaft.
+      if (el.dataset.relay !== undefined) {
+        let total = 0;
+        for (const path of paths) total += pathLength(path);
+        // How far the nib has travelled along the whole mark, then spent one
+        // path at a time.
+        let travelled = t * total;
+        for (const path of paths) {
+          const length = pathLength(path);
+          path.style.strokeDasharray = `${length} ${length}`;
+          path.style.strokeDashoffset = String(
+            length * (1 - clamp01(travelled / length)),
+          );
+          travelled -= length;
+        }
+        break;
+      }
+
+      for (const path of paths) {
         const length = pathLength(path);
         path.style.strokeDasharray = `${length} ${length}`;
         path.style.strokeDashoffset = String(length * (1 - t));
@@ -421,11 +486,15 @@ function IntroPanel() {
         >
           Experience It
         </p>
+        {/* Starts on the same beat as the title rather than waiting for the
+            sweep to finish. This is the panel that hands off from the hero, and
+            the two lines read as one title card — staggering them left the
+            second line arriving late enough to feel like a separate event. */}
         <TypedText
           lines={["말보다 먼저, 만든 걸 보여드릴게요."]}
           className="font-['Pretendard'] text-[22px] tracking-[-0.44px]"
           stop={STOP.intro}
-          delay={400}
+          delay={0}
         />
       </div>
     </div>
@@ -867,7 +936,7 @@ function ProblemPanel() {
           so the type sits on top, and wiped open left to right the way the
           wave was. */}
       <div
-        className="absolute left-[285px] top-[457px] h-[36px] w-[505px] bg-[#0492bd]"
+        className="absolute left-[285px] top-[457px] h-[36px] w-[505px] bg-[#ff60b8]"
         data-anim="wipe"
         data-stop={STOP.problemA}
         data-delay={HIGHLIGHT_AFTER}
@@ -974,11 +1043,21 @@ function ProblemPanel() {
         stop={STOP.problemA}
         delay={HIGHLIGHT_AFTER}
       />
+      {/* Relayed: the shaft is drawn, and only then does the head go on the
+          end of it.
+
+          Quicker than the shared `draw` time, which is set for a mark that is
+          made in one pass. This one is two, so at that pace the whole gesture
+          ran on for well over a second and the head — the point of the arrow —
+          did not arrive until the reader had stopped watching. The shaft still
+          gets about two thirds of this, the head the rest. */}
       <DrawnMark
         raw={problemArrow}
         className="left-[1818px] top-[429px] size-[439.666px]"
         stop={STOP.problemB}
         delay={HIGHLIGHT_AFTER}
+        relay
+        duration={950}
       />
     </div>
   );
@@ -1005,30 +1084,31 @@ const rowLineClass =
 const rowSubClass =
   "w-full shrink-0 text-center font-['Pretendard'] text-[16px] font-medium leading-none text-white";
 
-/** The blue swash that runs under a row's headline. Wiped open left to right,
+/** The blue bar struck through a row's headline. Wiped open left to right,
  *  behind the type — so it has to be the first thing in the row's column.
  *
- *  The box comes in with the size on it rather than being fixed here: the two
- *  long swashes are 584.5 x 34.5 and the short one 380 x 35, and each has to
- *  match its own export exactly or the drawing stretches. */
-function Swash({ src, className, stop, delay }) {
+ *  A plain block of colour, not a drawing. These were drawn swashes with
+ *  slanted ends, exported one per row; the design has replaced all three with
+ *  straight rectangles, the same move the problem panel's headline already
+ *  made. Nothing is left to stretch out of shape, so the box is the whole of
+ *  it and the size just comes in on the class. */
+function Swash({ className, stop, delay }) {
   return (
     <div
-      className={`pointer-events-none absolute ${className}`}
+      className={`pointer-events-none absolute bg-[#0492bd] ${className}`}
       data-anim="wipe"
       data-stop={stop}
       data-delay={delay}
       style={{ clipPath: "inset(0 100% 0 0)" }}
-    >
-      <img src={src} alt="" className="block size-full max-w-none" />
-    </div>
+    />
   );
 }
 
 /** One of the folder icons scattered over the end of the first row. The design
  *  exports this glyph once per size; it is the same drawing every time, so the
- *  box carries the size and the inset is the design's own padding inside it. */
-function FolderIcon({ size, left, top, stop, delay }) {
+ *  box carries the size and the inset is the design's own padding inside it.
+ *  `src` picks which of the three colours this one is. */
+function FolderIcon({ src, size, left, top, stop, delay }) {
   return (
     <div
       className="absolute overflow-hidden"
@@ -1039,7 +1119,7 @@ function FolderIcon({ size, left, top, stop, delay }) {
       data-float="7"
     >
       <div className="absolute inset-[6.25%_1.19%_12.5%_1.18%]">
-        <img src={folderIcon} alt="" className="block size-full max-w-none" />
+        <img src={src} alt="" className="block size-full max-w-none" />
       </div>
     </div>
   );
@@ -1048,15 +1128,6 @@ function FolderIcon({ size, left, top, stop, delay }) {
 function SolutionPanel() {
   return (
     <div className="relative h-full w-[4477px] shrink-0 overflow-hidden bg-[#06252e]">
-      {/* The second row's swash is the one piece the design parks on the panel
-          rather than inside its row, so it stays here at panel coordinates. */}
-      <Swash
-        src={swashSearch}
-        className="left-[2519.5px] top-[516.5px] h-[34.5px] w-[584.5px]"
-        stop={STOP.solutionSearch}
-        delay={HIGHLIGHT_AFTER}
-      />
-
       {/* Anchored by its left edge at the design's own 372, with the line under
           it centred on the headline rather than hung off either end. */}
       <div className="absolute left-[372px] top-[442px] flex flex-col items-center gap-[16px]">
@@ -1067,47 +1138,37 @@ function SolutionPanel() {
           // Held until the panel has finished sliding in. Armed at zero, the
           // whole sharpen plays out while the strip is still travelling, so by
           // the time anything is still to look at it has already happened.
-          data-delay={TWEEN_MS}
+          data-delay={SETTLE_DELAY}
           style={sweepStyleGhosted}
         >
-          Produce <span className="text-[#0492bd]">3 </span>solution
+          Produce <span className="text-[#ff60b8]">3 </span>solution
         </p>
         <TypedText
           lines={["사용자의 행동 패턴에서 도출한 3가지 핵심 기능"]}
           className={rowSubClass}
           stop={STOP.solutionLead}
-          delay={TWEEN_MS + 400}
+          delay={SETTLE_DELAY + 400}
         />
       </div>
 
-      {/* Plain HIGHLIGHT_AFTER, not TWEEN_MS + HIGHLIGHT_AFTER. The strip's own
-          travel used to be part of every delay here, from when the sequences
-          were armed as the tween began; they are armed when it lands now, so
-          carrying it still would hold this mark back for over a second after
-          the panel had settled — long enough to be scrolled past unseen. */}
+      {/* Plain HIGHLIGHT_AFTER, not SETTLE_DELAY + HIGHLIGHT_AFTER. The strip's
+          own travel used to be part of every delay here, from when the
+          sequences were armed as the tween began; they are armed as it lands
+          now, so carrying it still would hold this mark back for over a second
+          after the panel had settled — long enough to be scrolled past
+          unseen. */}
       <DrawnMark
         raw={solutionSparkle}
         className="left-[734px] top-[326px] h-[203px] w-[170px]"
         stop={STOP.solutionLead}
         delay={HIGHLIGHT_AFTER}
       />
-      <img
-        src={solutionTick}
-        alt=""
-        className="pointer-events-none absolute inset-[37.87%_21.68%_59.91%_77.71%] max-w-none"
-        data-anim="pop"
-        data-stop={STOP.solutionLayout}
-        data-delay={ROW_LEAD}
-        data-float="8"
-        style={{ opacity: 0 }}
-      />
 
       {/* Row 1 — AI tagging */}
       <div className="absolute left-[2011px] top-[227px] flex items-center">
         <div className="relative flex flex-col items-center gap-[16px]">
           <Swash
-            src={swashTag}
-            className="left-[-25.73px] top-[51.62px] h-[35px] w-[380px]"
+            className="left-[-26px] top-[56px] h-[26px] w-[368px]"
             stop={STOP.solutionTag}
             delay={HIGHLIGHT_AFTER}
           />
@@ -1156,14 +1217,21 @@ function SolutionPanel() {
         style={{ opacity: 0 }}
       />
       {/* Piled at the tail of the line, over the word "folders". */}
-      <FolderIcon size={18} left={2830} top={196} stop={STOP.solutionTag} delay={ROW_LEAD + 60} />
-      <FolderIcon size={33} left={2852} top={209} stop={STOP.solutionTag} delay={ROW_LEAD + 120} />
-      <FolderIcon size={24} left={2868} top={183} stop={STOP.solutionTag} delay={ROW_LEAD + 180} />
-      <FolderIcon size={24} left={2896} top={205} stop={STOP.solutionTag} delay={ROW_LEAD + 240} />
+      <FolderIcon src={folderIconPink} size={18} left={2830} top={196} stop={STOP.solutionTag} delay={ROW_LEAD + 60} />
+      <FolderIcon src={folderIconLime} size={33} left={2852} top={209} stop={STOP.solutionTag} delay={ROW_LEAD + 120} />
+      <FolderIcon src={folderIconBlue} size={24} left={2868} top={183} stop={STOP.solutionTag} delay={ROW_LEAD + 180} />
+      <FolderIcon src={folderIconPink} size={24} left={2896} top={205} stop={STOP.solutionTag} delay={ROW_LEAD + 240} />
 
       {/* Row 2 — search in design language */}
-      <div className="absolute left-[2516px] top-[466px] flex items-center">
+      <div className="absolute left-[2508px] top-[467px] flex items-center">
         <div className="relative flex flex-col items-center gap-[16px]">
+          {/* Struck through from a third of the way into the headline, not
+              from its start — this bar is the one the design offsets. */}
+          <Swash
+            className="left-[293px] top-[54px] h-[26px] w-[560px]"
+            stop={STOP.solutionSearch}
+            delay={HIGHLIGHT_AFTER}
+          />
           <p
             className={`${rowLineClass} ${SWEEP_BOX}`}
             data-anim="sweep"
@@ -1192,7 +1260,7 @@ function SolutionPanel() {
         </div>
       </div>
       <div
-        className="pointer-events-none absolute left-[2571px] top-[447px] h-[32.391px] w-[116.653px]"
+        className="pointer-events-none absolute left-[2563px] top-[448px] h-[32.391px] w-[116.653px]"
         data-anim="pop"
         data-stop={STOP.solutionSearch}
         data-delay={ROW_LEAD + 60}
@@ -1207,7 +1275,7 @@ function SolutionPanel() {
       <img
         src={searchBubble}
         alt=""
-        className="pointer-events-none absolute left-[3249px] top-[429px] h-[58.055px] w-[59.74px] max-w-none"
+        className="pointer-events-none absolute left-[3241px] top-[430px] h-[58.055px] w-[59.74px] max-w-none"
         data-anim="pop"
         data-stop={STOP.solutionSearch}
         data-delay={ROW_LEAD + 180}
@@ -1215,14 +1283,17 @@ function SolutionPanel() {
         style={{ opacity: 0 }}
       />
 
-      {/* Row 3 — layout structure */}
-      <div className="absolute left-[3357px] top-[668px] flex items-center gap-[40px]">
-        <Swash
-          src={swashLayout}
-          className="left-[-24px] top-[47.75px] h-[34.5px] w-[584.5px]"
-          stop={STOP.solutionLayout}
-          delay={HIGHLIGHT_AFTER}
-        />
+      {/* Row 3 — layout structure.
+
+          This row's bar is the one the design hangs off the panel rather than
+          inside the row, so it is placed in panel coordinates like the blocks
+          below it, and comes before the row so it paints behind the type. */}
+      <Swash
+        className="left-[3045px] top-[731px] h-[26px] w-[560px]"
+        stop={STOP.solutionLayout}
+        delay={HIGHLIGHT_AFTER}
+      />
+      <div className="absolute left-[3054px] top-[677px] flex items-center">
         <div className="flex flex-col items-center gap-[16px]">
           <p
             className={`${rowLineClass} ${SWEEP_BOX}`}
@@ -1244,7 +1315,7 @@ function SolutionPanel() {
       {/* Three loose blocks standing in for a layout, in place of the drawn
           card the row used to carry. */}
       <div
-        className="absolute left-[3290px] top-[717px] size-[29px] bg-white"
+        className="absolute left-[2989px] top-[726px] size-[29px] bg-white"
         data-anim="pop"
         data-stop={STOP.solutionLayout}
         data-delay={ROW_LEAD + 60}
@@ -1252,7 +1323,7 @@ function SolutionPanel() {
         style={{ opacity: 0 }}
       />
       <div
-        className="absolute left-[3302px] top-[683px] size-[29px] bg-[#c9e529]"
+        className="absolute left-[3001px] top-[692px] size-[29px] bg-[#c9e529]"
         data-anim="pop"
         data-stop={STOP.solutionLayout}
         data-delay={ROW_LEAD + 120}
@@ -1260,7 +1331,7 @@ function SolutionPanel() {
         style={{ opacity: 0 }}
       />
       <div
-        className="absolute left-[3250px] top-[688px] flex h-[61.751px] w-[35.113px] items-center justify-center"
+        className="absolute left-[2949px] top-[697px] flex h-[61.751px] w-[35.113px] items-center justify-center"
         data-anim="pop"
         data-stop={STOP.solutionLayout}
         data-delay={ROW_LEAD + 180}
@@ -1268,7 +1339,7 @@ function SolutionPanel() {
         style={{ opacity: 0 }}
       >
         <div className="rotate-[-6.11deg]">
-          <div className="h-[59px] w-[29px] bg-[#0492bd]" />
+          <div className="h-[59px] w-[29px] bg-[#ff60b8]" />
         </div>
       </div>
     </div>
@@ -1337,9 +1408,10 @@ function SnapkeepPanel({ onOpen }) {
           </div>
         </div>
 
-        {/* `data-interactive` so the section's wheel handler leaves gestures
-            that start here alone — otherwise a click-drag on the app would be
-            read as a step. */}
+        {/* `data-interactive` marks this out as owning its own gestures. The
+            section no longer claims the wheel at all, so nothing here is at
+            risk of being read as strip travel — the attribute stays because
+            the app window inside scrolls on its own. */}
         <button
           type="button"
           onClick={onOpen}
@@ -1395,17 +1467,17 @@ export default function ExperienceSection() {
     const typedCounts = new Map();
     let paintId = null;
 
-    // --- the step machine ------------------------------------------------
-    // One wheel tick / swipe advances one stop; the strip tweens there and
-    // stays put until the next one. At either end the event is deliberately
-    // not claimed, which hands the gesture straight to the neighbouring
-    // section — that is what makes "read to the end, scroll once more, next
-    // section" work without any special-casing.
-    let stepIndex = 0;
+    // --- where the strip is ------------------------------------------------
+    // A continuous position along the list of stops: 0 is the first stop, 3.5
+    // is halfway between the fourth and fifth. It is the page's scroll through
+    // this section and nothing else, so the strip moves exactly as far as you
+    // scroll and stops the instant you do.
+    //
+    // It used to be an integer plus a 520ms tween per wheel tick, which is why
+    // the strip could only ever be *at* a stop: everything between two panels
+    // was passed through at a fixed speed with no way to stop in it.
+    let stopPos = 0;
     let currentX = 0;
-    let busy = false;
-    let tweenId = null;
-    let selfScrollUntil = 0;
 
     function metrics() {
       const stripScale = window.innerHeight / DESIGN_HEIGHT;
@@ -1524,6 +1596,15 @@ export default function ExperienceSection() {
       return middle > 0 && middle < document.documentElement.clientWidth;
     }
 
+    // How close the strip has to get to a stop before that stop's sequence is
+    // armed. Not zero: with the travel tied to the scroll, the strip creeps up
+    // on a panel over most of a screen of scrolling, and waiting for it to be
+    // exactly centred means the panel sits fully readable on screen for a
+    // second or so with nothing on it yet. Firing a little early has the
+    // entrances play as the panel settles, which is what they were written to
+    // do back when it arrived in one 520ms tween.
+    const TRIGGER_LEAD = 0.35;
+
     // Arm everything belonging to stops we have reached, and rearm anything
     // above them so scrolling back and returning replays it.
     function refreshTriggers() {
@@ -1532,7 +1613,7 @@ export default function ExperienceSection() {
       for (const item of animated) {
         // Reaching a mark's stop is not the same as being able to see it. The
         // strip is one long horizontal panel, a stop frames its own group, and
-        // a mark can sit well off to one side of that — so `stepIndex >= stop`
+        // a mark can sit well off to one side of that — so the stop alone
         // would start the line being drawn while it is still past the edge of
         // the screen, and it is already finished by the time it slides into
         // view. That is the whole of this effect missed.
@@ -1542,7 +1623,7 @@ export default function ExperienceSection() {
         // rather than watched and does not suffer from having started early.
         const reached =
           !beforeSection &&
-          stepIndex >= item.stop &&
+          stopPos >= item.stop - TRIGGER_LEAD &&
           (item.kind !== "draw" || inView(item.el));
         if (item.startAt === null) {
           if (reached) {
@@ -1662,177 +1743,36 @@ export default function ExperienceSection() {
     );
     visibility.observe(section);
 
-    function tweenTo(target) {
-      busy = true;
-      const from = currentX;
-      const startedAt = performance.now();
-      function step() {
-        const t = clamp01((performance.now() - startedAt) / TWEEN_MS);
-        applyX(from + (target - from) * smoothstep(t));
-        if (t < 1) {
-          tweenId = requestAnimationFrame(step);
-        } else {
-          busy = false;
-          tweenId = null;
-          // Start the panel's sequence once it has actually landed, so the
-          // entrances are not competing with the strip still sliding under
-          // them — which is what made them impossible to follow.
-          refreshTriggers();
-        }
-      }
-      step();
+    /** Where the strip sits at a continuous position along the stop list.
+     *
+     *  Eased *within* each leg rather than run as one straight line across the
+     *  whole strip. Both are equally tied to the scroll — the difference is
+     *  that this one comes to a stand at every stop and pulls away from it
+     *  again, so a panel reads as arriving and being held rather than as one
+     *  endless sideways pan that happens to have things in it.
+     *
+     *  The travel per leg is not equal, either: some stops are a screen apart
+     *  and some are most of a 4477px panel. Easing per leg is what keeps the
+     *  long ones from feeling like a sprint and the short ones like a nudge —
+     *  each gets the same screen of scrolling regardless of its distance. */
+    function stripXAt(pos) {
+      if (STOPS.length === 1) return targetXFor(0);
+      const i = Math.min(STOPS.length - 2, Math.max(0, Math.floor(pos)));
+      const local = clamp01(pos - i);
+      const from = targetXFor(i);
+      const to = targetXFor(i + 1);
+      return from + (to - from) * smoothstep(local);
     }
 
-    function isEngaged() {
-      const rect = section.getBoundingClientRect();
-      return rect.top <= 1 && rect.bottom >= window.innerHeight - 1;
-    }
-
-    // Park the page at the scroll position that matches the current stop, so
-    // that at either end the page already sits on that edge of the section and
-    // handing back to normal scrolling is a plain hand-off.
-    function syncScroll() {
-      const scrollable = section.offsetHeight - window.innerHeight;
-      if (scrollable <= 0) return;
-      selfScrollUntil = performance.now() + 200;
-      window.scrollTo({
-        top: section.offsetTop + STEP_RAW[stepIndex] * scrollable,
-      });
-    }
-
-    function advance(direction) {
-      const next = Math.min(
-        STOPS.length - 1,
-        Math.max(0, stepIndex + direction),
-      );
-      if (next === stepIndex) return;
-      stepIndex = next;
-      syncScroll();
-      tweenTo(targetXFor(stepIndex));
-    }
-
-    let snapUntil = 0;
-
-    function onWheel(e) {
-      // The hero runs its own beats off the same wheel and claims the event
-      // when it consumes one. Without this the last hero beat and the jump
-      // into this section both happen on a single tick.
-      if (e.defaultPrevented) return;
-      // Anything inside the embedded app owns its own scrolling.
-      if (
-        e.target instanceof Element &&
-        e.target.closest("[data-interactive]")
-      ) {
-        return;
-      }
-      const direction = e.deltaY > 0 ? 1 : e.deltaY < 0 ? -1 : 0;
-      if (direction === 0) return;
-
-      // Arriving from the hero: one tick lands on the section rather than
-      // creeping into it, so entering reads the same as moving between the
-      // panels inside it.
-      const rect = section.getBoundingClientRect();
-      // `<=` with a little slack: the hero hands off with its bottom edge
-      // exactly on the viewport's, which puts this section's top at precisely
-      // one viewport down. A strict `<` would need a second tick to catch it.
-      if (
-        !isEngaged() &&
-        direction > 0 &&
-        rect.top > 1 &&
-        rect.top <= window.innerHeight + 4
-      ) {
-        e.preventDefault();
-        if (performance.now() < snapUntil) return;
-        snapUntil = performance.now() + 800;
-        selfScrollUntil = performance.now() + 1000;
-        window.scrollTo({ top: section.offsetTop, behavior: "smooth" });
-        return;
-      }
-
-      if (!isEngaged()) return;
-      if (busy) {
-        e.preventDefault();
-        return;
-      }
-      // At either end the page is already parked on that edge, so simply not
-      // claiming the event hands the gesture to the neighbouring section.
-      if (direction > 0 && stepIndex >= STOPS.length - 1) return;
-      if (direction < 0 && stepIndex <= 0) return;
-      e.preventDefault();
-      advance(direction);
-    }
-
-    let touchStartY = null;
-    function onTouchStart(e) {
-      touchStartY = isEngaged() ? e.touches[0].clientY : null;
-    }
-    function onTouchMove(e) {
-      if (touchStartY === null || e.defaultPrevented) return;
-      if (
-        e.target instanceof Element &&
-        e.target.closest("[data-interactive]")
-      ) {
-        return;
-      }
-      if (busy) {
-        e.preventDefault();
-        return;
-      }
-      const delta = touchStartY - e.touches[0].clientY;
-      if (Math.abs(delta) < 40) return;
-      const direction = delta > 0 ? 1 : -1;
-      touchStartY = e.touches[0].clientY;
-      if (direction > 0 && stepIndex >= STOPS.length - 1) return;
-      if (direction < 0 && stepIndex <= 0) return;
-      e.preventDefault();
-      advance(direction);
-    }
-
-    // The wheel owns the steps, but the page can still be moved under us — the
-    // nav, a jump link, a resize. Re-derive the step from where the page landed
-    // for moves we did not make ourselves.
-    function onScroll() {
-      // Re-derive the step only for moves we did not make ourselves — but run
-      // the trigger check either way. Skipping it wholesale meant that landing
-      // here via the hero's snap left the section parked with nothing played:
-      // the smooth scroll finished inside the guard window, and with no
-      // further scroll events there was nothing left to start the entrances.
-      if (busy || performance.now() < selfScrollUntil) {
-        refreshTriggers();
-        return;
-      }
-      const scrollable = section.offsetHeight - window.innerHeight;
-      if (scrollable <= 0) return;
-      const raw = clamp01((window.scrollY - section.offsetTop) / scrollable);
-      let nearest = 0;
-      STEP_RAW.forEach((v, i) => {
-        if (Math.abs(v - raw) < Math.abs(STEP_RAW[nearest] - raw)) nearest = i;
-      });
-      if (nearest !== stepIndex) stepIndex = nearest;
-      applyX(targetXFor(stepIndex));
+    function render(raw) {
+      stopPos = raw * (STOPS.length - 1);
+      applyX(stripXAt(stopPos));
       refreshTriggers();
     }
 
-    function onResize() {
-      applyX(targetXFor(stepIndex));
-    }
-
-    // Pick up whichever stop the page already sits on, so a reload partway
-    // through the section doesn't snap back to the beginning.
-    const scrollable0 = section.offsetHeight - window.innerHeight;
-    const raw0 =
-      scrollable0 > 0
-        ? clamp01((window.scrollY - section.offsetTop) / scrollable0)
-        : 0;
-    STEP_RAW.forEach((v, i) => {
-      if (Math.abs(v - raw0) < Math.abs(STEP_RAW[stepIndex] - raw0))
-        stepIndex = i;
-    });
     // Before anything is armed, so nothing has an entrance transform on it yet
     // and every box is its resting one.
     measureStops();
-    applyX(targetXFor(stepIndex));
-    refreshTriggers();
 
     // Re-measure, and re-park on the stop, whenever something that changes how
     // wide things are has landed.
@@ -1849,9 +1789,11 @@ export default function ExperienceSection() {
     // and quietly fixed the numbers. On a refresh the fonts are cached, it
     // resolves almost immediately, and the second measurement was as early and
     // as wrong as the first. Hence: fine the first time, off on every reload.
+    const driver = driveWithScroll(section, render);
+
     function settle() {
       measureStops();
-      if (!busy) applyX(targetXFor(stepIndex));
+      driver.refresh();
     }
 
     // Two frames: one for React to commit the scale, one for the browser to
@@ -1866,21 +1808,10 @@ export default function ExperienceSection() {
     // one of them is measured wrong until it has decoded.
     window.addEventListener("load", settle);
 
-    window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize);
-
     return () => {
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
       window.removeEventListener("load", settle);
+      driver.stop();
       if (paintId !== null) cancelAnimationFrame(paintId);
-      if (tweenId !== null) cancelAnimationFrame(tweenId);
       if (settleId !== null) cancelAnimationFrame(settleId);
     };
   }, []);

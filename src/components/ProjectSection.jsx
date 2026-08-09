@@ -10,12 +10,33 @@ import faceLayerDark from "../assets/project/folder6/face-layer-dark.png";
 import faceLayerLight from "../assets/project/folder6/face-layer-light.png";
 import faceReviuApp from "../assets/project/folder6/face-reviu-app.png";
 import faceReviuSurvey from "../assets/project/folder6/face-reviu-survey.png";
-import clusterAquaWeb from "../assets/project/folder6/cl-aqua-web.png";
-import clusterAquaApp from "../assets/project/folder6/cl-aqua-app.png";
-import clusterLayerDark from "../assets/project/folder6/cl-layer-dark.png";
-import clusterLayerLight from "../assets/project/folder6/cl-layer-light.png";
-import clusterReviuApp from "../assets/project/folder6/cl-reviu-app.png";
-import clusterReviuSurvey from "../assets/project/folder6/cl-reviu-survey.png";
+// The hover artwork, one file per element rather than one flattened cluster
+// per folder. That is what lets the pieces be dealt out one at a time — a
+// single composed PNG can only ever arrive all at once, and the devices in it
+// overlap, so there was no way to cut it back apart afterwards.
+//
+// Numbered in the design's own paint order, so the array order below is both
+// the stacking order and the order they arrive in.
+import aquaWebImac from "../assets/project/hover6/aquaweb-imac.png";
+import aquaWebIpad from "../assets/project/hover6/aquaweb-ipad.png";
+import aquaApp1 from "../assets/project/hover6/aquaapp-1.png";
+import aquaApp2 from "../assets/project/hover6/aquaapp-2.png";
+import aquaApp3 from "../assets/project/hover6/aquaapp-3.png";
+import aquaApp4 from "../assets/project/hover6/aquaapp-4.png";
+import layerDark1 from "../assets/project/hover6/layerdark-1.png";
+import layerDark2 from "../assets/project/hover6/layerdark-2.png";
+import layerDark3 from "../assets/project/hover6/layerdark-3.png";
+import layerLight1 from "../assets/project/hover6/layerlight-1.png";
+import layerLight2 from "../assets/project/hover6/layerlight-2.png";
+import layerLight3 from "../assets/project/hover6/layerlight-3.png";
+import reviuApp1 from "../assets/project/hover6/reviuapp-1.png";
+import reviuApp2 from "../assets/project/hover6/reviuapp-2.png";
+import reviuApp3 from "../assets/project/hover6/reviuapp-3.png";
+import reviuApp4 from "../assets/project/hover6/reviuapp-4.png";
+import reviuSurvey1 from "../assets/project/hover6/reviusurvey-1.png";
+import reviuSurvey2 from "../assets/project/hover6/reviusurvey-2.png";
+import reviuSurvey3 from "../assets/project/hover6/reviusurvey-3.png";
+import reviuSurvey4 from "../assets/project/hover6/reviusurvey-4.png";
 import ProjectMockup from "./ProjectMockup";
 import ProjectHoverComposition from "./ProjectHoverComposition";
 import ProjectDetailOverlay from "./ProjectDetailOverlay";
@@ -23,6 +44,7 @@ import ProjectAppWindow from "./ProjectAppWindow";
 import AquaplanetSpread from "./detail/AquaplanetSpread";
 import ReviuSpread from "./detail/ReviuSpread";
 import LayerSpread from "./detail/LayerSpread";
+import { createCardDrum } from "../lib/cardDrum";
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (v) => {
@@ -68,32 +90,26 @@ const CARD_LEAN = 8;
 // 1.365 is the ratio that lands the leftover on 0.45 card widths instead.
 const RADIUS_RATIO = 1.365;
 const CARD_RADIUS = "clamp(163.8px,16.38vw,312.6px)";
-// A single DOM element cannot be bent in CSS 3D, so each card is rendered as a
-// row of vertical slices standing on the cube's own cylinder — the folder is a
-// section of the drum rather than a flat plate stuck to it, which is what makes
-// the spin read as rotation instead of as flat rectangles swapping places.
-// Every slice shows the *whole* card, clipped to its own band, so the artwork
-// (and the live Snapkeep face) needs no slicing of its own.
-// 10 rather than a handful: with real perspective each slice projects at its
-// own depth, so too few of them show as a stepped outline down the folder's top
-// and bottom edges and as a seam where the artwork jumps between bands.
-const SLICES = 10;
-// The angle one slice subtends: its chord is one slice of the card's width on a
-// circle of RADIUS_RATIO times that width. The 0.98 pulls the slices a hair
-// closer than they are wide so they overlap instead of leaving hairline seams.
-const SLICE_STEP =
-  ((2 * Math.asin(1 / (2 * SLICES * RADIUS_RATIO)) * 180) / Math.PI) * 0.98;
-const SLICE_ANGLES = Array.from(
-  { length: SLICES },
-  (_, i) => (i - (SLICES - 1) / 2) * SLICE_STEP,
-);
-const BEND_DEG = SLICE_STEP * SLICES;
-// Percentages, so none of this needs the card measured in px.
-const SLICE_BAND = {
-  left: "50%",
-  width: `${100 / SLICES}%`,
-  marginLeft: `${-50 / SLICES}%`,
-};
+// How far in front of the screen the eye sits. A near camera on purpose: the
+// front folder projecting much larger than the ones behind it *is* the effect —
+// it is what makes the ring read as coming towards you and turning away rather
+// than as flat shapes sliding sideways, and it is what puts a folder and the
+// one opposite it on the ring at different places on screen instead of exactly
+// on top of one another.
+//
+// The shader reads this too, so the drawn cards and the DOM plates over them
+// are projected by the same number.
+const CAMERA = 820;
+// The cards themselves are drawn in WebGL, on the canvas behind this markup —
+// see ../lib/cardDrum. A single DOM element cannot be bent in CSS 3D, so this
+// used to cut each card into ten vertical slices and stand each one on the
+// drum at its own angle. The bend was right and every cut showed: ten hairline
+// seams down every card and a stepped silhouette along its top and bottom.
+//
+// What is left here is the part that has to stay in the DOM — one flat plate
+// per card, at the card's own place on the drum, carrying the pointer target
+// and the hover artwork. Both use the same transform chain the shader does, so
+// the two line up.
 // The folders had real thickness for a while — a back plate set in behind the
 // front, side faces closing the gap, and rim strips along the top and bottom.
 // It came out: the camera sits level with the drum, so a horizontal top face
@@ -103,14 +119,6 @@ const SLICE_BAND = {
 // curved surface again, with a coloured back so it still never vanishes as it
 // turns away.
 
-/** A hex colour, darkened. The folder's back is the same material as
- *  its tab, just not catching any light. */
-function shade(hex, amount) {
-  if (typeof hex !== "string" || hex[0] !== "#") return hex;
-  const n = parseInt(hex.slice(1), 16);
-  const dim = (channel) => Math.round(channel * (1 - amount));
-  return `rgb(${dim((n >> 16) & 255)}, ${dim((n >> 8) & 255)}, ${dim(n & 255)})`;
-}
 // `crop` replicates the exact framing from Figma (custom pan/zoom on the
 // source image), not a generic auto-cover fit.
 //
@@ -128,9 +136,19 @@ function shade(hex, amount) {
 // left, not covered: `object-cover` would centre it and shave both sides.
 const WITH_TAB = { left: 0, top: 0, width: "111.662%", height: "100%" };
 
-// Six folders, 60deg apart — three projects, each seen twice. The two halves
-// of a project sit opposite each other on the drum, so they are never both in
-// view, and any half turn shows all three projects rather than one twice.
+// Six folders, 60deg apart — three projects, each seen twice.
+//
+// The running order is Layer, Reviu, Aquaplanet, twice round. Two things set
+// which folder gets which angle, and they are easy to get backwards:
+//
+//   - The drum turns so that the angle *facing you* counts DOWN as you scroll
+//     (the spin grows, and a folder is head-on when spin + angle is a whole
+//     turn). So they arrive 300, 240, 180, 120, 60, 0 and round again — the
+//     reverse of the order they are listed in below. Reading this list top to
+//     bottom gives Aqua, Reviu, Layer; a visitor meets Layer, Reviu, Aqua.
+//   - The two halves of a project sit opposite each other, so they are never
+//     both in view at once: Aquaplanet at 0 and 180, Reviu at 60 and 240,
+//     Layer at 120 and 300.
 //
 // Every `layout` below is the design's own geometry restated as a fraction of
 // the card: the cluster's offset from the card's top-left over 343 x 522. That
@@ -146,14 +164,18 @@ const CARDS = [
       origin: "50% 50%",
       assets: [
         {
-          image: clusterAquaWeb,
-          layout: { width: "150.68%", left: "-71.72%", top: "70.79%" },
+          image: aquaWebImac,
+          layout: { width: "107.96%", left: "-87.76%", top: "76.73%" },
+        },
+        {
+          image: aquaWebIpad,
+          layout: { width: "66.92%", left: "-10.64%", top: "89.71%" },
         },
       ],
     },
   },
   {
-    angle: 60,
+    angle: 120,
     image: faceLayerDark,
     crop: WITH_TAB,
     tabColor: "#ff4800",
@@ -164,14 +186,22 @@ const CARDS = [
       origin: "50% 50%",
       assets: [
         {
-          image: clusterLayerDark,
-          layout: { width: "107.17%", left: "27.11%", top: "82.76%" },
+          image: layerDark1,
+          layout: { width: "35.27%", left: "86.31%", top: "86.93%" },
+        },
+        {
+          image: layerDark2,
+          layout: { width: "43.35%", left: "29.68%", top: "97.14%" },
+        },
+        {
+          image: layerDark3,
+          layout: { width: "41.70%", left: "58.25%", top: "77.49%" },
         },
       ],
     },
   },
   {
-    angle: 120,
+    angle: 60,
     image: faceReviuApp,
     crop: WITH_TAB,
     tabColor: "#78db44",
@@ -180,8 +210,20 @@ const CARDS = [
       origin: "50% 50%",
       assets: [
         {
-          image: clusterReviuApp,
-          layout: { width: "96.08%", left: "-20.40%", top: "-24.90%" },
+          image: reviuApp4,
+          layout: { width: "30.84%", left: "-22.93%", top: "-1.66%" },
+        },
+        {
+          image: reviuApp2,
+          layout: { width: "35.66%", left: "30.51%", top: "-12.50%" },
+        },
+        {
+          image: reviuApp3,
+          layout: { width: "38.44%", left: "-8.76%", top: "-8.91%" },
+        },
+        {
+          image: reviuApp1,
+          layout: { width: "25.59%", left: "14.97%", top: "-21.27%" },
         },
       ],
     },
@@ -195,14 +237,26 @@ const CARDS = [
       origin: "50% 50%",
       assets: [
         {
-          image: clusterAquaApp,
-          layout: { width: "100.32%", left: "-50.15%", top: "70.51%" },
+          image: aquaApp1,
+          layout: { width: "33.04%", left: "94.41%", top: "6.96%" },
+        },
+        {
+          image: aquaApp2,
+          layout: { width: "31.33%", left: "61.66%", top: "17.14%" },
+        },
+        {
+          image: aquaApp3,
+          layout: { width: "28.76%", left: "123.17%", top: "15.10%" },
+        },
+        {
+          image: aquaApp4,
+          layout: { width: "43.67%", left: "80.93%", top: "33.54%" },
         },
       ],
     },
   },
   {
-    angle: 240,
+    angle: 300,
     image: faceLayerLight,
     crop: WITH_TAB,
     tabColor: "#ff4800",
@@ -212,14 +266,22 @@ const CARDS = [
       origin: "50% 50%",
       assets: [
         {
-          image: clusterLayerLight,
-          layout: { width: "89.36%", left: "-45.21%", top: "-18.51%" },
+          image: layerLight3,
+          layout: { width: "27.91%", left: "-1.61%", top: "22.80%" },
+        },
+        {
+          image: layerLight2,
+          layout: { width: "29.74%", left: "-59.91%", top: "18.22%" },
+        },
+        {
+          image: layerLight1,
+          layout: { width: "52.54%", left: "-22.18%", top: "7.10%" },
         },
       ],
     },
   },
   {
-    angle: 300,
+    angle: 240,
     image: faceReviuSurvey,
     crop: WITH_TAB,
     tabColor: "#78db44",
@@ -228,8 +290,20 @@ const CARDS = [
       origin: "50% 50%",
       assets: [
         {
-          image: clusterReviuSurvey,
-          layout: { width: "52.01%", left: "-26.34%", top: "4.22%" },
+          image: reviuSurvey1,
+          layout: { width: "43.57%", left: "96.23%", top: "15.71%" },
+        },
+        {
+          image: reviuSurvey2,
+          layout: { width: "29.70%", left: "92.40%", top: "37.99%" },
+        },
+        {
+          image: reviuSurvey3,
+          layout: { width: "35.55%", left: "81.69%", top: "58.12%" },
+        },
+        {
+          image: reviuSurvey4,
+          layout: { width: "41.10%", left: "85.54%", top: "84.51%" },
         },
       ],
     },
@@ -277,6 +351,7 @@ export default function ProjectSection() {
   const sectionRef = useRef(null);
   const groupRef = useRef(null);
   const spinRef = useRef(null);
+  const canvasRef = useRef(null);
   // The spin loop writes opacity and brightness straight onto each card, so it
   // needs the elements rather than going back through React on every frame.
   const cardRefs = useRef([]);
@@ -299,6 +374,28 @@ export default function ProjectSection() {
     const section = sectionRef.current;
     const group = groupRef.current;
     const spin = spinRef.current;
+    const canvas = canvasRef.current;
+
+    // The cards. Everything below still drives the drum's state; the renderer
+    // only ever reads it, so the scroll, the chase and the lean are unchanged
+    // from when this was a fan of DOM slices.
+    const drum = createCardDrum(
+      canvas,
+      CARDS.map((card) => ({
+        angle: card.angle,
+        image: card.image,
+        tabColor: card.tabColor,
+        // The un-cropped faces are framed like `object-fit: cover`; the cropped
+        // ones carry the tab in the export and are pinned to the left edge, so
+        // the card shows the first 1/1.11662 of them.
+        cover: !card.crop,
+        texScale: card.crop ? 1 / 1.11662 : 1,
+      })),
+      { radiusRatio: RADIUS_RATIO },
+    );
+    // No WebGL is not a crash — the plates, the hover art and every link still
+    // work, there is just nothing drawn behind them.
+    const leans = new Array(CARDS.length).fill(0);
 
     // Scroll sets where the cube *should* be; the frame loop below is what
     // actually moves it. Reading the scroll position straight into the
@@ -381,40 +478,43 @@ export default function ProjectSection() {
         ) {
           nearest = i;
         }
-        if (!el) continue;
-        const turned = ((currentDeg + CARDS[i].angle) * Math.PI) / 180;
-        // 1 head-on, 0 edge-on, negative once it has turned away.
-        const facing = Math.cos(turned);
         // The lean. sin, so the folder is upright when it is facing you and
         // tips hardest when it is side-on — and tips the *opposite* way on the
         // opposite side of the ring, which is what reads as the whole drum
         // turning rather than as every card sharing one slant.
-        el.style.setProperty(
-          "--card-lean",
-          `${(CARD_LEAN * Math.sin(turned)).toFixed(2)}deg`,
-        );
-        // Handed to the slices rather than set here: opacity or filter on this
-        // element would group it and collapse the bend back into a flat plate.
-        // Nothing fades with the turn any more — only opening a card fades the
-        // rest out — so the drum stays whole the whole way round.
+        const turned = ((currentDeg + CARDS[i].angle) * Math.PI) / 180;
+        leans[i] = CARD_LEAN * Math.sin(turned);
+        if (!el) continue;
+        // Only what the plate needs. How much of the back is showing, how lit
+        // the card is and where the tab has got to are all decided per fragment
+        // in the shader now — they are properties of how far a given bit of the
+        // sheet has turned, and a bent card is turned by a different amount all
+        // the way across it.
+        el.style.setProperty("--card-lean", `${leans[i].toFixed(2)}deg`);
         el.style.setProperty("--card-op", openMix.toFixed(3));
-        // How much of the folder's back is showing. Full once it has passed
-        // edge-on, which is what covers the mirrored artwork behind it.
-        el.style.setProperty(
-          "--card-back",
-          clamp01((EDGE_FADE - facing) / EDGE_FADE).toFixed(3),
-        );
-        // The tab is welded to the folder's right edge, so once the folder has
-        // turned past edge-on that edge is round the back and the tab with it.
-        // Left visible it comes round the other side and draws a coloured bar
-        // straight across the front of the card — measured at up to 159px in.
-        el.style.setProperty("--card-tab", clamp01(facing / EDGE_FADE).toFixed(3));
-        // Cards further from head-on sit back in the light, which is what
-        // makes four curved panels read as one solid object.
-        el.style.setProperty(
-          "--card-br",
-          (0.78 + 0.22 * clamp01(facing)).toFixed(3),
-        );
+      }
+
+      if (drum) {
+        const stageW = canvas.clientWidth;
+        const stageH = canvas.clientHeight;
+        drum.resize(stageW, stageH, window.devicePixelRatio || 1);
+        drum.draw({
+          // offsetWidth, not a bounding rect: the element carries the spin's
+          // rotateY, so its *rendered* box is the turned one. This is the card
+          // size the clamp resolved to, read off the same element the plates
+          // are laid out in — so the drawn cards and the plates over them
+          // cannot disagree about how big a card is at this viewport.
+          cardWidth: spin.offsetWidth,
+          cardHeight: spin.offsetHeight,
+          // The drum's axis. Its holder is centred in a box that covers the
+          // same stage as the canvas, and the group's only transform is the
+          // vertical travel — so this is the middle, moved by that.
+          centre: [stageW / 2, stageH / 2 + folderY],
+          spin: currentDeg,
+          camera: CAMERA,
+          leans,
+          alpha: openMix,
+        });
       }
 
       // Only the card currently facing the viewer is hoverable; the rest
@@ -458,6 +558,7 @@ export default function ProjectSection() {
       window.removeEventListener("resize", readScroll);
       visibility.disconnect();
       stop();
+      drum?.dispose();
     };
   }, []);
 
@@ -523,16 +624,22 @@ export default function ProjectSection() {
       </div>
 
       <div className="sticky top-0 h-screen w-full overflow-hidden">
-        {/* A near camera on purpose. The front folder projecting much larger
-            than the ones behind it *is* the effect — it is what makes the ring
-            read as coming towards you and turning away, rather than as flat
-            shapes sliding sideways. At 1600 the depth was there but too even to
-            notice; this is close enough that the card in front dominates. */}
-        <div className="absolute inset-0 z-10 flex items-center justify-center [perspective:820px]">
+        {/* The cards. Everything the drum is made of is drawn here in one pass,
+            depth-sorted against itself, so a folder that has swung behind
+            another is occluded by real depth rather than by DOM order. */}
+        <canvas
+          ref={canvasRef}
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-10 h-full w-full"
+        />
+        {/* The same camera the shader uses, so the plates land on the cards. */}
+        <div
+          className="absolute inset-0 z-20 flex items-center justify-center"
+          style={{ perspective: `${CAMERA}px` }}
+        >
           {/* preserve-3d, or this element's own transform flattens everything
-              under it: the folders would be laid out by their 3D positions but
-              drawn with no perspective, so the bend, the thickness and the rim
-              faces would all collapse into the flat plane. */}
+              under it: the plates would be laid out by their 3D positions but
+              drawn flat, and every one of them would land in the middle. */}
           <div
             ref={groupRef}
             className="[transform-style:preserve-3d] will-change-transform"
@@ -546,30 +653,9 @@ export default function ProjectSection() {
               className="relative w-[clamp(120px,12vw,229px)] h-[clamp(173px,18vw,348px)] [transform-style:preserve-3d] will-change-transform"
             >
               {CARDS.map((card, i) => {
-                const { angle, image, tabColor, crop, hover, mockup, face: Face } = card;
+                const { angle, hover, mockup } = card;
                 const isFront = i === frontIndex;
                 const isOpen = isFront && hovered;
-                // The folder's back: the same material as its tab, in shadow.
-                const backColor = shade(tabColor, 0.5);
-                // One descriptor, rendered once per slice. Each copy is laid
-                // out at full card width inside its slice and then shifted, so
-                // every slice paints its own band of the same card.
-                const art = Face ? (
-                  <Face />
-                ) : crop ? (
-                  <img
-                    src={image}
-                    alt=""
-                    className="absolute max-w-none"
-                    style={crop}
-                  />
-                ) : (
-                  <img
-                    src={image}
-                    alt=""
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-                );
 
                 return (
                   <div
@@ -578,118 +664,48 @@ export default function ProjectSection() {
                       cardRefs.current[i] = el;
                     }}
                     className="absolute inset-0 [transform-style:preserve-3d]"
-                    style={{
-                      // Cards behind the front one are still on screen, so they
-                      // have to be muted at the pointer level, not visually.
-                      pointerEvents: isFront && !opened ? "auto" : "none",
-                      // Opacity and brightness are driven per frame by the spin
-                      // loop, but they are handed down as custom properties and
-                      // applied on the slices: setting either one *here* would
-                      // group this element and flatten the curve away.
-                    }}
                   >
-                    {/* The lean, and nothing else. A folder tips as it swings
-                        round, and it has to tip about *its own* middle — a
-                        rotateZ on the element above would swing the whole card
-                        around the drum's axis instead, which is an orbit, not a
-                        lean. So this goes out to the card's centre, turns there,
-                        and comes back; everything inside then rides along
-                        unchanged, still on the same cylinder. */}
-                    <div
-                      className="absolute inset-0 [transform-style:preserve-3d]"
-                      style={{
-                        transform: `rotateY(${angle}deg) translateZ(${CARD_RADIUS}) rotateZ(var(--card-lean, 0deg)) translateZ(calc(-1 * ${CARD_RADIUS})) rotateY(${-angle}deg)`,
-                      }}
-                    >
-                    {SLICE_ANGLES.map((slice, s) => (
-                      <div
-                        key={slice}
-                        className={`absolute top-0 h-full overflow-hidden ${card.detail ? "cursor-pointer" : ""}`}
-                        style={{
-                          ...SLICE_BAND,
-                          transform: `rotateY(${angle + slice}deg) translateZ(${CARD_RADIUS})`,
-                          // Deliberately *not* backface-hidden: a folder that
-                          // has turned away has to keep occupying its place in
-                          // the drum. The back plate below is what covers the
-                          // mirrored artwork.
-                          opacity: "var(--card-op, 1)",
-                          filter: "brightness(var(--card-br, 1))",
-                        }}
-                        onMouseEnter={() => setHover(true)}
-                        onMouseLeave={() => setHover(false)}
-                        onClick={(event) => open(card, event)}
-                      >
-                        {/* 5px, and the tab below carries the same — the two
-                            are one object, so they round together. */}
-                        <div
-                          className="absolute top-0 h-full rounded-[5px] overflow-hidden"
-                          style={{
-                            width: `${SLICES * 100}%`,
-                            left: `${-s * 100}%`,
-                          }}
-                        >
-                          {art}
-                          {/* The folder's back. The card is one curved surface, so
-                              this is what is on the other side of it — faded in
-                              as it turns away so the artwork is never seen
-                              mirrored through itself. */}
-                          <div
-                            className="absolute inset-0"
-                            style={{
-                              backgroundColor: backColor,
-                              opacity: "var(--card-back, 0)",
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
+                    {/* One flat plate where the card's middle is. Under an
+                        orthographic projection `rotateY(a) translateZ(R)` still
+                        carries it out to R·sin(a) and foreshortens it by cos(a)
+                        — the z is dropped, not the transform — so this lands on
+                        the drawn card without any of the maths being repeated
+                        here. The lean turns about this point, which is the
+                        card's own centre, so no round trip out and back.
 
-                    {/* The tab rides the far end of the arc, so it stays welded
-                        to the folder's right edge as that edge curves back. */}
-                    <div
-                      className="absolute top-0 h-full"
-                      style={{
-                        ...SLICE_BAND,
-                        transform: `rotateY(${angle + SLICE_ANGLES[SLICES - 1]}deg) translateZ(${CARD_RADIUS})`,
-                        opacity: "calc(var(--card-op, 1) * var(--card-tab, 1))",
-                        filter: "brightness(var(--card-br, 1))",
-                      }}
-                    >
-                      {/* Right corners only, at the folder body's 5px — the
-                          left side is where it meets the folder. */}
-                      <div
-                        className="absolute right-0 top-[3.5%] h-[24%] translate-x-full rounded-r-[5px]"
-                        style={{
-                          width: `${11 * SLICES}%`,
-                          backgroundColor: tabColor,
-                        }}
-                      />
-                    </div>
-
-                    {/* The hover cluster flies out of the card rather than
-                        sitting on it, so it stays a flat plate at the card's
-                        own depth. Also the rect the detail overlay unfolds
-                        from — a slice's rect would only be a sixth of it. */}
+                        It is the pointer target, the anchor the hover artwork
+                        flies out of, and the rect the detail overlay unfolds
+                        from. */}
                     <div
                       ref={(el) => {
                         plateRefs.current[i] = el;
                       }}
-                      className="absolute inset-0"
+                      className={`absolute inset-0 ${card.detail && isFront ? "cursor-pointer" : ""}`}
                       style={{
-                        transform: `rotateY(${angle}deg) translateZ(${CARD_RADIUS})`,
+                        transform: `rotateY(${angle}deg) translateZ(${CARD_RADIUS}) rotateZ(var(--card-lean, 0deg))`,
                         opacity: "var(--card-op, 1)",
-                        pointerEvents: "none",
+                        // Cards behind the front one are still on screen, so
+                        // they have to be muted at the pointer level.
+                        pointerEvents: isFront && !opened ? "auto" : "none",
                       }}
+                      onMouseEnter={() => setHover(true)}
+                      onMouseLeave={() => setHover(false)}
+                      onClick={(event) => open(card, event)}
                     >
                       {/* Mounted only for the card in front, so the hover art of
-                        three unreachable cards never gets downloaded. */}
+                        five unreachable cards never gets downloaded.
+
+                        It sits above the canvas rather than inside the drum, so
+                        a neighbouring folder can no longer cut across it — the
+                        artwork flies well outside the card's own box, and at
+                        the card's depth the folder next along was drawing
+                        straight over the parts that overhung. */}
                       {isFront &&
                         (hover ? (
                           <ProjectHoverComposition {...hover} open={isOpen} />
                         ) : mockup ? (
                           <ProjectMockup screens={mockup} open={isOpen} />
                         ) : null)}
-                    </div>
                     </div>
                   </div>
                 );

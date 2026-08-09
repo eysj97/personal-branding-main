@@ -74,29 +74,28 @@ const CARDS = [
 // the edges.
 const CARD_WIDTH = "clamp(176px,23.2vw,443px)";
 const CARD_ASPECT = 446.5 / 554;
-// Gap between each stacked card, as a fraction of the card width: starts at
-// the resting/packed amount and opens to GAP_AT_END by the time the run
-// finishes. Stated as the gap it ends at rather than as a growth rate, because
-// the rate depends on how long the run is — and the number that was halved is
-// the end gap, so that is the one worth being able to read off.
-const GAP_START_FRAC = 60 / 120;
-const GAP_AT_END = 1.13;
+// Gap between each stacked card, as a fraction of the card width. One number,
+// held for the whole run: the deck keeps the spacing it starts with and simply
+// travels.
+//
+// It used to open from this to 1.13 over the run, which is what made the row
+// spread out as it moved — by the end the cards were more than a card width
+// apart, with the section's background showing through every gap and only two
+// of them left on screen with dead space between. The packed spacing is the
+// one worth keeping; the cards read as a deck being dealt past you rather than
+// as a row being pulled apart.
+const GAP_FRAC = 60 / 120;
 // How far the whole stack travels left over the run, in card widths.
 //
-// There is a floor on this and it is not obvious. The rearmost card ends up
-// 5 x GAP_AT_END to the right of the front one — 5.65 card widths — so that
-// much of the leftward move is spent just getting back to where the front card
-// is. Add where the row starts (0.35 of the screen, which is ~1.5 card widths
-// at 1920 and more on a wider one) and it has to reach -1 to be gone:
+// Down from -6, and it had to come down: the deck is only 5 x GAP_FRAC = 2.5
+// card widths from end to end now, where the fan used to stretch it to 5.65.
+// At the old travel the whole thing cleared the screen well before the run
+// finished and the section ended on nothing. This lands the rearmost card
+// about where the fan used to leave it — in frame, on the left — so the run
+// still ends with something to look at:
 //
-//     start + SHIFT + 5 x GAP_AT_END <= -1     ->     SHIFT <= -8.15
-//
-// This is well under that on purpose — the travel was asked to come down twice
-// — so the run no longer ends with an empty screen. The last two cards come to
-// rest still in frame on the left instead of clearing it. Getting back to an
-// empty ending at this travel needs a tighter fan rather than more distance:
-// GAP_AT_END of about 0.7 rather than 1.13 would do it.
-const SHIFT_TOTAL = -6;
+//     start (~1.5) + SHIFT + 5 x GAP_FRAC  ~=  1.1
+const SHIFT_TOTAL = -2.9;
 // "LEARN" holds in place for a beat before it starts exiting left, instead
 // of moving the instant you scroll — then fully gone before the cards start.
 const TEXT_HOLD_UNTIL = 0.08;
@@ -104,8 +103,8 @@ const TEXT_EXIT_DONE_AT = 0.3;
 const TEXT_EXIT_VW = -120;
 // Cards only start moving once the text has cleared out.
 const CARDS_START_AT = 0.3;
-// Cards keep their size the whole way. Only the spacing between them opens up
-// as they travel — the fan is the movement, the cards themselves do not grow.
+// Cards keep their size and their spacing the whole way. The travel is the
+// only thing that moves — the deck slides, it does not open out.
 //
 // How much of the run the motion uses before the cards settle and hold for the
 // rest of the section. This was 0.28, which meant two thirds of the section's
@@ -113,9 +112,8 @@ const CARDS_START_AT = 0.3;
 // that forced the movement to be fast to cover any distance at all. Using most
 // of the run instead is what buys the same distance at a much lower speed.
 const T_CAP = 0.85;
-// Both of these are per-unit-of-t rates, derived from the totals above so that
-// changing how long the run is does not silently change where things end up.
-const GAP_END_FRAC = GAP_START_FRAC + (GAP_AT_END - GAP_START_FRAC) / T_CAP;
+// A per-unit-of-t rate, derived from the total above so that changing how long
+// the run is does not silently change where the deck ends up.
 const SHIFT_END_FRAC = SHIFT_TOTAL / T_CAP;
 
 export default function LearnSection() {
@@ -146,8 +144,7 @@ export default function LearnSection() {
         T_CAP,
       );
       const cardWidthPx = cardRefs.current[0]?.offsetWidth || 0;
-      const gapFrac = GAP_START_FRAC + (GAP_END_FRAC - GAP_START_FRAC) * t;
-      const gapPx = cardWidthPx * gapFrac;
+      const gapPx = cardWidthPx * GAP_FRAC;
       const shiftPx = cardWidthPx * SHIFT_END_FRAC * t;
 
       // The last card in the array paints on top (normal DOM stacking), so

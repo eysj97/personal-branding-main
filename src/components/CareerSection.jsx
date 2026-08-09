@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { driveWithScroll } from "../lib/scrollDriver";
 import role1Img from "../assets/role/1.avif";
 import role2Img from "../assets/role/2.avif";
 import role3Img from "../assets/role/3.avif";
@@ -76,31 +77,48 @@ const GROWN_SIZE = 620;
 // circle steps CENTER -> A -> C -> D -> B -> CENTER as the wheel advances one
 // role at a time.
 //
-// The ring is read straight off the design (node 154:3788). The slots are not:
+// The ring is read straight off the design (node 316:1823). The slots are not:
 // the design's five boxes do not all sit the same distance from it — the centre
-// one and the bottom pair are 414.5 out, the top pair 434.5 — so lifting the
-// literal coordinates put two of the circles ~20px further from the line than
+// one and the upper pair are 710.5 out, the lower pair 720.6 — so lifting the
+// literal coordinates put two of the circles ~10px further from the line than
 // the other three, which shows plainly on a shape as regular as a circle.
 //
 // So a slot is stated as an angle instead, and its position is computed from
 // the ring: every one sits SLOT_GAP clear of the line, and moving between two
 // of them means interpolating the *angle* (see slotFor), so a circle keeps that
 // clearance the whole way round rather than cutting the chord across the ring.
-const RING = { x: 634, y: 760, size: 651 };
+//
+// The ring is nearly twice what it was (651 -> 1293) and hangs that much lower.
+// Everything here is derived from it, so the wheel follows on its own: a far
+// shallower arc across the bottom of the canvas, with the circles strung along
+// it much further apart.
+const RING = { x: 314, y: 897, size: 1293 };
 const RING_CENTER = {
   x: RING.x + RING.size / 2,
   y: RING.y + RING.size / 2,
 };
-// Taken from the three slots the design does agree on: 414.5 out from the ring's
-// centre, which off a radius of 325.5 and a circle of 40 leaves this much air.
-const SLOT_GAP = 49;
+// Taken from the three slots the design does agree on: 710.5 out from the ring's
+// centre, which off a radius of 646.5 and a circle of 40 leaves this much air.
+const SLOT_GAP = 24;
 const SLOT_RADIUS = RING.size / 2 + SLOT_GAP + CIRCLE_SIZE / 2;
-// Five slots evenly spaced around the top of the ring, measured in degrees from
-// straight up: CENTER at 0, two to each side. The order is the wheel's own —
-// CENTER -> A -> C -> D -> B -> CENTER — so the circles run down the left side,
-// cross the bottom unseen, and come back up the right.
-const SLOT_STEP_DEG = 41.15;
-const SLOT_ANGLES = [0, -1, -2, 2, 1].map((step) => step * SLOT_STEP_DEG);
+// Five slots around the top of the ring, measured in degrees from straight up:
+// CENTER at 0, a pair to each side. They are *not* evenly spaced — the design
+// lays the four out as two horizontal rows rather than by angle, and those rows
+// land 27.46deg and 45.67deg off centre. Written out as the two the design
+// actually uses rather than as multiples of one step, since a single step that
+// fits the near pair misses the far one by more than a circle's width.
+const SLOT_NEAR_DEG = 27.46;
+const SLOT_FAR_DEG = 45.67;
+// The order is the wheel's own — CENTER -> A -> C -> D -> B -> CENTER — so the
+// circles run down the left side, cross the bottom unseen, and come back up the
+// right.
+const SLOT_ANGLES = [
+  0,
+  -SLOT_NEAR_DEG,
+  -SLOT_FAR_DEG,
+  SLOT_FAR_DEG,
+  SLOT_NEAR_DEG,
+];
 
 /** Top-left corner of the 80px box for a circle sitting `deg` around the ring. */
 function slotAt(deg) {
@@ -120,13 +138,15 @@ const FOCUS_WINDOW = 0.5;
 
 const centredX = (width) => DESIGN_WIDTH / 2 - width / 2;
 const IMAGE_BOX = { x: centredX(647), y: 232, width: 647, height: 350 };
-// The role's name and line now sit *inside* the ring rather than under the
-// photo, so the box is stated as the design's own offset into the ring and
-// moves with it instead of being measured off the canvas twice.
+// The role's name and line sit under the photo again — the ring has grown far
+// too large to frame them, and its arc now passes well below where they read.
+// Stated as the design's own gap below the photo rather than as a second
+// measurement off the canvas, so moving the photo carries the copy with it.
 const ROLE_TEXT_WIDTH = 560;
+const ROLE_TEXT_GAP = 42;
 const TEXT_BOX = {
-  x: RING.x + (RING.size - ROLE_TEXT_WIDTH) / 2,
-  y: RING.y + 120,
+  x: centredX(ROLE_TEXT_WIDTH),
+  y: IMAGE_BOX.y + IMAGE_BOX.height + ROLE_TEXT_GAP,
   width: ROLE_TEXT_WIDTH,
 };
 
@@ -140,7 +160,7 @@ const TEXT_BOX = {
 // The title has its own box in the design (node 154:3770) rather than sharing
 // the role photo's — it sits higher and narrower than the photo does, so that
 // the START circle below it still lands on the wheel's CENTER slot.
-const START_TITLE_BOX = { x: centredX(560), y: 393, width: 560 };
+const START_TITLE_BOX = { x: centredX(560), y: 481, width: 560 };
 const START_FADE_WINDOW = 0.35;
 
 // Where role 5's circle goes once it stops being a wheel slot and becomes the
@@ -155,14 +175,13 @@ const BLOB_STEPS = [
     x: BLOB_CENTER_X - GROWN_SIZE / 2,
     y: BLOB_CENTER_Y - GROWN_SIZE / 2,
     size: GROWN_SIZE,
-  }, // 7: "Role / Led me to a career"
-  { x: -570, y: -86, size: 1252 }, // 8: SOCIALWORKER
-  { x: -570, y: -86, size: 1252 }, // 9: CHANGE part 1
-  { x: -570, y: -86, size: 1252 }, // 10: CHANGE part 2
-  { x: -570, y: -86, size: 1252 }, // 11: UXUI DESIGNER
+  }, // 6: "Role / Led me to a career"
+  { x: -570, y: -86, size: 1252 }, // 7: SOCIALWORKER
+  { x: -570, y: -86, size: 1252 }, // 8: CHANGE
+  { x: -570, y: -86, size: 1252 }, // 9: UXUI DESIGNER
 ];
-// Steps run 0-11 below (12 positions); the outro/contact card is the
-// 12th and reuses the same blob-tween mechanism. It comes back to the same
+// Steps run 0-10 below (11 positions); the outro/contact card is the
+// 11th and reuses the same blob-tween mechanism. It comes back to the same
 // 620 dead-centre circle the handoff step used (node 154:3984) rather than
 // stopping somewhere of its own, so the story closes where it turned.
 const OUTRO_BLOB = BLOB_STEPS[0];
@@ -188,30 +207,25 @@ const WORD_TOP = 492;
 
 // Each chapter is anchored to the step(s) it owns — a single step for
 // SOCIALWORKER/UXUI DESIGNER, and both 8 and 9 for CHANGE, whose
-// paragraph is long enough to need two pages of its own.
+// copy rides the wipe instead of the shared canvas.
 const CHAPTERS = [
   {
     anchorStart: 7,
     anchorEnd: 7,
     word: "SOCIALWORKER",
-    title: "니즈를 찾고 충족시키는 일",
+    title: "니즈를 찾고 충족시키는 일을 했습니다",
     box: { x: 774, y: 467, width: 621 },
     dark: true,
     paragraph: [
-      "사회복지사는 결국 클라이언트의 니즈를 파악하고",
-      "이를 해결하는 사람이라고 생각합니다",
-      "여기서 니즈는 클라이언트가 요구하는 것만을",
-      "의미하지 않습니다",
-      "미처 말하지 못했거나, 생존에 필요한 것 등",
-      "삶의 질을 높이는 데 필요한 모든 것을 말합니다.",
       "4년간 정신건강사회복지사로 일하며,",
-      "저는 사람들의 말해지지 않은 니즈를 읽고",
-      "충족시키는 일에 힘썼습니다.",
+      "사람들의 말해지지 않은 니즈를 읽고 채우는 일을 했습니다.",
+      "니즈는 요구하는 것만이 아니라,",
+      "미처 말하지 못한 것까지 포함합니다.",
     ].join("\n"),
   },
   {
     anchorStart: 8,
-    anchorEnd: 9,
+    anchorEnd: 8,
     word: "CHANGE",
     // This chapter's copy is not laid out on the shared design canvas at
     // all. It's rendered twice — once white, once black — inside the two
@@ -220,61 +234,52 @@ const CHAPTERS = [
     // it. Nothing here animates its own color: the black/white split
     // simply is wherever that edge currently falls.
     ridesWipe: true,
-    title: "개입시점의 고민",
+    title: "개입의 시점을 고민하게 됩니다",
     box: { x: 740, y: 465, width: 722 },
     dark: false,
     paragraph: [
-      "보통 클라이언트의 핵심 니즈는 문제해결이었습니다",
-      "그러나 그 문제에 대해 사회복지사로서 할 수 있는",
-      "저의 역할은 한정적이었습니다.",
-      "스스로를 도구 삼아 클라이언트의 생활에 개입하여",
-      "수습하는 것이 전부였고,",
-      "개입은 늘 문제가 발생한 이후에 이어졌습니다.",
-      "문제가 생기기 전에 막을 수는 없을까?",
+      "그런데 개입은 늘 문제가 발생한 이후였습니다.",
+      "문제가 생기기 전에 막을 수는 없을까",
       "이 고민의 끝에서 디자인을 만났습니다.",
-      "저는 무언가를 막아설 때보다 조금씩 나아지게 만들 때",
-      "힘을 얻는 사람입니다.",
-      "그래서 사용자가 겪을 불편을 미리 읽어",
-      "애초에 문제가 되지 않도록 설계하는 일이",
-      "제 기질과 맞았습니다.",
-      "도망친 것이 아니라, 개입의 시점을 사후에서",
-      "사전으로 재정의한 것입니다.",
+      "저는 무언가를 막아설 때보다",
+      "조금씩 나아지게 만들 때 힘을 얻는 사람입니다.",
+      "도망친 것이 아니라, 개입의 시점을",
+      "사후에서 사전으로 재정의한 것입니다.",
     ].join("\n"),
   },
   {
-    anchorStart: 10,
-    anchorEnd: 10,
+    anchorStart: 9,
+    anchorEnd: 9,
     word: "UXUI DESIGNER",
-    title: "스스로 답을 찾다",
+    title: "스스로 답을 찾습니다",
     box: { x: 753, y: 447, width: 770 },
     dark: false,
     paragraph: [
-      "제가 일했던 기관은 규모가 작아 한 직원이",
-      "대부분의 업무를 맡았고, 정해진 체계가 없었습니다",
-      "그래서 풀어야 할 일이나 정해야 할 방향이 생기면",
-      "스스로 답을 찾아야 했습니다",
-      "과거 자료를 조사하고 동료와 논의하며 해결책을 찾았고,",
-      "그 과정에서 협업을 위한 소통과 필요한 체계를 세우는 법을 익혔습니다.",
-      "디자인을 하는 지금도 마찬가지입니다.",
-      "막히는 지점이 있으면 방법을 찾아 풀어내고,",
-      "그 과정에서 기록과 AI를 도구로 활용합니다.",
-      "리서치 정리, 프로토타이핑, 문서화에 AI를 쓰고,",
+      "체계가 없는 작은 기관에서 일하며,",
+      "방향이 필요하면 스스로 답을 찾는 게 익숙해졌습니다.",
+      "지금도 막히면 방법을 찾아 풀고,",
+      "그 과정에 기록과 AI를 도구로 씁니다.",
       "지금 보고 계신 이 사이트도 직접 설계하고 만들었습니다.",
+      "",
+      "개입의 시점을 문제 이후에서 설계 이전으로 옮기는 것.",
+      "사용자도 의식하지 못한 불편을 설계하려는 이유입니다.",
     ].join("\n"),
   },
 ];
 
 const CHANGE_CHAPTER = CHAPTERS.find((c) => c.ridesWipe);
 
-// CHANGE's paragraph is the one piece of copy too long to sit on screen
-// whole, so it reads through a fixed window instead — exactly a scrollbox,
-// minus the bar. The text stays one uninterrupted block; the window shows
-// 8 of its 15 lines and simply cuts the rest off at its own edge, and
-// paging scrolls that block up by one full window (see applyRaw). Nothing
-// fades: a line leaves by being sliced away at the top edge, the way it
-// would in any scrolling text box.
+// CHANGE's copy rides the wipe rather than sitting on the shared canvas, so
+// its paragraph gets a box of its own to sit in.
+//
+// This used to be a window the text was read *through*: the paragraph ran to
+// fifteen lines, eight showed, and CHANGE was given a second step whose only
+// job was to page down to the rest. The copy is seven lines now — it fits
+// whole — so that step had nothing to do but take a scroll, and both it and
+// the paging are gone. The box is sized to the copy and asserts it.
 const CHANGE_PARA_LINE_HEIGHT = 24 * 1.3;
-const CHANGE_PARA_WINDOW_HEIGHT = CHANGE_PARA_LINE_HEIGHT * 8;
+const CHANGE_PARA_LINES = CHANGE_CHAPTER.paragraph.split("\n").length;
+const CHANGE_PARA_WINDOW_HEIGHT = CHANGE_PARA_LINE_HEIGHT * CHANGE_PARA_LINES;
 
 // Each chapter's subtitle sharpens from its left edge to its right rather
 // than simply fading in.
@@ -432,23 +437,36 @@ function ChangeCopy({ tone, paraRef, subtitleRef, charsRef }) {
 
 const CONTACT_BOX = { x: 1066, y: 740 };
 
-const REVEAL_WINDOW = 0.2;
-// Chapters use a much wider window than the role wheel's quick fades:
-// the outgoing chapter should still be visible (mid-spin) handing off to
-// the incoming one, not fade to a blank gap before it rotates in — so
-// this spans the full half-step to the neighboring chapter, crossfading
-// exactly at the midpoint.
+// The full half-step to the next one, so a role hands over to its neighbour by
+// crossfading exactly at the midpoint between them and the stage is never
+// empty.
+//
+// This was 0.2 — a quick fade with a blank gap in the middle of every leg —
+// and it worked only because the wheel could not be stopped inside one: the
+// step machine tweened from integer to integer at a fixed speed, and the gap
+// went past too quickly to be seen. Read off the scroll, that same gap is a
+// place the reader can come to rest, and did: park mid-leg and the whole stage
+// is bare but for the outlines.
+const REVEAL_WINDOW = 0.5;
+// Chapters have always used the full half-step, for the same reason the roles
+// do now: the outgoing chapter should still be visible (mid-spin) handing off
+// to the incoming one, rather than fading to nothing before it rotates in.
 const CHAPTER_REVEAL_WINDOW = 0.5;
-// 12 steps (0-11): 0 START, 1-5 roles, 6 grown handoff title, 7
-// SOCIALWORKER, 8-9 CHANGE (8 arrives with its paragraph's first page, 9
-// pages down to the rest), 10 UXUI DESIGNER, 11 outro contact.
-const STEP_COUNT = 11;
-const STEP_RAW = Array.from(
-  { length: STEP_COUNT + 1 },
-  (_, i) => i / STEP_COUNT,
-);
-const TWEEN_DURATION_MS = 600;
-const SWIPE_THRESHOLD = 40;
+// 11 steps (0-10): 0 START, 1-5 roles, 6 grown handoff title, 7
+// SOCIALWORKER, 8 CHANGE, 9 UXUI DESIGNER, 10 outro contact.
+//
+// These are positions along a continuous 0-1 timeline that the page's scroll
+// through the section is mapped onto, not a slideshow of frames to be paged
+// between. Every value applyRaw computes is a smooth function of that timeline,
+// so the wheel turning between two steps shows the circle actually travelling
+// its arc — which used to be a 600ms tween played back at a fixed speed no
+// matter how you scrolled.
+const STEP_COUNT = 10;
+// How much page scroll each step costs, plus the one screen the sticky stage
+// occupies. This is the section's pace: a screen of scrolling moves the story
+// on by roughly one step.
+const STEP_VH = 70;
+const TRACK_VH = 100 + STEP_COUNT * STEP_VH;
 
 // C -> D is the one leg that would run straight across the bottom of the
 // canvas, cutting a chord clean through the ring the other four slots sit
@@ -617,9 +635,16 @@ export default function CareerSection() {
         titleT < 1 || typeT < 1 ? requestAnimationFrame(paintSettled) : null;
     }
 
-    // Called whenever the step machine comes to rest. CHANGE owns two steps,
-    // so paging within it lands on the same chapter and deliberately does
+    // Called with whichever step the scroll is nearest. CHANGE owns two steps,
+    // so moving within it stays on the same chapter and deliberately does
     // not restart the sweep — the title is already settled and sharp.
+    //
+    // The title sweep and the typing are the one part of this section that is
+    // *not* scrubbed. A half-swept heading held at whatever fraction the reader
+    // stopped on is an unreadable heading, and a sentence that untypes itself
+    // when you scroll back up is a gimmick; both want a clock. Everything the
+    // canvas does — the wheel, the convergence, the wipe — is tied to the
+    // scroll, and these run off arrival.
     function settleOn(stepIdx) {
       const next = chapterAtStep(stepIdx);
       if (next === settledChapter) return;
@@ -635,13 +660,25 @@ export default function CareerSection() {
     }
 
     function applyRaw(raw) {
-      const stepPos = raw * STEP_COUNT;
+      // Eased within each step rather than run as one straight line from 0 to
+      // 11. Both are equally tied to the scroll — the difference is that this
+      // comes to a stand on every step and pulls away from it again, so each
+      // one is a place the story rests rather than a single instant it passes
+      // through.
+      //
+      // Which matters here more than anywhere: a chapter's copy is rotated by
+      // how far the timeline is from its step, so on a straight line the text
+      // is turning the entire time it is on screen and is only upright for the
+      // one frame the step goes past. The reader cannot stop on it. Eased, the
+      // ends of every leg are slow and flat, and each chapter has a real band
+      // of scroll where it sits still and square to be read.
+      const linear = raw * STEP_COUNT;
+      const whole = Math.min(STEP_COUNT - 1, Math.floor(linear));
+      const stepPos = whole + smoothstep(linear - whole);
 
       // Act 1, phase A: the wheel — 0 (START at center) to 5 (role 5).
-      const wheelPos = Math.min(5, stepPos);
-      const wheelIdx = Math.min(4, Math.floor(wheelPos));
-      const wheelLocal = wheelPos - wheelIdx;
-      const centerValue = wheelIdx + smoothstep(wheelLocal);
+      // Already eased per leg by stepPos above, so it is taken straight.
+      const centerValue = Math.min(5, stepPos);
 
       const startT = smoothstep(clamp01(centerValue / START_FADE_WINDOW));
       startPanelRef.current.style.opacity = String(1 - startT);
@@ -727,8 +764,13 @@ export default function CareerSection() {
       // keeps moving through the chapter/outro blob positions instead of
       // the wheel's — picking up exactly where the convergence left it.
       if (stepPos > 6) {
-        const blobPos = Math.min(5, stepPos - 6);
-        const blobIdx = Math.min(4, Math.floor(blobPos));
+        // One position per step from 6 to the outro, so these two are the
+        // length of that list rather than written-out numbers — a chapter
+        // gaining or losing a step must not silently leave the blob parked
+        // one position short.
+        const blobLast = BLOB_STEPS.length; // + the outro, minus one
+        const blobPos = Math.min(blobLast, stepPos - 6);
+        const blobIdx = Math.min(blobLast - 1, Math.floor(blobPos));
         const blobLocal = blobPos - blobIdx;
         const bt = smoothstep(blobLocal);
         const steps = [...BLOB_STEPS, OUTRO_BLOB];
@@ -767,16 +809,14 @@ export default function CareerSection() {
       // the way to fully cover everything.
       const wipeW = window.innerWidth * 3;
       const wipeH = window.innerHeight * 3;
-      const entryT = smoothstep(clamp01(stepPos - 7));
-      let wipeAngle;
-      if (stepPos <= 8) {
-        wipeAngle = 90 * (1 - entryT);
-      } else if (stepPos <= 9) {
-        wipeAngle = 0;
-      } else {
-        const exitT = smoothstep(clamp01(stepPos - 9));
-        wipeAngle = -90 * exitT;
-      }
+      // In over 7 -> 7.8, held square across the screen either side of step 8,
+      // then out over 8.2 -> 9. CHANGE used to own two steps and the hold was
+      // the whole of the second one; on a single step the hold has to be a
+      // band around it instead, or the wipe would arrive and start leaving on
+      // the same frame and the copy riding it would never be still to read.
+      const entryT = smoothstep(clamp01((stepPos - 7) / 0.8));
+      const exitT = smoothstep(clamp01((stepPos - 8.2) / 0.8));
+      const wipeAngle = 90 * (1 - entryT) - 90 * exitT;
       const wipeLeft = -wipeW / 2;
       const wipeTop = window.innerHeight / 2;
       const wipeOriginX = wipeW / 2;
@@ -836,25 +876,20 @@ export default function CareerSection() {
       // value for both, so a fade can never break the half-and-half.
       const rideOpacity =
         smoothstep(clamp01((stepPos - 7) / 0.35)) *
-        (1 - smoothstep(clamp01((stepPos - 9.65) / 0.35)));
+        (1 - smoothstep(clamp01((stepPos - 8.65) / 0.35)));
       changeBlackLayerRef.current.style.opacity = String(rideOpacity);
       changeWhiteLayerRef.current.style.opacity = String(rideOpacity);
 
-      // Steps 8 and 9 both belong to CHANGE, with the wipe held perfectly
-      // still between them — so step 9, which until now changed nothing on
-      // screen at all, is where the paragraph pages. It scrolls by exactly
-      // one window height, so the line that ended page one lands right
-      // above the window and the next line lands at its top: a plain page
-      // down, no fade, each line leaving by being sliced off at the edge.
-      // Both copies take the identical offset, so the black/white split
-      // can't drift apart mid-scroll.
-      const paraScroll =
-        -CHANGE_PARA_WINDOW_HEIGHT * smoothstep(clamp01(stepPos - 8));
-      const paraTransform = `translateY(${paraScroll}px)`;
+      // CHANGE used to own a second step whose only job was to page the
+      // paragraph down to the rest of itself. The copy fits the window whole
+      // now, so that step was a scroll that changed nothing on screen — it has
+      // gone, and with it the paging. Both copies are simply pinned at the top
+      // of their window; the offset is still written to both together so the
+      // black/white split cannot drift apart if this ever moves again.
       if (changeWhiteParaRef.current)
-        changeWhiteParaRef.current.style.transform = paraTransform;
+        changeWhiteParaRef.current.style.transform = "translateY(0px)";
       if (changeBlackParaRef.current)
-        changeBlackParaRef.current.style.transform = paraTransform;
+        changeBlackParaRef.current.style.transform = "translateY(0px)";
 
       roleRefs.current.forEach((el, i) => {
         if (!el) return;
@@ -927,181 +962,44 @@ export default function CareerSection() {
         applyChapterTyping(changeIndex, 0);
       }
 
-      const contactDist = Math.abs(stepPos - 11);
+      const contactDist = Math.abs(stepPos - 10);
       contactRef.current.style.opacity = String(
         1 - smoothstep(clamp01(contactDist / REVEAL_WINDOW)),
       );
     }
 
-    // One wheel tick / swipe = one step. Scroll is owned entirely while
-    // inside the section's pinned range; at either end it's handed back
-    // to normal page scroll.
-    let currentRaw = 0;
-    let stepIndex = 0;
-    let busy = false;
-    let rafId = null;
-
-    const rect0 = section.getBoundingClientRect();
-    const scrollable0 = section.offsetHeight - window.innerHeight;
-    const initialRaw = scrollable0 > 0 ? clamp01(-rect0.top / scrollable0) : 0;
-    STEP_RAW.forEach((v, idx) => {
-      if (Math.abs(v - initialRaw) < Math.abs(STEP_RAW[stepIndex] - initialRaw))
-        stepIndex = idx;
-    });
-    currentRaw = STEP_RAW[stepIndex];
-    applyRaw(currentRaw);
-    // Mounting already parked on a chapter counts as having settled on it.
-    settleOn(stepIndex);
-
-    function isEngaged() {
-      const rect = section.getBoundingClientRect();
-      return rect.top <= 1 && rect.bottom >= window.innerHeight - 1;
+    // Which step the scroll is currently nearest. Only the chapter copy cares
+    // — everything on the canvas reads the continuous position instead — so
+    // rounding is all it needs: a chapter takes over as its step becomes the
+    // closer one, which is the midpoint of the hand-off its crossfade is
+    // already centred on.
+    function render(raw) {
+      applyRaw(raw);
+      settleOn(Math.round(raw * STEP_COUNT));
     }
 
-    function tweenTo(target) {
-      busy = true;
-      const start = currentRaw;
-      const startTime = performance.now();
-      function step() {
-        const t = clamp01((performance.now() - startTime) / TWEEN_DURATION_MS);
-        currentRaw = lerp(start, target, smoothstep(t));
-        applyRaw(currentRaw);
-        if (t < 1) {
-          rafId = requestAnimationFrame(step);
-        } else {
-          busy = false;
-          // Landed — this is the moment the title's sweep is waiting for.
-          settleOn(stepIndex);
-        }
-      }
-      step();
-    }
-
-    // The page scroll never drives the steps — the wheel does, and the
-    // visuals run entirely off currentRaw — but the page is parked at
-    // whichever step is showing anyway, so the section's own scroll range
-    // always says how far through it we are. That's what makes leaving
-    // work in both directions: at step 0 the page already sits at the
-    // section's top edge and at the last step at its bottom edge, so
-    // handing back to normal scrolling is a plain hand-off with nothing
-    // left to unwind. Without this the page stays wherever it entered,
-    // and stepping back to the start leaves the whole scroll range still
-    // below you to climb before the previous section comes back.
-    // Set while syncScroll's own jump is still settling, so the scroll it
-    // causes doesn't come back around as "the page moved on its own".
-    let selfScrollUntil = 0;
-
-    function syncScroll() {
-      const scrollable = section.offsetHeight - window.innerHeight;
-      if (scrollable <= 0) return;
-      selfScrollUntil = performance.now() + 200;
-      window.scrollTo({
-        top: section.offsetTop + STEP_RAW[stepIndex] * scrollable,
-      });
-    }
-
-    // The step machine normally ignores the page entirely, which breaks the
-    // moment something else moves the page for us — the nav's ABOUT jump
-    // lands here at the section's top edge while the visuals are still
-    // frozen on whatever step was last reached. Re-derive the step from
-    // where the page actually is, for moves we didn't make ourselves.
-    function onScroll() {
-      if (busy || performance.now() < selfScrollUntil) return;
-      const scrollable = section.offsetHeight - window.innerHeight;
-      if (scrollable <= 0) return;
-      const raw = clamp01((window.scrollY - section.offsetTop) / scrollable);
-      let nearest = 0;
-      STEP_RAW.forEach((v, idx) => {
-        if (Math.abs(v - raw) < Math.abs(STEP_RAW[nearest] - raw))
-          nearest = idx;
-      });
-      if (nearest === stepIndex) return;
-      stepIndex = nearest;
-      currentRaw = STEP_RAW[stepIndex];
-      applyRaw(currentRaw);
-      settleOn(stepIndex);
-    }
-
-    function advance(direction) {
-      const next = Math.min(
-        STEP_RAW.length - 1,
-        Math.max(0, stepIndex + direction),
-      );
-      if (next === stepIndex) return;
-      stepIndex = next;
-      syncScroll();
-      tweenTo(STEP_RAW[stepIndex]);
-    }
-
-    function onWheel(e) {
-      if (!isEngaged()) return;
-      const direction = e.deltaY > 0 ? 1 : e.deltaY < 0 ? -1 : 0;
-      if (direction === 0) return;
-      if (busy) {
-        e.preventDefault();
-        return;
-      }
-      // At either end the page is already parked on that end of the
-      // section, so simply not claiming the event hands the gesture
-      // straight to the neighbouring section.
-      if (direction > 0 && stepIndex >= STEP_RAW.length - 1) return;
-      if (direction < 0 && stepIndex <= 0) return;
-      e.preventDefault();
-      advance(direction);
-    }
-
-    let touchStartY = null;
-    function onTouchStart(e) {
-      touchStartY = isEngaged() ? e.touches[0].clientY : null;
-    }
-    function onTouchMove(e) {
-      if (touchStartY === null) return;
-      if (busy) {
-        e.preventDefault();
-        return;
-      }
-      const y = e.touches[0].clientY;
-      const delta = touchStartY - y;
-      if (Math.abs(delta) < SWIPE_THRESHOLD) return;
-      const direction = delta > 0 ? 1 : -1;
-      touchStartY = y;
-      if (direction > 0 && stepIndex >= STEP_RAW.length - 1) return;
-      if (direction < 0 && stepIndex <= 0) return;
-      e.preventDefault();
-      advance(direction);
-    }
-
-    function onResize() {
-      applyRaw(currentRaw);
-    }
-
-    window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize);
+    const driver = driveWithScroll(section, render);
+    // The chapter copy sets the section's own height on a cold load, and a
+    // webfont landing late moves where every step sits.
+    document.fonts?.ready.then(driver.refresh);
+    window.addEventListener("load", driver.refresh);
 
     return () => {
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
-      if (rafId) cancelAnimationFrame(rafId);
+      window.removeEventListener("load", driver.refresh);
+      driver.stop();
       if (sharpenRaf) cancelAnimationFrame(sharpenRaf);
     };
   }, []);
 
   return (
-    // 200vh = one screen of sticky content plus one screen of scroll range
-    // to pin it through. The steps don't read that range — they're driven
-    // by the wheel and spaced evenly across it by syncScroll — so its only
-    // job is to give the section somewhere to be scrolled, and one screen
-    // is enough. Anything longer is dead distance that has to be crossed
-    // by hand whenever the step machine and the page scroll disagree.
+    // One screen of sticky content plus a screen of scroll range per step. The
+    // steps *are* this range now — the story is read off how far through it we
+    // are — so its length is what sets the section's pace rather than being
+    // dead distance to be crossed.
     <section
       ref={sectionRef}
-      className="section-career relative h-[200vh] bg-[#06252e]"
+      className="section-career relative bg-[#06252e]"
+      style={{ height: `${TRACK_VH}vh` }}
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         {/* CHANGE's white reveal — a viewport-sized rectangle pinned by its
@@ -1357,7 +1255,7 @@ export default function CareerSection() {
                   the wrapper carries the 120px bold heading style, which this
                   caption would otherwise pick up wholesale. */}
               <p className="mt-[24px] font-['Pretendard'] font-medium text-[16px] tracking-[-0.02em] leading-[1.2]">
-                이 모습 그대로, 디자이너가 되었습니다
+                개입의 시점을 재정의합니다
               </p>
             </div>
 

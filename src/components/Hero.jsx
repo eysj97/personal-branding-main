@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { driveWithScroll } from "../lib/scrollDriver";
 import closedLeft from "../assets/eyes/closed-left.svg";
 import closedRight from "../assets/eyes/closed-right.svg";
 import halfLeft from "../assets/eyes/half-left.svg";
@@ -179,17 +180,11 @@ export default function Hero() {
       y: 0,
     }));
 
-    // One wheel tick per beat, rather than the animation tracking the
-    // scrollbar: eyes shut, then eyes open with the copy in, then the copy in
-    // Korean. Values are positions along the same 0-1 timeline the render
-    // below already reads, so the keyframes are unchanged — only what drives
-    // them is.
-    const STEPS = [0, 0.75, 1];
-    let stepIndex = 0;
-    let current = 0;
-    let busy = false;
-    let tweenId = null;
-    let selfScrollUntil = 0;
+    // The timeline below is read straight off the scroll position: the eyes
+    // open exactly as far as you have scrolled, and stop where you stop. It
+    // used to be three beats handed over one wheel tick at a time, which meant
+    // the lids could only ever be shut, half, or open — the drawing in between
+    // was there but unreachable.
     let openAmount = 0;
 
     function render(progress) {
@@ -219,9 +214,17 @@ export default function Hero() {
       });
 
       // Nav + copy fade in right after the eyes finish opening, then the copy
-      // crossfades from English to Korean for the rest of the scroll.
+      // hands over from English to Korean for the rest of the scroll.
       const revealT = smoothstep(0.55, 0.7, progress);
-      const langT = smoothstep(0.8, 1, progress);
+      // One leaves before the other arrives, rather than the two dissolving
+      // through each other. The English and the Korean are the same sentence
+      // stacked in the same place, so any moment where both are part-way up is
+      // two paragraphs printed on top of one another — and with the timeline
+      // tied to the scroll, that moment is somewhere the reader can stop and
+      // sit. It used to be crossed at a fixed speed by a tween, which is the
+      // only reason a straight crossfade ever worked here.
+      const langOut = smoothstep(0.76, 0.87, progress);
+      const langIn = smoothstep(0.88, 0.99, progress);
 
       navRef.current.style.opacity = revealT;
       // Fading alone would leave an invisible but still clickable nav sitting
@@ -229,27 +232,8 @@ export default function Hero() {
       navRef.current.style.pointerEvents = revealT > 0.5 ? "auto" : "none";
       // The gaze only happens on an open eye, and fades in with it.
       openAmount = openOp;
-      textEnRef.current.style.opacity = revealT * (1 - langT);
-      textKoRef.current.style.opacity = revealT * langT;
-
-      current = progress;
-    }
-
-    function tweenTo(target) {
-      busy = true;
-      const from = current;
-      const startedAt = performance.now();
-      function step() {
-        const t = clamp01((performance.now() - startedAt) / 700);
-        render(from + (target - from) * smoothstep(0, 1, t));
-        if (t < 1) {
-          tweenId = requestAnimationFrame(step);
-        } else {
-          busy = false;
-          tweenId = null;
-        }
-      }
-      step();
+      textEnRef.current.style.opacity = revealT * (1 - langOut);
+      textKoRef.current.style.opacity = revealT * langIn;
     }
 
     // How far the iris may travel from where the drawing puts it, in the
@@ -379,120 +363,28 @@ export default function Hero() {
     );
     visibility.observe(section);
 
-    function isEngaged() {
-      const rect = section.getBoundingClientRect();
-      return rect.top <= 1 && rect.bottom >= window.innerHeight - 1;
-    }
-
-    // Park the page on the scroll position that matches the current beat, so
-    // that at either end the page already sits on that edge of the section and
-    // handing back to normal scrolling has nothing left to unwind.
-    function syncScroll() {
-      const scrollable = section.offsetHeight - window.innerHeight;
-      if (scrollable <= 0) return;
-      selfScrollUntil = performance.now() + 200;
-      window.scrollTo({
-        top: section.offsetTop + (stepIndex / (STEPS.length - 1)) * scrollable,
-      });
-    }
-
-    function advance(direction) {
-      const next = Math.min(
-        STEPS.length - 1,
-        Math.max(0, stepIndex + direction),
-      );
-      if (next === stepIndex) return;
-      stepIndex = next;
-      syncScroll();
-      tweenTo(STEPS[stepIndex]);
-    }
-
-    function onWheel(e) {
-      if (!isEngaged()) return;
-      const direction = e.deltaY > 0 ? 1 : e.deltaY < 0 ? -1 : 0;
-      if (direction === 0) return;
-      if (busy) {
-        e.preventDefault();
-        return;
-      }
-      // At either end the page is already parked on that edge, so not claiming
-      // the event hands the gesture straight to the neighbouring section.
-      if (direction > 0 && stepIndex >= STEPS.length - 1) return;
-      if (direction < 0 && stepIndex <= 0) return;
-      e.preventDefault();
-      advance(direction);
-    }
-
-    let touchStartY = null;
-    function onTouchStart(e) {
-      touchStartY = isEngaged() ? e.touches[0].clientY : null;
-    }
-    function onTouchMove(e) {
-      if (touchStartY === null) return;
-      if (busy) {
-        e.preventDefault();
-        return;
-      }
-      const delta = touchStartY - e.touches[0].clientY;
-      if (Math.abs(delta) < 40) return;
-      const direction = delta > 0 ? 1 : -1;
-      touchStartY = e.touches[0].clientY;
-      if (direction > 0 && stepIndex >= STEPS.length - 1) return;
-      if (direction < 0 && stepIndex <= 0) return;
-      e.preventDefault();
-      advance(direction);
-    }
-
-    // The wheel owns the beats, but the page can still be moved under us — the
-    // nav's HOME, a reload partway down. Re-derive the beat from where the page
-    // landed, for moves we did not make ourselves.
-    function onScroll() {
-      if (busy || performance.now() < selfScrollUntil) return;
-      const scrollable = section.offsetHeight - window.innerHeight;
-      if (scrollable <= 0) return;
-      const raw = clamp01((window.scrollY - section.offsetTop) / scrollable);
-      let nearest = 0;
-      STEPS.forEach((_, i) => {
-        const at = i / (STEPS.length - 1);
-        const best = nearest / (STEPS.length - 1);
-        if (Math.abs(at - raw) < Math.abs(best - raw)) nearest = i;
-      });
-      if (nearest !== stepIndex) stepIndex = nearest;
-      render(STEPS[stepIndex]);
-    }
-
-    function onResize() {
-      render(current);
-    }
-
-    onScroll();
-    render(STEPS[stepIndex]);
-
-    window.addEventListener("wheel", onWheel, { passive: false });
-    window.addEventListener("touchstart", onTouchStart, { passive: true });
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize);
+    const driver = driveWithScroll(section, render);
+    // The copy is the widest thing on the stage and the eyes are SVG, so both
+    // settle late enough to move the section's own height on a cold load.
+    document.fonts?.ready.then(driver.refresh);
+    window.addEventListener("load", driver.refresh);
     window.addEventListener("mousemove", onMouseMove, { passive: true });
 
     return () => {
-      window.removeEventListener("wheel", onWheel);
-      window.removeEventListener("touchstart", onTouchStart);
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
+      window.removeEventListener("load", driver.refresh);
       window.removeEventListener("mousemove", onMouseMove);
+      driver.stop();
       visibility.disconnect();
       if (gazeId !== null) cancelAnimationFrame(gazeId);
-      if (tweenId !== null) cancelAnimationFrame(tweenId);
     };
   }, []);
 
   return (
-    // 200vh = one screen of sticky stage plus one screen of range to park the
-    // three beats in. The beats are driven by the wheel, not by this height, so
-    // anything longer is just dead scroll between them.
-    <section ref={sectionRef} className="section-hero relative h-[200vh]">
+    // One screen of sticky stage plus two screens of scroll for the timeline to
+    // be read off. This height *is* the animation's length now — the eyes open
+    // over roughly the first screen and change, the copy over the second — so
+    // it is the one number that sets how fast the hero plays.
+    <section ref={sectionRef} className="section-hero relative h-[300vh]">
       <div
         ref={stageRef}
         className="sticky top-0 h-screen w-full overflow-hidden bg-[#06252e]"
