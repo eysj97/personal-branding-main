@@ -255,6 +255,18 @@ export function createCardDrum(canvas, cards, options = {}) {
     U[name] = gl.getUniformLocation(program, name);
   }
 
+  // Set by dispose(). A drum that has been torn down must not keep uploading:
+  // its images decode on their own schedule, so one that lands after the fact
+  // would bind and write through a texture name that has already been deleted.
+  // The canvas and its GL context outlive the drum — a hot reload builds a new
+  // one on the same context — so that write lands in the live context's state
+  // rather than harmlessly nowhere.
+  //
+  // This is the shape of bug that shows a folder wearing another project's
+  // face after a few rapid reloads: the picture on screen came from a drum that
+  // no longer exists.
+  let disposed = false;
+
   // One texture per card, filled in as each image decodes. A card with nothing
   // loaded yet is skipped rather than drawn as a black rectangle.
   const textures = cards.map((card) => {
@@ -268,6 +280,7 @@ export function createCardDrum(canvas, cards, options = {}) {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
+      if (disposed) return;
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
       gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
@@ -425,6 +438,7 @@ export function createCardDrum(canvas, cards, options = {}) {
   }
 
   function dispose() {
+    disposed = true;
     for (const t of textures) gl.deleteTexture(t.texture);
     gl.deleteBuffer(mesh.buffer);
     gl.deleteBuffer(mesh.indices);

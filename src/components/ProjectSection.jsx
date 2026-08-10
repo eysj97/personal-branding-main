@@ -17,6 +17,19 @@ import faceReviuSurvey from "../assets/project/folder6/face-reviu-survey.avif";
 //
 // Numbered in the design's own paint order, so the array order below is both
 // the stacking order and the order they arrive in.
+//
+// AND THE NAMES LIE HERE TOO, the same way they do on the faces. `-light` and
+// `-survey` are the clusters belonging to Layer's and Reviu's *logo* faces;
+// `-dark` and `-app` belong to their typographic ones. Verified against the
+// design rather than read off the file names:
+//
+//   cl-layer-light-*   hangs off the LEFT of the card   (Figma 285:3314)
+//   cl-layer-dark-*    hangs BELOW the card             (Figma 211:3179)
+//   cl-reviu-survey-*  hangs off the RIGHT of the card  (Figma 285:3305)
+//   cl-reviu-app-*     sits ABOVE the card              (Figma 208:2801)
+//
+// So a variable named for one face is used on the other, and that is correct.
+// Check the layout percentages against the design before "fixing" it.
 import aquaWebImac from "../assets/project/folder6/cl-aqua-web-1.avif";
 import aquaWebIpad from "../assets/project/folder6/cl-aqua-web-2.avif";
 import aquaApp1 from "../assets/project/folder6/cl-aqua-app-3.avif";
@@ -100,6 +113,15 @@ const CARD_RADIUS = "clamp(163.8px,16.38vw,312.6px)";
 // The shader reads this too, so the drawn cards and the DOM plates over them
 // are projected by the same number.
 const CAMERA = 820;
+// The hover cluster is fitted to the folder and then carried up by the same
+// perspective that enlarges the folder — see --folder-span, worked out each
+// frame below and applied as one scale in ProjectHoverComposition.
+//
+// A plain multiplier on top of that, for taste. 1 leaves the cluster at the
+// size the geometry gives it; raise it for larger artwork, lower it for
+// smaller. Sizes and gaps move together, so the design's own arrangement holds
+// whatever this is set to.
+const HOVER_CLUSTER_ZOOM = 1;
 // The cards themselves are drawn in WebGL, on the canvas behind this markup —
 // see ../lib/cardDrum. A single DOM element cannot be bent in CSS 3D, so this
 // used to cut each card into ten vertical slices and stand each one on the
@@ -150,13 +172,17 @@ const CAMERA = 820;
 //     both in view at once: Reviu at 0 and 180, Layer at 300 and 120,
 //     Aquaplanet at 240 and 60.
 //
-// The running order is fixed by one rule: the first time round shows each
-// project's logo-and-details face, the second time round shows its typographic
-// face. So a visitor meets all three projects, then meets them again with the
-// statement each one is making.
+// The running order is fixed by one rule: the two kinds of face alternate, so
+// a logo-and-details card is always followed by a typographic one. A visitor
+// meets each project twice — once being introduced, once making its statement —
+// and never sees two of the same kind in a row.
 //
-//   1st round   0 Reviu logo    300 Layer logo    240 Aqua logo
-//   2nd round 180 Reviu type    120 Layer type     60 Aqua type
+//     0 Reviu logo    300 Layer type   240 Aqua logo
+//   180 Reviu type    120 Layer logo    60 Aqua type
+//
+// Which face a project starts on falls out of that: Reviu and Aqua open on
+// their logo, Layer on its type. Their opposites follow from the 180deg rule
+// above, so there is nothing free to choose once the alternation is set.
 //
 // WATCH THE FILE NAMES — they do not say what is in them, and reading them as
 // if they did puts a project's two faces the wrong way round. Verified by
@@ -194,11 +220,89 @@ const CARDS = [
     },
   },
   {
-    angle: 300,
+    angle: 120,
     image: faceLayerDark,
     tabColor: "#ff4800",
     detail: LayerSpread,
     // Layer's opened pages carry a 20% black wash over the tab colour.
+    pageColor: "#cc3a00",
+    hover: {
+      origin: "50% 50%",
+      assets: [
+        {
+          image: layerLight3,
+          layout: { width: "27.90%", left: "15%", top: "22.80%" },
+        },
+        {
+          image: layerLight2,
+          layout: { width: "29.74%", left: "-42%", top: "18.22%" },
+        },
+        {
+          image: layerLight1,
+          layout: { width: "52.54%", left: "-22.18%", top: "7.10%" },
+        },
+      ],
+    },
+  },
+  {
+    angle: 0,
+    image: faceReviuApp,
+    tabColor: "#78db44",
+    detail: ReviuSpread,
+    hover: {
+      origin: "50% 50%",
+      assets: [
+        {
+          image: reviuSurvey1,
+          layout: { width: "43.57%", left: "90%", top: "12.71%" },
+        },
+        {
+          image: reviuSurvey2,
+          layout: { width: "29.70%", left: "92.40%", top: "37.99%" },
+        },
+        {
+          image: reviuSurvey3,
+          layout: { width: "35.55%", left: "81.68%", top: "58.12%" },
+        },
+        {
+          image: reviuSurvey4,
+          layout: { width: "41.10%", left: "85.54%", top: "80.51%" },
+        },
+      ],
+    },
+  },
+  {
+    angle: 240,
+    image: faceAquaApp,
+    tabColor: "#2686e7",
+    detail: AquaplanetSpread,
+    hover: {
+      origin: "50% 50%",
+      assets: [
+        {
+          image: aquaApp1,
+          layout: { width: "33.04%", left: "92%", top: "6.96%" },
+        },
+        {
+          image: aquaApp2,
+          layout: { width: "31.33%", left: "60%", top: "17.14%" },
+        },
+        {
+          image: aquaApp3,
+          layout: { width: "28.76%", left: "116%", top: "15.10%" },
+        },
+        {
+          image: aquaApp4,
+          layout: { width: "43.67%", left: "80.93%", top: "28%" },
+        },
+      ],
+    },
+  },
+  {
+    angle: 300,
+    image: faceLayerLight,
+    tabColor: "#ff4800",
+    detail: LayerSpread,
     pageColor: "#cc3a00",
     hover: {
       origin: "50% 50%",
@@ -213,14 +317,14 @@ const CARDS = [
         },
         {
           image: layerDark3,
-          layout: { width: "41.70%", left: "58.25%", top: "77.49%" },
+          layout: { width: "41.70%", left: "58.24%", top: "77.49%" },
         },
       ],
     },
   },
   {
-    angle: 0,
-    image: faceReviuApp,
+    angle: 180,
+    image: faceReviuSurvey,
     tabColor: "#78db44",
     detail: ReviuSpread,
     hover: {
@@ -236,89 +340,11 @@ const CARDS = [
         },
         {
           image: reviuApp3,
-          layout: { width: "38.44%", left: "-8.76%", top: "-8.91%" },
+          layout: { width: "38.44%", left: "-10.79%", top: "-9.54%" },
         },
         {
           image: reviuApp1,
-          layout: { width: "25.59%", left: "14.97%", top: "-21.27%" },
-        },
-      ],
-    },
-  },
-  {
-    angle: 240,
-    image: faceAquaApp,
-    tabColor: "#2686e7",
-    detail: AquaplanetSpread,
-    hover: {
-      origin: "50% 50%",
-      assets: [
-        {
-          image: aquaApp1,
-          layout: { width: "33.04%", left: "94.41%", top: "6.96%" },
-        },
-        {
-          image: aquaApp2,
-          layout: { width: "31.33%", left: "61.66%", top: "17.14%" },
-        },
-        {
-          image: aquaApp3,
-          layout: { width: "28.76%", left: "123.17%", top: "15.10%" },
-        },
-        {
-          image: aquaApp4,
-          layout: { width: "43.67%", left: "80.93%", top: "33.54%" },
-        },
-      ],
-    },
-  },
-  {
-    angle: 120,
-    image: faceLayerLight,
-    tabColor: "#ff4800",
-    detail: LayerSpread,
-    pageColor: "#cc3a00",
-    hover: {
-      origin: "50% 50%",
-      assets: [
-        {
-          image: layerLight3,
-          layout: { width: "27.91%", left: "-1.61%", top: "22.80%" },
-        },
-        {
-          image: layerLight2,
-          layout: { width: "29.74%", left: "-59.91%", top: "18.22%" },
-        },
-        {
-          image: layerLight1,
-          layout: { width: "52.54%", left: "-22.18%", top: "7.10%" },
-        },
-      ],
-    },
-  },
-  {
-    angle: 180,
-    image: faceReviuSurvey,
-    tabColor: "#78db44",
-    detail: ReviuSpread,
-    hover: {
-      origin: "50% 50%",
-      assets: [
-        {
-          image: reviuSurvey1,
-          layout: { width: "43.57%", left: "96.23%", top: "15.71%" },
-        },
-        {
-          image: reviuSurvey2,
-          layout: { width: "29.70%", left: "92.40%", top: "37.99%" },
-        },
-        {
-          image: reviuSurvey3,
-          layout: { width: "35.55%", left: "81.69%", top: "58.12%" },
-        },
-        {
-          image: reviuSurvey4,
-          layout: { width: "41.10%", left: "85.54%", top: "84.51%" },
+          layout: { width: "25.59%", left: "14.98%", top: "-21.27%" },
         },
       ],
     },
@@ -511,6 +537,51 @@ export default function ProjectSection() {
       if (drum) {
         const stageW = canvas.clientWidth;
         const stageH = canvas.clientHeight;
+
+        // How wide the folder actually comes out on screen, as a fraction of
+        // the flat plate laid over it.
+        //
+        // The plate is a flat rectangle standing at the drum's radius, so
+        // perspective simply scales it by d/(d-R). The folder is not flat — it
+        // is bent around the drum, so its edges sit further away than its
+        // middle and it projects a good deal narrower. At 1920 that is 218px of
+        // folder under 370px of plate.
+        //
+        // Every hover width and offset is a percentage of the *card*, taken
+        // from the design, so the box those percentages resolve against has to
+        // be the folder and not the plate. One number, applied as a single
+        // scale to the whole cluster, so sizes and gaps come down together and
+        // the arrangement inside it stays exactly as drawn.
+        //
+        // Computed per frame rather than written down: the card's clamp() gives
+        // a different width at different viewports and this ratio moves with it
+        // (0.59 at 1920, 0.77 at the clamp's floor).
+        const cardW = spin.offsetWidth;
+        const radius = cardW * RADIUS_RATIO;
+        const halfArc = cardW / radius / 2;
+        const flatHalf = (cardW / 2) * (CAMERA / (CAMERA - radius));
+        const bentHalf =
+          radius *
+          Math.sin(halfArc) *
+          (CAMERA / (CAMERA - (radius * Math.cos(halfArc) - radius)));
+
+        // ...and then opened back up by however much the perspective enlarges
+        // the folder in the first place.
+        //
+        // Fitting to the bent width alone is right for a piece lying *on* the
+        // card, and these do not lie on it — they come out of it, toward the
+        // viewer. The folder reads large because it stands at the drum's radius
+        // and the camera is close; artwork flying off it should be carried by
+        // the same enlargement rather than sized to the foreshortened silhouette
+        // and left looking small against it.
+        //
+        // The two nearly cancel — bending pulls the edges back about as far as
+        // the near camera pushes them forward — so this lands a little under 1
+        // (0.95 at 1920, 0.96 at 1024) and stays put across viewports.
+        const perspective = CAMERA / (CAMERA - radius);
+        const span = (bentHalf / flatHalf) * perspective * HOVER_CLUSTER_ZOOM;
+        spin.style.setProperty("--folder-span", span.toFixed(4));
+
         drum.resize(stageW, stageH, window.devicePixelRatio || 1);
         drum.draw({
           // offsetWidth, not a bounding rect: the element carries the spin's

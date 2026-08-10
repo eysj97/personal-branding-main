@@ -1418,6 +1418,34 @@ function SnapkeepPanel({ onOpen }) {
             alt=""
             className="absolute left-[-1.69%] top-[-2.71%] h-[105.9%] w-[104.12%] max-w-none transition-transform duration-500 group-hover:scale-[1.03]"
           />
+          {/* Darkens under the pointer so the call to action has something to
+              sit on — the screenshot underneath is a bright grid of other
+              people's UI, and a label laid straight over it is unreadable
+              wherever it happens to land.
+
+              pointer-events-none on both: they are inside the button and would
+              be hovered *instead* of it otherwise, and group-hover keys off the
+              button. Nothing here is a target of its own. */}
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 grid place-items-center"
+          >
+            {/* Just the word. The line above this panel already says "클릭해서
+                직접 체험해보세요", and a button repeating it back is the same
+                sentence twice — by the time the pointer is on the image the
+                reader has been told what this is.
+
+                Rises a little as it arrives rather than simply appearing, so it
+                reads as a thing being offered rather than as a flash. The lime
+                and the black on it are the chips this section already uses. */}
+            <span className="translate-y-[10px] rounded-full bg-[#c9e529] px-[40px] py-[16px] font-['Plus_Jakarta_Sans'] text-[22px] font-bold leading-none tracking-[0.06em] text-black opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
+              CLICK
+            </span>
+          </span>
         </button>
       </div>
     </div>

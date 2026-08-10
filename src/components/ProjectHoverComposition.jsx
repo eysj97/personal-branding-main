@@ -24,7 +24,27 @@ export default function ProjectHoverComposition({ image, layout, open, pieces, a
   })
 
   return (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+    // The whole cluster, brought down to the size the folder actually comes out
+    // on screen (--folder-span, written each frame in ProjectSection).
+    //
+    // Every layout below is a percentage of the card's width, lifted from the
+    // design. Left alone they resolve against this flat plate, which is a good
+    // deal wider than the bent folder under it — 370px against 218px at 1920 —
+    // so the cluster came out about 1.7x the size the design draws it and stood
+    // that much further off the folder.
+    //
+    // One scale on the whole group, not a narrower box: narrowing shrinks the
+    // pieces and their horizontal gaps while leaving every vertical offset
+    // untouched, and the composition comes apart. The same factor on both axes
+    // is what keeps every size and every gap in the proportion the design has.
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0"
+      style={{
+        transform: "scale(var(--folder-span, 1))",
+        transformOrigin: "50% 50%",
+      }}
+    >
       {parts.map((part, i) => (
         // A wrapper the size of the card per piece, rather than one wrapper
         // around the lot. The scale has to happen about the *folder's* middle

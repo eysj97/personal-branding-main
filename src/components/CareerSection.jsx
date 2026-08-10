@@ -476,6 +476,21 @@ const STEP_COUNT = 10;
 // wheel. This is the one number that sets the pace: raise it to slow the
 // section down further, lower it to speed it up.
 const STEP_VH = 95;
+// How much of a step is spent parked on it before the next leg starts, as a
+// fraction of that step's scroll.
+//
+// The easing on each leg (see stepPos in applyRaw) already slows the ends to a
+// crawl, but slow is not stopped: a chapter's copy is rotated by how far the
+// timeline is from its step, so it is square for one instant and creeping
+// either side of it, and there is no scroll position where a reader can simply
+// be looking at a finished line. This is a real plateau — the timeline sits
+// exactly on the integer for the first STEP_HOLD of the step.
+//
+// It holds the *clock*, and nothing else. An earlier attempt at this also
+// widened each chapter's visible band, which is what left the outgoing page
+// still hanging about while the next one arrived; the reveal windows below are
+// deliberately untouched, so a chapter appears and leaves exactly when it did.
+const STEP_HOLD = 0.3;
 const TRACK_VH = 100 + STEP_COUNT * STEP_VH;
 
 // C -> D is the one leg that would run straight across the bottom of the
@@ -534,6 +549,9 @@ export default function CareerSection() {
   const startPanelRef = useRef(null);
   const startCircleRef = useRef(null);
   const roleRefs = useRef([]);
+  // The framed photo inside each role, so the grayscale can be written to it
+  // per frame without touching the copy that sits under it.
+  const rolePhotoRefs = useRef([]);
   const circleRefs = useRef([]);
   // [outline, lime, blue] per circle — see the crossfade in applyRaw.
   const coatRefs = useRef([]);
@@ -684,7 +702,13 @@ export default function CareerSection() {
       // of scroll where it sits still and square to be read.
       const linear = raw * STEP_COUNT;
       const whole = Math.min(STEP_COUNT - 1, Math.floor(linear));
-      const stepPos = whole + smoothstep(linear - whole);
+      // STEP_HOLD parks the timeline on the integer for the first slice of the
+      // step — a flat plateau, so copy that has just landed square in the
+      // middle genuinely stops there. The smoothstep then eases what is left,
+      // so the leg pulls away gently and decelerates into the next step rather
+      // than slamming into its hold.
+      const local = clamp01((linear - whole - STEP_HOLD) / (1 - STEP_HOLD));
+      const stepPos = whole + smoothstep(local);
 
       // Act 1, phase A: the wheel — 0 (START at center) to 5 (role 5).
       // Already eased per leg by stepPos above, so it is taken straight.
@@ -905,7 +929,24 @@ export default function CareerSection() {
         if (!el) return;
         const dist = Math.abs(centerValue - (i + 1));
         const visible = 1 - smoothstep(clamp01(dist / REVEAL_WINDOW));
-        el.style.opacity = String(visible * (1 - convergeT));
+        const shown = visible * (1 - convergeT);
+        el.style.opacity = String(shown);
+        // All five roles are stacked on the same spot, and a faded-out one is
+        // still a pointer target — so the topmost role in the DOM would
+        // otherwise swallow anything aimed at the one you can actually see.
+        el.style.pointerEvents = shown > 0.5 ? "auto" : "none";
+
+        // Grey on the way in, full colour once the role is square in front of
+        // you. Held back to the last part of the reveal (visible > 0.55) on
+        // purpose: sharing the window with the fade would mean the photo was
+        // still half transparent while it coloured, and the two together read
+        // as one muddy dissolve rather than as a photograph arriving and then
+        // filling in.
+        const photo = rolePhotoRefs.current[i];
+        if (photo) {
+          const colour = smoothstep(clamp01((visible - 0.55) / 0.45));
+          photo.style.filter = `grayscale(${((1 - colour) * 100).toFixed(1)}%)`;
+        }
       });
 
       // The ring the slots stand on is the wheel itself, so it is there for
@@ -1018,7 +1059,11 @@ export default function CareerSection() {
             applyRaw). */}
         <div
           ref={changeWipeRef}
-          className="absolute bg-white"
+          // Three viewports across and three down, swung about a point on the
+          // left edge — so wherever it is in its swing it is covering a great
+          // deal of screen. It is a block of colour and nothing more, and
+          // leaving it hittable puts a huge invisible sheet over the stage.
+          className="absolute bg-white pointer-events-none"
           style={{ width: 0, height: 0 }}
         />
 
@@ -1085,7 +1130,12 @@ export default function CareerSection() {
             on top of the canvas during the wheel, so a circle never gets
             clipped by the role photo above it, then behind it once the
             survivor becomes the blob, so it sits under the chapter text. */}
-        <div ref={circlesLayerRef} className="absolute inset-0">
+        {/* pointer-events-none: during the wheel this layer sits at z-index 2,
+            above the role photo, and it covers the whole stage. Without this it
+            catches the pointer over the photo and the hover below never fires.
+            The circles are drawn decoration — nothing here is meant to be
+            clicked or hovered. */}
+        <div ref={circlesLayerRef} className="absolute inset-0 pointer-events-none">
           <div
             ref={startCircleRef}
             className="absolute bg-[#c9e529] rounded-full flex items-center justify-center"
@@ -1198,7 +1248,19 @@ export default function CareerSection() {
                 className="absolute inset-0"
                 style={{ opacity: 0 }}
               >
+                {/* The photo arrives grey and comes up in colour as the role
+                    turns to face you — see the grayscale written in applyRaw.
+                    Read off the scroll like everything else on this canvas, so
+                    it runs backwards when you scroll back up rather than
+                    playing once and staying.
+
+                    The filter goes on this box rather than on the image so it
+                    survives the two different fits below, and rather than on
+                    the role wrapper so it never touches the copy underneath. */}
                 <div
+                  ref={(el) => {
+                    rolePhotoRefs.current[i] = el;
+                  }}
                   className="absolute overflow-hidden rounded-[8px]"
                   style={{
                     left: IMAGE_BOX.x,
