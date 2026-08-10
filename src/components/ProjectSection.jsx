@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 // carry their own transparency — an ordinary export bakes Figma's canvas grey
 // in behind them, which on a dark section reads as a grey box rather than a
 // drawing.
-import faceAquaWeb from "../assets/project/folder6/face-aqua-web.png";
-import faceAquaApp from "../assets/project/folder6/face-aqua-app.png";
-import faceLayerDark from "../assets/project/folder6/face-layer-dark.png";
-import faceLayerLight from "../assets/project/folder6/face-layer-light.png";
-import faceReviuApp from "../assets/project/folder6/face-reviu-app.png";
-import faceReviuSurvey from "../assets/project/folder6/face-reviu-survey.png";
+import faceAquaWeb from "../assets/project/folder6/face-aqua-web.avif";
+import faceAquaApp from "../assets/project/folder6/face-aqua-app.avif";
+import faceLayerDark from "../assets/project/folder6/face-layer-dark.avif";
+import faceLayerLight from "../assets/project/folder6/face-layer-light.avif";
+import faceReviuApp from "../assets/project/folder6/face-reviu-app.avif";
+import faceReviuSurvey from "../assets/project/folder6/face-reviu-survey.avif";
 // The hover artwork, one file per element rather than one flattened cluster
 // per folder. That is what lets the pieces be dealt out one at a time — a
 // single composed PNG can only ever arrive all at once, and the devices in it
@@ -17,26 +17,26 @@ import faceReviuSurvey from "../assets/project/folder6/face-reviu-survey.png";
 //
 // Numbered in the design's own paint order, so the array order below is both
 // the stacking order and the order they arrive in.
-import aquaWebImac from "../assets/project/folder6/cl-aqua-web-1.png";
-import aquaWebIpad from "../assets/project/folder6/cl-aqua-web-2.png";
-import aquaApp1 from "../assets/project/folder6/cl-aqua-app-3.png";
-import aquaApp2 from "../assets/project/folder6/cl-aqua-app-1.png";
-import aquaApp3 from "../assets/project/folder6/cl-aqua-app-4.png";
-import aquaApp4 from "../assets/project/folder6/cl-aqua-app-2.png";
-import layerDark1 from "../assets/project/folder6/cl-layer-dark-3.png";
-import layerDark2 from "../assets/project/folder6/cl-layer-dark-1.png";
-import layerDark3 from "../assets/project/folder6/cl-layer-dark-2.png";
-import layerLight1 from "../assets/project/folder6/cl-layer-light-2.png";
-import layerLight2 from "../assets/project/folder6/cl-layer-light-1.png";
-import layerLight3 from "../assets/project/folder6/cl-layer-light-3.png";
-import reviuApp1 from "../assets/project/folder6/cl-reviu-app-3.png";
-import reviuApp2 from "../assets/project/folder6/cl-reviu-app-4.png";
-import reviuApp3 from "../assets/project/folder6/cl-reviu-app-2.png";
-import reviuApp4 from "../assets/project/folder6/cl-reviu-app-1.png";
-import reviuSurvey1 from "../assets/project/folder6/cl-reviu-survey-1.png";
-import reviuSurvey2 from "../assets/project/folder6/cl-reviu-survey-2.png";
-import reviuSurvey3 from "../assets/project/folder6/cl-reviu-survey-3.png";
-import reviuSurvey4 from "../assets/project/folder6/cl-reviu-survey-4.png";
+import aquaWebImac from "../assets/project/folder6/cl-aqua-web-1.avif";
+import aquaWebIpad from "../assets/project/folder6/cl-aqua-web-2.avif";
+import aquaApp1 from "../assets/project/folder6/cl-aqua-app-3.avif";
+import aquaApp2 from "../assets/project/folder6/cl-aqua-app-1.avif";
+import aquaApp3 from "../assets/project/folder6/cl-aqua-app-4.avif";
+import aquaApp4 from "../assets/project/folder6/cl-aqua-app-2.avif";
+import layerDark1 from "../assets/project/folder6/cl-layer-dark-3.avif";
+import layerDark2 from "../assets/project/folder6/cl-layer-dark-1.avif";
+import layerDark3 from "../assets/project/folder6/cl-layer-dark-2.avif";
+import layerLight1 from "../assets/project/folder6/cl-layer-light-2.avif";
+import layerLight2 from "../assets/project/folder6/cl-layer-light-1.avif";
+import layerLight3 from "../assets/project/folder6/cl-layer-light-3.avif";
+import reviuApp1 from "../assets/project/folder6/cl-reviu-app-3.avif";
+import reviuApp2 from "../assets/project/folder6/cl-reviu-app-4.avif";
+import reviuApp3 from "../assets/project/folder6/cl-reviu-app-2.avif";
+import reviuApp4 from "../assets/project/folder6/cl-reviu-app-1.avif";
+import reviuSurvey1 from "../assets/project/folder6/cl-reviu-survey-1.avif";
+import reviuSurvey2 from "../assets/project/folder6/cl-reviu-survey-2.avif";
+import reviuSurvey3 from "../assets/project/folder6/cl-reviu-survey-3.avif";
+import reviuSurvey4 from "../assets/project/folder6/cl-reviu-survey-4.avif";
 import ProjectMockup from "./ProjectMockup";
 import ProjectHoverComposition from "./ProjectHoverComposition";
 import ProjectDetailOverlay from "./ProjectDetailOverlay";

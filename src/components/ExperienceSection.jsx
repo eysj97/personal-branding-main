@@ -252,22 +252,8 @@ function DrawnMark({ raw, className, stop, delay, relay, duration }) {
   );
 }
 
-// The blink each star settles into once its mark has been drawn.
-//
-// This used to be the other way round: the star sat at 0.72 and briefly
-// brightened to 1. A quarter of a step of extra brightness on a line drawing is
-// not something you notice — it read as sitting still. It goes out and comes
-// back now, which is a thing that plainly happens.
-//
-// How dim it gets at the bottom of a blink. 0 is all the way out.
-const TWINKLE_DIM = 0;
-// How much of each cycle the blink takes. The rest is the star sitting lit —
-// which is what keeps this a blink rather than a pulse, and what stops the
-// panel looking like it is flickering.
-const TWINKLE_BLINK = 0.34;
-// How far a star draws in on itself as it goes. Small, and inward rather than
-// out: it reads as the star closing up rather than as the drawing resizing.
-const TWINKLE_SWELL = 0.12;
+// The stars in the sparkle cluster blink. Their timing lives in index.css, on
+// `[data-twinkle]` — see the note where the float loop used to drive it.
 
 /** A line drawing that pops in like the rest of the artwork, but is inlined all
  *  the same so the pieces inside it can be reached — the star cluster needs
@@ -1682,28 +1668,17 @@ export default function ExperienceSection() {
         phase: n * 1.9,
         period: 2600 + n * 220,
       }));
-    // Once a mark has landed, the stars in it keep twinkling. Each star is its
-    // own group in the artwork (`data-twinkle`, carrying the centre it should
-    // swell about), and each gets its own period and phase — flashing in step
-    // would read as the whole cluster blinking rather than as separate points
-    // of light.
+    // The stars in the sparkle cluster blink, and none of that is done here any
+    // more — it is three keyframes on `[data-twinkle]` in index.css.
     //
-    // Found by looking inside every animated element rather than by which
-    // entrance it uses: a star twinkles whether its mark was popped in or
-    // drawn on, and nothing about the flash depends on how it arrived.
-    const twinklers = animated
-      .filter((item) => item.el.querySelector("[data-twinkle]"))
-      .flatMap((item) =>
-        [...item.el.querySelectorAll("[data-twinkle]")].map((group, n) => ({
-          item,
-          group,
-          cx: Number(group.dataset.cx) || 0,
-          cy: Number(group.dataset.cy) || 0,
-          phase: n * 0.37,
-          period: 1900 + n * 520,
-          lit: false,
-        })),
-      );
+    // It used to be driven from this loop, gated on the mark's entrance having
+    // finished and on the loop running at all, and between those two conditions
+    // the stars spent most of their time sitting perfectly still. A blink needs
+    // neither: it is a property of the artwork, not of the section's state, so
+    // it belongs somewhere that cannot be switched off by accident. The opacity
+    // the entrance sets on the wrapper still multiplies with it, so a cluster
+    // that has not arrived yet is invisible whether or not its stars are
+    // mid-blink.
     let floatId = null;
 
     function floatTick(now) {
@@ -1712,50 +1687,6 @@ export default function ExperienceSection() {
         if (!item.done) continue;
         const y = Math.sin((now / period) * Math.PI * 2 + phase) * amplitude;
         item.el.style.transform = `translate3d(0, ${y.toFixed(2)}px, 0) scale(1)`;
-      }
-
-      for (const star of twinklers) {
-        // The entrance owns the *transform* until it is finished — a star
-        // cannot scale about its own centre while the whole cluster is still
-        // popping in. It does not own the opacity: that is set on the wrapper
-        // and this is set on the group inside it, so the two multiply and the
-        // blink can simply always run.
-        //
-        // It used to skip the whole star until `item.done`, which meant a
-        // cluster that never finished its entrance — scrolled past, rearmed,
-        // caught mid-stagger — sat at a flat opacity 1 and never blinked at
-        // all. Nothing about a blink needs to wait for an entrance.
-        const settled = star.item.done;
-        if (!settled && star.lit) {
-          star.group.removeAttribute("transform");
-          star.lit = false;
-        }
-        if (settled) star.lit = true;
-        const cycle = (((now / star.period + star.phase) % 1) + 1) % 1;
-        // A twinkle is a flash, not a throb. A plain sine would spend half of
-        // every cycle dimmed, which reads as slow breathing; this sits at rest
-        // for most of the period and then briefly catches the light.
-        const spike =
-          cycle < TWINKLE_BLINK
-            ? Math.sin((cycle / TWINKLE_BLINK) * Math.PI)
-            : 0;
-        // spike runs 0 -> 1 -> 0 across the blink, and it is subtracted, so the
-        // star fades out and comes back rather than brightening. At
-        // TWINKLE_DIM = 0 it is gone entirely at the bottom of the swing.
-        star.group.style.opacity = (
-          1 -
-          (1 - TWINKLE_DIM) * spike
-        ).toFixed(3);
-        // Out to the star's own centre, scaled, and back — an SVG group has no
-        // box of its own to be a transform-origin, so the swell has to be
-        // carried out to the middle of the drawing and returned.
-        if (settled) {
-          const swell = 1 - TWINKLE_SWELL * spike;
-          star.group.setAttribute(
-            "transform",
-            `translate(${star.cx} ${star.cy}) scale(${swell.toFixed(4)}) translate(${-star.cx} ${-star.cy})`,
-          );
-        }
       }
 
       floatId = requestAnimationFrame(floatTick);
