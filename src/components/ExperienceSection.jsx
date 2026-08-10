@@ -252,17 +252,21 @@ function DrawnMark({ raw, className, stop, delay, relay, duration }) {
   );
 }
 
-// The twinkle each star settles into once its mark has been drawn.
+// The blink each star settles into once its mark has been drawn.
 //
-// How bright a star sits between flashes. Not much below 1: these are line
-// drawings on a dark panel, and dimming them far enough to make the flash
-// dramatic just makes them look half-erased for most of the time.
-const TWINKLE_REST = 0.72;
-// How much of each cycle is actually spent flashing. The rest is the star
-// sitting still — which is what separates a twinkle from a pulse.
-const TWINKLE_FLASH = 0.22;
-// How far a star swells at the top of its flash. Small: the point is that it
-// catches the light, not that it grows.
+// This used to be the other way round: the star sat at 0.72 and briefly
+// brightened to 1. A quarter of a step of extra brightness on a line drawing is
+// not something you notice — it read as sitting still. It goes out and comes
+// back now, which is a thing that plainly happens.
+//
+// How dim it gets at the bottom of a blink. 0 is all the way out.
+const TWINKLE_DIM = 0;
+// How much of each cycle the blink takes. The rest is the star sitting lit —
+// which is what keeps this a blink rather than a pulse, and what stops the
+// panel looking like it is flickering.
+const TWINKLE_BLINK = 0.34;
+// How far a star draws in on itself as it goes. Small, and inward rather than
+// out: it reads as the star closing up rather than as the drawing resizing.
 const TWINKLE_SWELL = 0.12;
 
 /** A line drawing that pops in like the rest of the artwork, but is inlined all
@@ -1605,10 +1609,28 @@ export default function ExperienceSection() {
     // do back when it arrived in one 520ms tween.
     const TRIGGER_LEAD = 0.35;
 
+    // How far the section's top may still be below the top of the screen and
+    // count as arrived, as a fraction of a screen.
+    //
+    // This used to be a flat `top > 0` — nothing at all played until the
+    // section had pinned. But a sticky stage pins a whole screen after its
+    // panel first comes into view, so "Experience It" slid up, sat there fully
+    // legible and ghosted, and only started sharpening a screen of scrolling
+    // later. The opening title card is the one panel where that gap is
+    // unmissable, because it is the first thing the section says.
+    //
+    // A third of a screen puts the intro's centred type in the lower middle of
+    // the view — on screen and being read — which is the moment its sweep and
+    // its line should be running. Later stops are unaffected: they are gated on
+    // `stopPos` as well, and that only advances once the strip is travelling.
+    const SECTION_ARM_LEAD = 0.35;
+
     // Arm everything belonging to stops we have reached, and rearm anything
     // above them so scrolling back and returning replays it.
     function refreshTriggers() {
-      const beforeSection = section.getBoundingClientRect().top > 0;
+      const beforeSection =
+        section.getBoundingClientRect().top >
+        window.innerHeight * SECTION_ARM_LEAD;
       let started = false;
       for (const item of animated) {
         // Reaching a mark's stop is not the same as being able to see it. The
@@ -1693,37 +1715,47 @@ export default function ExperienceSection() {
       }
 
       for (const star of twinklers) {
-        // The entrance owns the mark until it is finished — a star cannot swell
-        // about its own centre while the whole cluster is still popping in.
-        if (!star.item.done) {
-          if (star.lit) {
-            star.group.style.opacity = "1";
-            star.group.removeAttribute("transform");
-            star.lit = false;
-          }
-          continue;
+        // The entrance owns the *transform* until it is finished — a star
+        // cannot scale about its own centre while the whole cluster is still
+        // popping in. It does not own the opacity: that is set on the wrapper
+        // and this is set on the group inside it, so the two multiply and the
+        // blink can simply always run.
+        //
+        // It used to skip the whole star until `item.done`, which meant a
+        // cluster that never finished its entrance — scrolled past, rearmed,
+        // caught mid-stagger — sat at a flat opacity 1 and never blinked at
+        // all. Nothing about a blink needs to wait for an entrance.
+        const settled = star.item.done;
+        if (!settled && star.lit) {
+          star.group.removeAttribute("transform");
+          star.lit = false;
         }
-        star.lit = true;
+        if (settled) star.lit = true;
         const cycle = (((now / star.period + star.phase) % 1) + 1) % 1;
         // A twinkle is a flash, not a throb. A plain sine would spend half of
         // every cycle dimmed, which reads as slow breathing; this sits at rest
         // for most of the period and then briefly catches the light.
         const spike =
-          cycle < TWINKLE_FLASH
-            ? Math.sin((cycle / TWINKLE_FLASH) * Math.PI)
+          cycle < TWINKLE_BLINK
+            ? Math.sin((cycle / TWINKLE_BLINK) * Math.PI)
             : 0;
+        // spike runs 0 -> 1 -> 0 across the blink, and it is subtracted, so the
+        // star fades out and comes back rather than brightening. At
+        // TWINKLE_DIM = 0 it is gone entirely at the bottom of the swing.
         star.group.style.opacity = (
-          TWINKLE_REST +
-          (1 - TWINKLE_REST) * spike
+          1 -
+          (1 - TWINKLE_DIM) * spike
         ).toFixed(3);
         // Out to the star's own centre, scaled, and back — an SVG group has no
         // box of its own to be a transform-origin, so the swell has to be
         // carried out to the middle of the drawing and returned.
-        const swell = 1 + TWINKLE_SWELL * spike;
-        star.group.setAttribute(
-          "transform",
-          `translate(${star.cx} ${star.cy}) scale(${swell.toFixed(4)}) translate(${-star.cx} ${-star.cy})`,
-        );
+        if (settled) {
+          const swell = 1 - TWINKLE_SWELL * spike;
+          star.group.setAttribute(
+            "transform",
+            `translate(${star.cx} ${star.cy}) scale(${swell.toFixed(4)}) translate(${-star.cx} ${-star.cy})`,
+          );
+        }
       }
 
       floatId = requestAnimationFrame(floatTick);

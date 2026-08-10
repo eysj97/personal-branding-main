@@ -285,13 +285,30 @@ export default function Hero() {
     const GAZE_FROM = (1 - GAZE_MOVE) / 2;
 
     let gazeId = null;
-    // Screen px, and null until the mouse has genuinely moved. `mousemove`
-    // rather than `pointermove` on purpose: a touch only sends events while the
-    // finger is down, so following it would leave the eyes frozen wherever the
-    // last tap happened to be, which is worse than the wander.
+    // Screen px, and null until a pointer has genuinely moved over the page.
+    //
+    // This used to listen for `mousemove` alone, and that is what made the eyes
+    // look like they only tracked a *click*. A pen or a touchscreen sends no
+    // hovering mouse event at all — the first `mousemove` such a device emits
+    // is the compatibility one the browser synthesises right before `click`. So
+    // the gaze sat on its idle wander through every hover and then snapped to
+    // wherever the tap landed, which reads exactly as "it only moves when I
+    // click".
+    //
+    // `pointermove` covers the hover the mouse event was missing. Touch is
+    // still refused: a finger only reports while it is down, so following it
+    // would leave the eyes frozen at the last tap — the very thing being fixed.
+    // Both listeners feed the same value, so a plain mouse is unaffected.
     let pointer = null;
+    function trackPointer(x, y) {
+      pointer = { x, y };
+    }
     function onMouseMove(e) {
-      pointer = { x: e.clientX, y: e.clientY };
+      trackPointer(e.clientX, e.clientY);
+    }
+    function onPointerMove(e) {
+      if (e.pointerType === "touch") return;
+      trackPointer(e.clientX, e.clientY);
     }
 
     function gaze(now) {
@@ -368,11 +385,17 @@ export default function Hero() {
     // settle late enough to move the section's own height on a cold load.
     document.fonts?.ready.then(driver.refresh);
     window.addEventListener("load", driver.refresh);
-    window.addEventListener("mousemove", onMouseMove, { passive: true });
+    // Capture phase: these are read-only observers of where the pointer is, and
+    // the capture phase is the one place nothing on the page can stop them
+    // being delivered.
+    const gazeListener = { passive: true, capture: true };
+    window.addEventListener("mousemove", onMouseMove, gazeListener);
+    window.addEventListener("pointermove", onPointerMove, gazeListener);
 
     return () => {
       window.removeEventListener("load", driver.refresh);
-      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mousemove", onMouseMove, gazeListener);
+      window.removeEventListener("pointermove", onPointerMove, gazeListener);
       driver.stop();
       visibility.disconnect();
       if (gazeId !== null) cancelAnimationFrame(gazeId);

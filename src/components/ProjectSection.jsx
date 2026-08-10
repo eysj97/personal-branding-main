@@ -17,26 +17,26 @@ import faceReviuSurvey from "../assets/project/folder6/face-reviu-survey.png";
 //
 // Numbered in the design's own paint order, so the array order below is both
 // the stacking order and the order they arrive in.
-import aquaWebImac from "../assets/project/hover6/aquaweb-imac.png";
-import aquaWebIpad from "../assets/project/hover6/aquaweb-ipad.png";
-import aquaApp1 from "../assets/project/hover6/aquaapp-1.png";
-import aquaApp2 from "../assets/project/hover6/aquaapp-2.png";
-import aquaApp3 from "../assets/project/hover6/aquaapp-3.png";
-import aquaApp4 from "../assets/project/hover6/aquaapp-4.png";
-import layerDark1 from "../assets/project/hover6/layerdark-1.png";
-import layerDark2 from "../assets/project/hover6/layerdark-2.png";
-import layerDark3 from "../assets/project/hover6/layerdark-3.png";
-import layerLight1 from "../assets/project/hover6/layerlight-1.png";
-import layerLight2 from "../assets/project/hover6/layerlight-2.png";
-import layerLight3 from "../assets/project/hover6/layerlight-3.png";
-import reviuApp1 from "../assets/project/hover6/reviuapp-1.png";
-import reviuApp2 from "../assets/project/hover6/reviuapp-2.png";
-import reviuApp3 from "../assets/project/hover6/reviuapp-3.png";
-import reviuApp4 from "../assets/project/hover6/reviuapp-4.png";
-import reviuSurvey1 from "../assets/project/hover6/reviusurvey-1.png";
-import reviuSurvey2 from "../assets/project/hover6/reviusurvey-2.png";
-import reviuSurvey3 from "../assets/project/hover6/reviusurvey-3.png";
-import reviuSurvey4 from "../assets/project/hover6/reviusurvey-4.png";
+import aquaWebImac from "../assets/project/folder6/cl-aqua-web-1.png";
+import aquaWebIpad from "../assets/project/folder6/cl-aqua-web-2.png";
+import aquaApp1 from "../assets/project/folder6/cl-aqua-app-3.png";
+import aquaApp2 from "../assets/project/folder6/cl-aqua-app-1.png";
+import aquaApp3 from "../assets/project/folder6/cl-aqua-app-4.png";
+import aquaApp4 from "../assets/project/folder6/cl-aqua-app-2.png";
+import layerDark1 from "../assets/project/folder6/cl-layer-dark-3.png";
+import layerDark2 from "../assets/project/folder6/cl-layer-dark-1.png";
+import layerDark3 from "../assets/project/folder6/cl-layer-dark-2.png";
+import layerLight1 from "../assets/project/folder6/cl-layer-light-2.png";
+import layerLight2 from "../assets/project/folder6/cl-layer-light-1.png";
+import layerLight3 from "../assets/project/folder6/cl-layer-light-3.png";
+import reviuApp1 from "../assets/project/folder6/cl-reviu-app-3.png";
+import reviuApp2 from "../assets/project/folder6/cl-reviu-app-4.png";
+import reviuApp3 from "../assets/project/folder6/cl-reviu-app-2.png";
+import reviuApp4 from "../assets/project/folder6/cl-reviu-app-1.png";
+import reviuSurvey1 from "../assets/project/folder6/cl-reviu-survey-1.png";
+import reviuSurvey2 from "../assets/project/folder6/cl-reviu-survey-2.png";
+import reviuSurvey3 from "../assets/project/folder6/cl-reviu-survey-3.png";
+import reviuSurvey4 from "../assets/project/folder6/cl-reviu-survey-4.png";
 import ProjectMockup from "./ProjectMockup";
 import ProjectHoverComposition from "./ProjectHoverComposition";
 import ProjectDetailOverlay from "./ProjectDetailOverlay";
@@ -119,36 +119,55 @@ const CAMERA = 820;
 // curved surface again, with a coloured back so it still never vanishes as it
 // turns away.
 
-// `crop` replicates the exact framing from Figma (custom pan/zoom on the
-// source image), not a generic auto-cover fit.
-//
 // The folders stand on a ring close to its own centre — a small radius, so
 // they overlap as they come round — rather than spread out on a wide, flat
 // circle. There are six of them now, so the spacing is a sixth of a turn; it
 // is derived below rather than written down, and nothing here should assume a
 // particular count.
-// Four of the six faces are exported 383 wide rather than the card's own 343.
-// That is deliberate: in the design the logo and the mascot are laid over the
-// card as siblings rather than inside it, so only the whole group carries
-// them, and the group is card + tab. The extra 40 is that tab, which the
-// folder already draws itself in `tabColor` — so the art is pinned to the left
-// edge at 383/343 and the card's own clip cuts the exported tab away. Anchored
-// left, not covered: `object-cover` would centre it and shave both sides.
-const WITH_TAB = { left: 0, top: 0, width: "111.662%", height: "100%" };
+//
+// The faces are exported 383 wide rather than the card's own 343: the extra 40
+// is the tab, which the design lays over the card as a sibling rather than
+// inside it. The drum cuts its tab straight out of that strip now — see the tab
+// pass in cardDrum — so nothing here has to say how the art is framed. It works
+// the split out from the file's own aspect, which is why the two faces that are
+// still bare 343-wide cards keep their flat-coloured tab until they are
+// re-exported.
 
 // Six folders, 60deg apart — three projects, each seen twice.
 //
-// The running order is Layer, Reviu, Aquaplanet, twice round. Two things set
+// The running order is Reviu, Layer, Aquaplanet, twice round. Two things set
 // which folder gets which angle, and they are easy to get backwards:
 //
-//   - The drum turns so that the angle *facing you* counts DOWN as you scroll
-//     (the spin grows, and a folder is head-on when spin + angle is a whole
-//     turn). So they arrive 300, 240, 180, 120, 60, 0 and round again — the
-//     reverse of the order they are listed in below. Reading this list top to
-//     bottom gives Aqua, Reviu, Layer; a visitor meets Layer, Reviu, Aqua.
+//   - A folder is head-on when spin + angle comes to a whole turn, and the spin
+//     starts at 0 — so the folder at 0deg is the one already facing you when
+//     the section arrives, and the angle facing you counts DOWN from there:
+//     0, 300, 240, 180, 120, 60, and round again.
+//
+//     (The note here used to say the run started at 300 and that 0 came last,
+//     which is the same list rotated by one and put every project one place off
+//     from where it was meant to be.)
 //   - The two halves of a project sit opposite each other, so they are never
-//     both in view at once: Aquaplanet at 0 and 180, Reviu at 60 and 240,
-//     Layer at 120 and 300.
+//     both in view at once: Reviu at 0 and 180, Layer at 300 and 120,
+//     Aquaplanet at 240 and 60.
+//
+// The running order is fixed by one rule: the first time round shows each
+// project's logo-and-details face, the second time round shows its typographic
+// face. So a visitor meets all three projects, then meets them again with the
+// statement each one is making.
+//
+//   1st round   0 Reviu logo    300 Layer logo    240 Aqua logo
+//   2nd round 180 Reviu type    120 Layer type     60 Aqua type
+//
+// WATCH THE FILE NAMES — they do not say what is in them, and reading them as
+// if they did puts a project's two faces the wrong way round. Verified by
+// looking at the exports rather than by their names:
+//
+//   face-reviu-app       green,  reviu logo + 일정/제작/목표
+//   face-reviu-survey    green,  "An endlessly ongoing learning service"
+//   face-layer-dark      orange, Layer logo + 일정/조원/목표
+//   face-layer-light     orange, "Assessment tastes, recording, and sharing"
+//   face-aqua-app        blue,   aqua planet logo + 일정/조원/목표
+//   face-aqua-web        blue,   "Combine four branches into one"
 //
 // Every `layout` below is the design's own geometry restated as a fraction of
 // the card: the cluster's offset from the card's top-left over 343 x 522. That
@@ -156,7 +175,7 @@ const WITH_TAB = { left: 0, top: 0, width: "111.662%", height: "100%" };
 // other size too.
 const CARDS = [
   {
-    angle: 0,
+    angle: 60,
     image: faceAquaWeb,
     tabColor: "#2686e7",
     detail: AquaplanetSpread,
@@ -175,9 +194,8 @@ const CARDS = [
     },
   },
   {
-    angle: 120,
+    angle: 300,
     image: faceLayerDark,
-    crop: WITH_TAB,
     tabColor: "#ff4800",
     detail: LayerSpread,
     // Layer's opened pages carry a 20% black wash over the tab colour.
@@ -201,9 +219,8 @@ const CARDS = [
     },
   },
   {
-    angle: 60,
+    angle: 0,
     image: faceReviuApp,
-    crop: WITH_TAB,
     tabColor: "#78db44",
     detail: ReviuSpread,
     hover: {
@@ -229,7 +246,7 @@ const CARDS = [
     },
   },
   {
-    angle: 180,
+    angle: 240,
     image: faceAquaApp,
     tabColor: "#2686e7",
     detail: AquaplanetSpread,
@@ -256,9 +273,8 @@ const CARDS = [
     },
   },
   {
-    angle: 300,
+    angle: 120,
     image: faceLayerLight,
-    crop: WITH_TAB,
     tabColor: "#ff4800",
     detail: LayerSpread,
     pageColor: "#cc3a00",
@@ -281,9 +297,8 @@ const CARDS = [
     },
   },
   {
-    angle: 240,
+    angle: 180,
     image: faceReviuSurvey,
-    crop: WITH_TAB,
     tabColor: "#78db44",
     detail: ReviuSpread,
     hover: {
@@ -381,15 +396,14 @@ export default function ProjectSection() {
     // from when this was a fan of DOM slices.
     const drum = createCardDrum(
       canvas,
+      // Nothing about framing is passed any more. The drum measures each
+      // export's aspect and works out for itself how much of it is card and how
+      // much is the tab beside it, so a face that gains or loses its tab in a
+      // re-export needs no matching change here.
       CARDS.map((card) => ({
         angle: card.angle,
         image: card.image,
         tabColor: card.tabColor,
-        // The un-cropped faces are framed like `object-fit: cover`; the cropped
-        // ones carry the tab in the export and are pinned to the left edge, so
-        // the card shows the first 1/1.11662 of them.
-        cover: !card.crop,
-        texScale: card.crop ? 1 / 1.11662 : 1,
       })),
       { radiusRatio: RADIUS_RATIO },
     );
@@ -688,8 +702,27 @@ export default function ProjectSection() {
                         // they have to be muted at the pointer level.
                         pointerEvents: isFront && !opened ? "auto" : "none",
                       }}
-                      onMouseEnter={() => setHover(true)}
-                      onMouseLeave={() => setHover(false)}
+                      // Pointer events, not mouse events. A pen or a
+                      // touchscreen never sends a hovering `mouseenter` — the
+                      // only one it emits is the compatibility event the
+                      // browser synthesises just before `click` — so on those
+                      // devices the artwork never came out of the folder at
+                      // all, which is the same thing that stopped the hero's
+                      // eyes tracking. A real mouse fires `pointerenter` and
+                      // `mouseenter` alike, so nothing changes for one.
+                      //
+                      // Touch is left out on purpose: a finger has no hover, and
+                      // tapping already opens the detail overlay below. Letting
+                      // it set hover would flash the artwork out of the folder
+                      // for one frame on the way into the overlay.
+                      onPointerEnter={(event) => {
+                        if (event.pointerType === "touch") return;
+                        setHover(true);
+                      }}
+                      onPointerLeave={(event) => {
+                        if (event.pointerType === "touch") return;
+                        setHover(false);
+                      }}
                       onClick={(event) => open(card, event)}
                     >
                       {/* Mounted only for the card in front, so the hover art of

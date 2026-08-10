@@ -201,7 +201,13 @@ const CHAPTER_PIVOT = {
 // chapter arrives or leaves, it swings through this many degrees rather
 // than simply crossfading in place.
 const ROTATE_SPIN = -360;
-const CHAPTER_TITLE_POS = { x: 118, y: 217 };
+// The handoff title, "Role / Led me to a career". Its block is about 330 tall
+// on the 1080 canvas — two 120px lines plus the caption — so at the old y of
+// 217 it sat with its middle near 380 and read as floating in the upper half
+// rather than as sitting at the top of the page. Level with its own left inset
+// instead: the same 118 down as across, which puts it clear of the blob's arc
+// and gives the two lines the top of the canvas to themselves.
+const CHAPTER_TITLE_POS = { x: 118, y: 118 };
 const WORD_RIGHT = 1249;
 const WORD_TOP = 492;
 
@@ -260,7 +266,6 @@ const CHAPTERS = [
       "지금도 막히면 방법을 찾아 풀고,",
       "그 과정에 기록과 AI를 도구로 씁니다.",
       "지금 보고 계신 이 사이트도 직접 설계하고 만들었습니다.",
-      "",
       "개입의 시점을 문제 이후에서 설계 이전으로 옮기는 것.",
       "사용자도 의식하지 못한 불편을 설계하려는 이유입니다.",
     ].join("\n"),
@@ -465,7 +470,12 @@ const STEP_COUNT = 10;
 // How much page scroll each step costs, plus the one screen the sticky stage
 // occupies. This is the section's pace: a screen of scrolling moves the story
 // on by roughly one step.
-const STEP_VH = 70;
+// Up from 70. Nothing about the animation changed — each step still eases in
+// and out exactly as it did — there is simply more page to scroll through
+// before the story moves on, so the whole section reads slower under the same
+// wheel. This is the one number that sets the pace: raise it to slow the
+// section down further, lower it to speed it up.
+const STEP_VH = 95;
 const TRACK_VH = 100 + STEP_COUNT * STEP_VH;
 
 // C -> D is the one leg that would run straight across the bottom of the

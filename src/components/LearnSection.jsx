@@ -85,17 +85,22 @@ const CARD_ASPECT = 446.5 / 554;
 // one worth keeping; the cards read as a deck being dealt past you rather than
 // as a row being pulled apart.
 const GAP_FRAC = 60 / 120;
-// How far the whole stack travels left over the run, in card widths.
+// How far the whole stack travels left over the run.
 //
-// Down from -6, and it had to come down: the deck is only 5 x GAP_FRAC = 2.5
-// card widths from end to end now, where the fan used to stretch it to 5.65.
-// At the old travel the whole thing cleared the screen well before the run
-// finished and the section ended on nothing. This lands the rearmost card
-// about where the fan used to leave it — in frame, on the left — so the run
-// still ends with something to look at:
+// Not a fixed number of card widths any more. The run ends with the deck gone
+// — every file out past the left edge, nothing left in frame — and where "gone"
+// is depends on the viewport: the stage starts at 34.74% of the width, the
+// rearmost card sits five gaps behind the front one, and its tab hangs off the
+// right edge. So the distance is measured from the stage's own box each frame
+// rather than guessed at in card widths, which also keeps it right at the two
+// ends of the card's clamp(), where the card stops growing with the viewport
+// and any fixed ratio would come up short.
 //
-//     start (~1.5) + SHIFT + 5 x GAP_FRAC  ~=  1.1
-const SHIFT_TOTAL = -2.9;
+// (It used to be -2.9 card widths, chosen to leave the rearmost card sitting in
+// frame on the left. That is the part being changed: the section now hands over
+// to SKILLS on an empty stage.)
+const TAB_FRAC = 0.072; // matches the tab's w-[7.2%] below
+const EXIT_MARGIN_PX = 24; // a little clear air past the edge
 // "LEARN" holds in place for a beat before it starts exiting left, instead
 // of moving the instant you scroll — then fully gone before the cards start.
 const TEXT_HOLD_UNTIL = 0.08;
@@ -106,23 +111,21 @@ const CARDS_START_AT = 0.3;
 // Cards keep their size and their spacing the whole way. The travel is the
 // only thing that moves — the deck slides, it does not open out.
 //
-// How much of the run the motion uses before the cards settle and hold for the
-// rest of the section. This was 0.28, which meant two thirds of the section's
-// scroll was spent going nowhere — and since the travel has to fit inside it,
-// that forced the movement to be fast to cover any distance at all. Using most
-// of the run instead is what buys the same distance at a much lower speed.
-const T_CAP = 0.85;
-// A per-unit-of-t rate, derived from the total above so that changing how long
-// the run is does not silently change where the deck ends up.
-const SHIFT_END_FRAC = SHIFT_TOTAL / T_CAP;
+// There is no cap on the travel any more. It used to stop at 0.85 of the run
+// and hold, which left the deck parked with one file still on screen for the
+// last stretch of the section and then again through the whole handover to
+// SKILLS. Running to the end instead means the last file leaves on the frame
+// the section unpins, so SKILLS is what comes next with nothing in between.
 
 export default function LearnSection() {
   const sectionRef = useRef(null);
+  const stageRef = useRef(null);
   const cardRefs = useRef([]);
   const textRef = useRef(null);
 
   useEffect(() => {
     const section = sectionRef.current;
+    const stage = stageRef.current;
     const text = textRef.current;
     let ticking = false;
 
@@ -139,19 +142,29 @@ export default function LearnSection() {
       // move, fan out, and grow all together — no separate waiting beat.
       // Plain linear ramp (not smoothstep's eased S-curve) so the motion
       // reads as one steady, gradual pace.
-      const t = Math.min(
-        clamp01((raw - CARDS_START_AT) / (1 - CARDS_START_AT)),
-        T_CAP,
-      );
+      const t = clamp01((raw - CARDS_START_AT) / (1 - CARDS_START_AT));
       const cardWidthPx = cardRefs.current[0]?.offsetWidth || 0;
       const gapPx = cardWidthPx * GAP_FRAC;
-      const shiftPx = cardWidthPx * SHIFT_END_FRAC * t;
 
       // The last card in the array paints on top (normal DOM stacking), so
       // it sits at the front of the stack. Earlier cards, underneath it,
       // get pushed further back as the gap widens. The whole stack also
       // slides left together (shiftPx) as it goes.
       const lastIndex = cardRefs.current.length - 1;
+
+      // The rearmost card is `lastIndex` gaps behind the front one and its tab
+      // hangs a further TAB_FRAC of a card past its own right edge — so the
+      // deck is clear of the screen once the stage's left edge has been pulled
+      // back by all of that. Measured, not assumed: the stage's own box already
+      // carries the 34.74% offset and whatever the card's clamp() settled on.
+      const stageLeft = stage.getBoundingClientRect().left;
+      const exitPx = -(
+        stageLeft +
+        lastIndex * gapPx +
+        cardWidthPx * (1 + TAB_FRAC) +
+        EXIT_MARGIN_PX
+      );
+      const shiftPx = exitPx * t;
       cardRefs.current.forEach((el, i) => {
         if (!el) return;
         el.style.transform = `translateX(${shiftPx + (lastIndex - i) * gapPx}px)`;
@@ -180,7 +193,11 @@ export default function LearnSection() {
   return (
     <section
       ref={sectionRef}
-      className="section-learn relative h-[210vh] bg-[#06252e]"
+      /* 210vh while the deck only had 2.9 card widths to cover. Clearing the
+         screen is closer to 5, so the same height would have made the exit
+         half again as fast as the rest of the run — the extra 30vh buys the
+         distance back at roughly the pace it had before. */
+      className="section-learn relative h-[240vh] bg-[#06252e]"
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         <div
@@ -199,7 +216,10 @@ export default function LearnSection() {
 
         {/* Positioned at the same left offset ratio as Figma (690/1986 of
             the frame width) so the gap to the title matches the design. */}
-        <div className="absolute top-0 h-full left-[34.74%] right-0">
+        <div
+          ref={stageRef}
+          className="absolute top-0 h-full left-[34.74%] right-0"
+        >
           {CARDS.map(({ image, slug, label }, i) => {
             // An anchor only when there is somewhere to go — otherwise the card
             // stays the plain div it has always been, with no pointer cursor

@@ -122,6 +122,29 @@ const ROWS = [
 const ENTER_STEP_MS = 140; // between one card and the next
 const ENTER_SNAP_MS = 80; // and how long one card takes to be there at all
 
+// The deal starts when the section pins — and because of the overlap below,
+// that is now the same instant LEARN's last file leaves the screen, not a
+// screen of scrolling later.
+//
+// Why this section starts one screen early (the -100vh margin on the <section>
+// below): a sticky stage stops being pinned when its section's bottom edge
+// reaches the bottom of the screen, which is where LEARN's scroll progress
+// hits 1 and its deck has finished exiting. The next section's top is at that
+// bottom edge — a full screen below the fold — so unpinning LEARN and pinning
+// SKILLS are a screen of scrolling apart no matter how either section is
+// timed. Pulling this one up by exactly that screen closes the gap: LEARN's
+// progress reaching 1 and this section's top reaching 0 become the same scroll
+// position.
+//
+// The cost is that this section now sits *over* LEARN's last screen, which is
+// why its background moved onto the stage and the stage is hidden until it
+// pins (see stageRef) — otherwise it would slide up over the files while they
+// were still on screen, and swallow their clicks on the way.
+const ARM_AT = 0;
+// Rearmed a little further down than it arms, so a scroll that hovers right on
+// the line does not replay the deal every few pixels.
+const REARM_AT = 0.12;
+
 // The card is a manila folder seen face-on, and it is two shapes rather than
 // one: a tab that runs the full width behind the card, stepping down partway
 // across from its raised left end, and the folder body laid over it. The body
@@ -198,17 +221,37 @@ function CardFace({ title, desc, list, level, color }) {
 
 export default function SkillsSection() {
   const sectionRef = useRef(null);
+  const stageRef = useRef(null);
+  const headingRef = useRef(null);
   const cardRefs = useRef([]);
   const [scale, setScale] = useState(1);
 
   useEffect(() => {
     const section = sectionRef.current;
+    const stage = stageRef.current;
     let startedAt = null;
     let rafId = null;
+
+    // The stage carries the background as well as the grid, so hiding it hides
+    // the whole section — which is what keeps it out of the way while it is
+    // overlapping LEARN's last screen. pointer-events goes with it: a stage
+    // that is merely transparent still sits over the files and eats the clicks
+    // on their links.
+    function showStage(on) {
+      stage.style.opacity = on ? "1" : "0";
+      stage.style.pointerEvents = on ? "auto" : "none";
+    }
 
     function paint(now) {
       const elapsed = now - startedAt;
       let running = false;
+      // The heading is not one of the folders, but it should not simply be
+      // there before them either — it comes in on the same beat as the first
+      // one, so the section assembles rather than appearing part-drawn.
+      const headingT = clamp01(elapsed / ENTER_SNAP_MS);
+      if (headingRef.current)
+        headingRef.current.style.opacity = String(headingT);
+      if (headingT < 1) running = true;
       cardRefs.current.forEach((el, i) => {
         if (!el) return;
         const t = clamp01((elapsed - i * ENTER_STEP_MS) / ENTER_SNAP_MS);
@@ -218,26 +261,31 @@ export default function SkillsSection() {
       rafId = running ? requestAnimationFrame(paint) : null;
     }
 
-    // Arrival is the section's top reaching the top of the screen — the point
-    // at which the sticky stage is the whole view and the grid is what you are
-    // looking at.
+    // Arrival is the section's top climbing past ARM_AT — half a screen before
+    // it pins, by which point the top rows are already in frame and the grid is
+    // what you are looking at.
     function check() {
       const rect = section.getBoundingClientRect();
-      const arrived = rect.top <= 0 && rect.bottom > 0;
+      const arrived =
+        rect.top <= window.innerHeight * ARM_AT && rect.bottom > 0;
 
       if (arrived && startedAt === null) {
         startedAt = performance.now();
+        showStage(true);
         if (rafId === null) rafId = requestAnimationFrame(paint);
         return;
       }
-      // Rearm once the section is fully back below, so coming down to it a
-      // second time deals the cards again rather than showing them already out.
-      if (!arrived && rect.top > 0 && startedAt !== null) {
+      // Rearm once the section is back below, so coming down to it a second
+      // time deals the cards again rather than showing them already out — and
+      // so scrolling back up hands the screen to LEARN's files again.
+      if (rect.top > window.innerHeight * REARM_AT && startedAt !== null) {
         startedAt = null;
         if (rafId !== null) {
           cancelAnimationFrame(rafId);
           rafId = null;
         }
+        showStage(false);
+        if (headingRef.current) headingRef.current.style.opacity = "0";
         cardRefs.current.forEach((el) => {
           if (el) el.style.opacity = "0";
         });
@@ -284,9 +332,20 @@ export default function SkillsSection() {
          happened, which reads as the page refusing to scroll, and then lets go
          all at once. 150vh is half a screen of hold — about as long as the
          cards take to arrive. */
-      className="section-skills relative h-[150vh] bg-[#06252e]"
+      className="section-skills relative h-[150vh]"
+      /* Pulled up by exactly the screen that would otherwise sit between
+         LEARN unpinning and this section pinning — see ARM_AT. The background
+         is not on the section any more: at this margin the section's own box
+         covers LEARN's last screen, so a background here would paint over the
+         files while they are still leaving. It lives on the stage below
+         instead, which is hidden until this section actually pins. */
+      style={{ marginTop: "-100vh" }}
     >
-      <div className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center">
+      <div
+        ref={stageRef}
+        className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center bg-[#06252e]"
+        style={{ opacity: 0, pointerEvents: "none" }}
+      >
         <div
           className="relative shrink-0"
           style={{
@@ -345,8 +404,9 @@ export default function SkillsSection() {
               piece, so viewport units would get scaled a second time and drift
               off the design. */}
           <p
+            ref={headingRef}
             className="absolute font-['Plus_Jakarta_Sans'] font-semibold leading-none text-white whitespace-nowrap tracking-[-0.1em]"
-            style={{ left: 22, top: 429, fontSize: 120 }}
+            style={{ left: 22, top: 429, fontSize: 120, opacity: 0 }}
           >
             SKILLS
           </p>

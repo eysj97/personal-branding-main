@@ -202,12 +202,14 @@ export function createCardDrum(canvas, cards, options = {}) {
   const {
     segments = 64,
     radiusRatio = 1.365,
-    // How far past the card's right edge the tab reaches, as a fraction of the
-    // card's width. It rides the same arc, so it stays welded to that edge as
-    // the edge curves away.
-    tabWidth = 0.11,
-    tabTop = 0.035,
-    tabHeight = 0.24,
+    // The card's own aspect in the design. The exports are wider than this —
+    // they carry the tab hanging off the card's right edge — and the difference
+    // is how far past the card the artwork reaches. See artSpan in draw.
+    //
+    // There were three tab options here (tabWidth / tabTop / tabHeight) that
+    // placed a flat-coloured tab of the drum's own making. Nothing places a tab
+    // any more: the artwork has one and that is the only one there should be.
+    cardArtAspect = 343 / 522,
     corner = 5,
     edgeFade = 0.3,
   } = options;
@@ -277,6 +279,9 @@ export function createCardDrum(canvas, cards, options = {}) {
     return entry;
   });
 
+  // Only the back face is painted from this now — nothing here draws a tab any
+  // more — but it is still the folder's own colour, which is what `tabColor`
+  // names on the card.
   const tabColors = cards.map((c) => hexToRgb(c.tabColor));
   // The folder's back is the same material as its tab, not catching any light.
   // Darkened here from the hex rather than being handed in ready-made: a CSS
@@ -364,44 +369,58 @@ export function createCardDrum(canvas, cards, options = {}) {
       gl.uniform1f(U.u_lean, lean);
       gl.uniform3fv(U.u_backColor, backColors[i]);
 
-      // --- the card ---
+      // --- the folder ---
+      //
+      // One surface for the whole export, tab and all. The artwork *is* the
+      // folder — the tab hanging off its right edge is drawn into the file
+      // beside the card — so it is laid on the arc in one piece rather than
+      // being cut apart and reassembled here.
+      //
+      // How far it reaches past the card comes from the file's own aspect. The
+      // design's 383 x 522 over the card's 343 x 522 gives 1.1166, so the card
+      // body lands on exactly cardWidth and the remaining 0.1166 is the tab. A
+      // file that is the bare card gives 1 and reaches no further, which is
+      // what the flat tab below is still there for.
+      const artSpan = Math.max(1, tex.aspect / cardArtAspect);
+
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, tex.texture);
       gl.uniform1f(U.u_useTex, 1);
       gl.uniform1f(U.u_u0, 0);
-      gl.uniform1f(U.u_u1, 1);
+      gl.uniform1f(U.u_u1, artSpan);
       gl.uniform1f(U.u_v0, 0);
       gl.uniform1f(U.u_v1, 1);
-      gl.uniform2f(U.u_size, cardWidth, cardHeight);
+      gl.uniform2f(U.u_size, cardWidth * artSpan, cardHeight);
       gl.uniform4f(U.u_radii, corner, corner, corner, corner);
 
+      // Everything below divides its horizontal scale by artSpan, and it is not
+      // optional. The vertex shader hands the fragment shader the *mapped*
+      // coordinate — `v_uv = vec2(u, v)` where u runs u_u0..u_u1 — so widening
+      // the quad to artSpan widens the texture coordinate with it. Sampling
+      // then runs past 1.0, and the texture is CLAMP_TO_EDGE, so the last
+      // column of pixels repeats outward: the tab's right edge smears across
+      // the extra span and stands there looking like a second tab.
       if (card.cover) {
         // The framing `object-fit: cover` would give: fill the box, crop the
         // overflowing axis, keep the middle.
         const boxAspect = cardWidth / cardHeight;
         const scaleX = tex.aspect > boxAspect ? boxAspect / tex.aspect : 1;
         const scaleY = tex.aspect > boxAspect ? 1 : tex.aspect / boxAspect;
-        gl.uniform2f(U.u_texScale, scaleX, scaleY);
+        gl.uniform2f(U.u_texScale, scaleX / artSpan, scaleY);
         gl.uniform2f(U.u_texOffset, (1 - scaleX) / 2, (1 - scaleY) / 2);
       } else {
-        // The cropped exports carry the tab in the artwork; the card shows the
-        // left part of them and its own tab covers the rest.
-        gl.uniform2f(U.u_texScale, card.texScale ?? 1, 1);
+        // The whole file across the whole quad, uncropped. Its own transparency
+        // is what shapes the folder — the corners it was drawn with, and the
+        // empty space above and below the tab.
+        gl.uniform2f(U.u_texScale, 1 / artSpan, 1);
         gl.uniform2f(U.u_texOffset, 0, 0);
       }
       gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_SHORT, 0);
 
-      // --- the tab, continuing the same arc past the card's right edge ---
-      gl.uniform1f(U.u_useTex, 0);
-      gl.uniform3fv(U.u_flatColor, tabColors[i]);
-      gl.uniform1f(U.u_u0, 1);
-      gl.uniform1f(U.u_u1, 1 + tabWidth);
-      gl.uniform1f(U.u_v0, tabTop);
-      gl.uniform1f(U.u_v1, tabTop + tabHeight);
-      gl.uniform2f(U.u_size, cardWidth * tabWidth, cardHeight * tabHeight);
-      // Right corners only — the left side is where it meets the folder.
-      gl.uniform4f(U.u_radii, 0, corner, corner, 0);
-      gl.drawElements(gl.TRIANGLES, mesh.count, gl.UNSIGNED_SHORT, 0);
+      // One draw, and only one. There used to be a second pass here that built
+      // a tab of its own out of a flat colour, from back when the exports were
+      // bare cards. The exports draw their own tab now, so that pass could only
+      // ever stand a second one beside it — which is exactly what it did.
     }
   }
 
