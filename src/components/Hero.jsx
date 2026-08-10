@@ -1,73 +1,37 @@
 import { useEffect, useRef } from "react";
 import { driveWithScroll } from "../lib/scrollDriver";
-import closedLeft from "../assets/eyes/closed-left.svg";
-import closedRight from "../assets/eyes/closed-right.svg";
-import halfLeft from "../assets/eyes/half-left.svg";
-import halfRight from "../assets/eyes/half-right.svg";
-// The open eyes come in as source rather than as a URL: the iris and its
-// highlight are their own <g> inside the drawing, and inlining the markup is
-// what makes that group reachable so the gaze can move without the eye moving
-// with it.
-import openLeft from "../assets/eyes/open-left.svg?raw";
-import openRight from "../assets/eyes/open-right.svg?raw";
+import glassesArt from "../assets/hero/glasses.svg?raw";
 
-// The open eye is the biggest of the three drawings, so its box is the box:
-// 194.808 x 208, which is also the size the hero frame places them at. The vw
-// terms are those numbers over the design's 1920 canvas; the px floor stops
-// them disappearing on a phone and the ceiling is the design size, so past
-// 1920 they stop growing rather than overrunning the composition.
-const EYE_ART = { width: 194.808, height: 208 };
-const eyeBoxClass =
-  "relative w-[clamp(62px,10.146vw,194.81px)] h-[clamp(66px,10.833vw,208px)]";
-const eyeFrameClass = "absolute w-full h-full object-contain";
-
-// The closed drawing is its own size — narrower and much shorter than the open
-// one, because a shut eye *is* smaller. It is hung from the top of the box and
-// centred across it, so the brow line stays put and only the lid travels.
-const CLOSED_ART = { width: 180.131, height: 142.522 };
-const closedBoxStyle = {
-  width: `${(CLOSED_ART.width / EYE_ART.width) * 100}%`,
-  height: `${(CLOSED_ART.height / EYE_ART.height) * 100}%`,
-  left: `${((EYE_ART.width - CLOSED_ART.width) / 2 / EYE_ART.width) * 100}%`,
-  top: 0,
-};
-
-/** One eye: the three drawings stacked, crossfaded by the scroll.
- *
- *  The design draws each state once and mirrors one side of it, and which side
- *  gets mirrored is not the same for every state — the shut eye is mirrored on
- *  the right, the other two on the left. `mirrored` is that side's flip for the
- *  open pair, and the shut drawing takes the opposite. */
-function Eye({ closed, half, open, mirrored = false }) {
-  const flip = mirrored ? "-scale-x-100" : "";
-  const closedFlip = mirrored ? "" : "-scale-x-100";
-  return (
-    <div className={eyeBoxClass}>
-      <img
-        className={`absolute object-contain ${closedFlip}`}
-        style={closedBoxStyle}
-        data-state="closed"
-        src={closed}
-        alt=""
-      />
-      <img
-        className={`${eyeFrameClass} inset-0 ${flip}`}
-        data-state="half"
-        src={half}
-        alt=""
-      />
-      {/* Inlined, not an <img>: see the note on the import. `[&>svg]` sizes
-          the drawing to the box, since the file carries its own width/height. */}
-      <span
-        className={`absolute inset-0 block ${flip} [&>svg]:h-full [&>svg]:w-full`}
-        data-state="open"
-        data-mirrored={mirrored ? "" : undefined}
-        aria-hidden="true"
-        dangerouslySetInnerHTML={{ __html: open }}
-      />
-    </div>
-  );
-}
+// The hero's eyes are a pair of glasses, and the eyes are what is behind the
+// lenses. The drawing comes in as source rather than as a URL for the same
+// reason the old eyes did: the parts that move — each lens's lid, each pupil —
+// have to be reachable, and an <img> is a closed box.
+//
+// It is one drawing holding both eyes, where the old artwork was two files
+// mirrored. So there is no `mirrored` prop and no pairing to keep in step; the
+// frame is drawn once and the two eyes sit inside it where the artwork puts
+// them.
+//
+// The artwork's own box. Everything below is stated against it so the glasses
+// can be sized by width alone and the height follows.
+const GLASSES_ART = { width: 768, height: 251 };
+// Sized to land on roughly the footprint the old pair had — two eyes of
+// 194.81 with a 76 gap came to 465.6 at the 1920 design width, which is
+// 24.25vw. The px floor stops it disappearing on a phone and the ceiling is the
+// design size, so past 1920 it stops growing rather than overrunning the
+// composition.
+// `[&>svg]:w-full` is load-bearing. The file carries its own width and height —
+// a design tool will not open an SVG without them — and inline that would pin
+// the drawing at 768px whatever this box says. The box decides the size here;
+// the attributes are there for Figma.
+const glassesBoxClass =
+  "relative w-[clamp(150px,24.25vw,465.6px)] [&>svg]:h-full [&>svg]:w-full";
+// How much of its height a lid keeps when the eye is shut. Not zero: a scale of
+// zero collapses the group and takes its antialiasing with it, and the white
+// vanishes rather than closing. A sliver leaves it showing as the line a shut
+// eye actually is — about 6 of the lens's 198 units, which is a hair over 3px
+// on screen at the design size.
+const LID_SHUT = 0.03;
 
 // The bottom-left copy — see the note on the grid that stacks the two
 // languages. Everything except the size is shared; Hangul fills more of its em
@@ -123,62 +87,37 @@ export default function Hero() {
   useEffect(() => {
     const section = sectionRef.current;
     const overlay = overlayRef.current;
-    const closedFrames = stageRef.current.querySelectorAll(
-      '[data-state="closed"]',
-    );
-    const halfFrames = stageRef.current.querySelectorAll('[data-state="half"]');
-    const openFrames = stageRef.current.querySelectorAll('[data-state="open"]');
-    // The iris and its highlight — the only parts of an open eye allowed to
-    // move. Picked by id rather than by position: one of the two drawings
-    // groups them and the other does not, so anything structural misses an eye.
-    // The highlight already carries a transform in one of them, so each one's
-    // own is kept and the travel is prepended to it. The mirrored eye needs the
-    // sign flipped, or the two look in opposite directions.
+    // The two parts of the drawing that move. Everything else — the frame, the
+    // bridge, the arms — is fixed.
     //
-    // Grouped by eye rather than flattened into one list of parts: each eye now
-    // aims at the pointer from where it actually sits on screen, so it needs its
-    // own box and its own eased gaze, and the two of them look slightly
+    // A lid is the group holding one lens's white and the pupil inside it, and
+    // scaling that group vertically about its own middle *is* the eye opening.
+    // Each one is clipped to its lens outline, so neither the white nor a pupil
+    // that has travelled to the rim can spill past the frame.
+    const lids = [...stageRef.current.querySelectorAll("[data-lid]")];
+    // Each pupil, and where it is currently looking.
+    //
+    // Grouped by eye rather than flattened into one list of parts: each eye
+    // aims at the pointer from where it actually sits on screen, so it needs
+    // its own box and its own eased gaze, and the two of them look slightly
     // different directions at anything nearer than the far side of the room —
     // which is the whole reason this reads as a pair of eyes.
-    // The artwork draws the iris up and to the left of the eye's own middle —
-    // the character looking slightly off — and taking that as "straight ahead"
-    // is what left almost no room to look left or up. Measured against the
-    // white, the drawn position is already halfway to the rim on the up-left
-    // diagonal, so the travel had to stay tiny to keep the iris inside.
     //
-    // Neutral is the eye's actual centre instead, read off the white rather
-    // than written down, and the drawn position simply becomes one of the
-    // places the gaze passes through. That leaves the same room in every
-    // direction — which is what lets the travel below be as large as it is.
-    function neutralFor(frame) {
-      const white = frame.querySelector('[id="Ellipse 1"]');
-      const iris = frame.querySelector('[id="Ellipse 2"]');
-      if (!white || !iris) return { x: 0, y: 0 };
-      const box = white.getBBox();
-      return {
-        x: box.x + box.width / 2 - iris.cx.baseVal.value,
-        y: box.y + box.height / 2 - iris.cy.baseVal.value,
-      };
-    }
-
-    const eyes = [...openFrames].map((frame) => ({
-      frame,
-      sign: frame.hasAttribute("data-mirrored") ? -1 : 1,
-      // Not flipped for the mirrored eye: the middle of a drawing is its middle
-      // whichever way round it is shown. Only the travel takes the sign.
-      neutral: neutralFor(frame),
-      parts: [
-        ...frame.querySelectorAll('[id="Ellipse 2"], [id="Ellipse 3"]'),
-      ].map((el) => ({
-        el,
-        glint: el.getAttribute("id") === "Ellipse 3",
-        base: el.getAttribute("transform") ?? "",
-      })),
-      // Where this eye is currently looking, -1..1 on each axis. Chased toward
-      // the target rather than set from it, so the gaze carries a little weight.
-      x: 0,
-      y: 0,
-    }));
+    // The pupils are drawn on their lens centres rather than where the trace
+    // had them. The artwork has the eyes converging, and a pupil that starts
+    // off-centre has no room to look that way; from the middle it has the same
+    // room in every direction, which is what lets the travel below be as large
+    // as it is. The drawn position simply becomes one of the places the gaze
+    // passes through.
+    const eyes = [...stageRef.current.querySelectorAll("[data-pupil]")].map(
+      (group) => ({
+        group,
+        // -1..1 on each axis. Chased toward the target rather than set from it,
+        // so the gaze carries a little weight.
+        x: 0,
+        y: 0,
+      }),
+    );
 
     // The timeline below is read straight off the scroll position: the eyes
     // open exactly as far as you have scrolled, and stop where you stop. It
@@ -192,26 +131,20 @@ export default function Hero() {
       const eyeProgress = clamp01(progress / 0.6);
       overlay.style.opacity = Math.pow(1 - eyeProgress, 1.5);
 
-      // Shut, half, open — handed over one pair at a time rather than all three
-      // dissolving across the whole scroll. Each drawing holds, then gives way
-      // over a short band: a lid travels, it does not fade, and a long
-      // crossfade between two drawings of an eye just reads as a ghost. The
-      // bands are eased, so the lid accelerates off its hold and settles into
-      // the next one instead of sliding at a constant rate.
-      const toHalf = smoothstep(0.3, 0.52, eyeProgress);
-      const toOpen = smoothstep(0.76, 1, eyeProgress);
-      const openOp = toOpen;
-      const halfOp = toHalf * (1 - toOpen);
-      const closedOp = 1 - toHalf;
-      closedFrames.forEach((el) => {
-        el.style.opacity = closedOp;
-      });
-      halfFrames.forEach((el) => {
-        el.style.opacity = halfOp;
-      });
-      openFrames.forEach((el) => {
-        el.style.opacity = openOp;
-      });
+      // One lid, opened continuously, rather than three drawings handed over in
+      // turn. The old artwork had a shut eye, a half one and an open one, so
+      // everything between two of them was a crossfade between two pictures —
+      // which reads as a ghost, and is why those handovers had to be kept
+      // short. A lens is a shape, and a shape can simply be opened; there is no
+      // in-between state to be missing.
+      //
+      // Eased, so it comes off its shut hold and settles into open rather than
+      // sliding at a flat rate the whole way.
+      const lidOpen = smoothstep(0.12, 0.92, eyeProgress);
+      const lidScale = LID_SHUT + (1 - LID_SHUT) * lidOpen;
+      for (const lid of lids) {
+        lid.style.transform = `scaleY(${lidScale.toFixed(4)})`;
+      }
 
       // Nav + copy fade in right after the eyes finish opening, then the copy
       // hands over from English to Korean for the rest of the scroll.
@@ -231,7 +164,7 @@ export default function Hero() {
       // over the eyes for the first half of the scroll.
       navRef.current.style.pointerEvents = revealT > 0.5 ? "auto" : "none";
       // The gaze only happens on an open eye, and fades in with it.
-      openAmount = openOp;
+      openAmount = lidOpen;
       textEnRef.current.style.opacity = revealT * (1 - langOut);
       textKoRef.current.style.opacity = revealT * langIn;
     }
@@ -240,18 +173,18 @@ export default function Hero() {
     // drawing's own units — which is why all of this is set as an attribute and
     // not as a CSS transform, since that would be in screen px.
     //
-    // The eye white is 175 x 203 and the iris is a 107 x 109 disc, so centred
-    // it has 34 units of room across and 47 up and down before it touches the
-    // rim. These are about 64% of each — the same fraction on both axes, which
-    // matters: the gaze is clamped to a circle and then scaled by this pair, so
-    // an equal fraction means the iris sits the same distance from the rim
-    // whichever way it looks, instead of grazing it on the diagonals.
+    // How far a pupil may travel from its lens's middle, in the drawing's own
+    // units — which is why this is written into an SVG transform and not a CSS
+    // one, since that would be in screen px.
     //
-    // Ratios rather than the flat 13 x 10 they replace. Equal numbers on a
-    // taller-than-wide eye are not equal movement, which is why the vertical
-    // read as barely moving at all.
-    const GAZE_TRAVEL_X = 22;
-    const GAZE_TRAVEL_Y = 30;
+    // A lens is 218 x 198 and a pupil is a 66 disc, so from the centre it has
+    // 76 units of room across and 65 up and down before it touches the rim.
+    // These are about 60% of each — the same fraction on both axes, which
+    // matters: the gaze is clamped to a circle and then scaled by this pair, so
+    // an equal fraction leaves the pupil the same distance off the rim
+    // whichever way it looks, instead of grazing it on the diagonals.
+    const GAZE_TRAVEL_X = 45;
+    const GAZE_TRAVEL_Y = 39;
     // How far the pointer has to be from an eye before it is looking as far
     // that way as it can. Off the viewport rather than a fixed number of px, so
     // crossing the screen sweeps the whole range on any display. Nearer than
@@ -266,13 +199,11 @@ export default function Hero() {
     // visibly: eyes that track a cursor exactly read as a readout of the mouse
     // position rather than as something looking at you.
     const GAZE_CHASE = 0.12;
-    // How far off the iris's middle the catchlight sits, measured off the
-    // drawing: its ellipse is 18 units to one side of the iris's. That drawn
-    // position is the eye looking all the way *left*, so the highlight has to
-    // cross the iris — from -18 to +18 — as the gaze goes left to right. Moving
-    // it with the iris instead would leave it stuck on the same side forever,
-    // which is what a sticker does rather than a reflection.
-    const GLINT_SWING = 18;
+    // The catchlight sits inside the pupil group and travels with it. On the
+    // old eyes it was swung across the iris instead, so it read as a fixed
+    // reflection the eye moved under; behind a lens there is a second surface
+    // in the way and the highlight belongs to that, so carrying it along is
+    // both simpler and nearer to what the drawing shows.
 
     // The wander the eyes used to do on their own, kept as the fallback: it is
     // what they do until a mouse has actually moved. A touch device never sends
@@ -315,7 +246,7 @@ export default function Hero() {
       // Every box is measured before anything is written, so the frame costs one
       // layout rather than one per eye: setting an SVG transform below dirties
       // layout, and a getBoundingClientRect after that forces it to be redone.
-      const boxes = eyes.map((eye) => eye.frame.getBoundingClientRect());
+      const boxes = eyes.map((eye) => eye.group.getBoundingClientRect());
       const reach =
         Math.min(window.innerWidth, window.innerHeight) * GAZE_REACH;
 
@@ -344,24 +275,14 @@ export default function Hero() {
         eye.x += (targetX - eye.x) * GAZE_CHASE;
         eye.y += (targetY - eye.y) * GAZE_CHASE;
 
-        const irisX = eye.x * GAZE_TRAVEL_X * openAmount;
-        const irisY = eye.y * GAZE_TRAVEL_Y * openAmount;
-        // `eye.x + 1` rather than `eye.x`: at hard left this is zero, which
-        // leaves the highlight exactly where the artwork draws it, and it works
-        // its way across from there.
-        const glintX = irisX + GLINT_SWING * (eye.x + 1) * openAmount;
-        for (const { el, glint, base } of eye.parts) {
-          // Only the horizontal is flipped for the mirrored eye. The drawing is
-          // mirrored across its vertical axis, so up is still up in it — giving
-          // the vertical the same sign would have one eye look down while the
-          // other looked up.
-          const tx = eye.neutral.x + (glint ? glintX : irisX) * eye.sign;
-          const ty = eye.neutral.y + irisY;
-          el.setAttribute(
-            "transform",
-            `translate(${tx.toFixed(2)}, ${ty.toFixed(2)}) ${base}`,
-          );
-        }
+        // Scaled by how far the eye is open, so a shut one does not slide its
+        // pupil about behind the lid.
+        const px = eye.x * GAZE_TRAVEL_X * openAmount;
+        const py = eye.y * GAZE_TRAVEL_Y * openAmount;
+        eye.group.setAttribute(
+          "transform",
+          `translate(${px.toFixed(2)}, ${py.toFixed(2)})`,
+        );
       });
       gazeId = requestAnimationFrame(gaze);
     }
@@ -447,8 +368,16 @@ export default function Hero() {
             well below centre. Both offsets are in vw so they travel with the
             rest of the composition. */}
         <div className="absolute inset-0 flex items-center justify-center gap-[clamp(14px,3.958vw,76px)] translate-x-[1.604vw] translate-y-[5.469vw] pointer-events-none">
-          <Eye closed={closedLeft} half={halfLeft} open={openLeft} mirrored />
-          <Eye closed={closedRight} half={halfRight} open={openRight} />
+          {/* One drawing, both eyes. The lids and pupils inside it are reached
+              by data attribute from the effect above — see `lids` and `eyes`
+              there — which is the whole reason the file is inlined rather than
+              pointed at with an <img>. */}
+          <div
+            className={glassesBoxClass}
+            style={{ aspectRatio: `${GLASSES_ART.width} / ${GLASSES_ART.height}` }}
+            aria-hidden="true"
+            dangerouslySetInnerHTML={{ __html: glassesArt }}
+          />
         </div>
 
         {/* The two languages are stacked in one grid cell and crossfaded, so

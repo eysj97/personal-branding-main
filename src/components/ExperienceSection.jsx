@@ -1442,7 +1442,7 @@ function SnapkeepPanel({ onOpen }) {
                 Rises a little as it arrives rather than simply appearing, so it
                 reads as a thing being offered rather than as a flash. The lime
                 and the black on it are the chips this section already uses. */}
-            <span className="translate-y-[10px] rounded-full bg-[#c9e529] px-[40px] py-[16px] font-['Plus_Jakarta_Sans'] text-[22px] font-bold leading-none tracking-[0.06em] text-black opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
+            <span className="translate-y-[10px] rounded-full bg-[#c9e529] px-[20px] py-[16px] font-['Plus_Jakarta_Sans'] text-[22px] font-bold leading-none tracking-[0.06em] text-black opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
               CLICK
             </span>
           </span>
