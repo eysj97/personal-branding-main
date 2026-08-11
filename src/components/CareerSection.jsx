@@ -100,8 +100,8 @@ const GROWN_SIZE = 620;
 // the other three, which shows plainly on a shape as regular as a circle.
 //
 // So a slot is stated as an angle instead, and its position is computed from
-// the ring: every one sits SLOT_GAP clear of the line, and moving between two
-// of them means interpolating the *angle* (see slotFor), so a circle keeps that
+// the ring: every one sits a SPOKE clear of the line, and moving between two of
+// them means interpolating the *angle* (see slotFor), so a circle keeps that
 // clearance the whole way round rather than cutting the chord across the ring.
 //
 // The ring is nearly twice what it was (651 -> 1293) and hangs that much lower.
@@ -113,21 +113,26 @@ const RING_CENTER = {
   x: RING.x + RING.size / 2,
   y: RING.y + RING.size / 2,
 };
-// One radius for every circle on the wheel, whatever size it is.
+const RING_RADIUS = RING.size / 2;
+// Every circle hangs off the track on a stem of its own: a 40px line running
+// straight out from the ring to the circle's edge (nodes 355:258..262). So what
+// is held constant across the five is the *clearance* — the length of that
+// stem — and not the radius their centres sit on.
 //
-// It used to be a fixed *clearance* instead — each circle sat the same distance
-// off the line, so the 80 was centred further out than the 40s. That is what
-// the design's own coordinates do, and on a curve it does not read as a wheel:
-// the circles are strung along an arc, and putting them on two different arcs
-// makes the gap between the big one and its neighbours visibly wider than the
-// gap between two small ones, even though every one of them is the same number
-// of degrees apart. Spacing on a circle is arc length, and arc length is the
-// angle times *this* — so it is only equal if this is.
-//
-// The value is the design's own for the four outline circles (703.5 out from
-// the ring's centre), so they land exactly where they are drawn; the focused
-// one comes down to join them.
-const SLOT_RADIUS = 703.5;
+// It was one shared radius before, on the reasoning that spacing along a curve
+// is arc length, so two different radii would make the big circle's gap to its
+// neighbours read wider than the small ones' gap to each other. That was the
+// right answer to the design as it then stood: with nothing drawn between the
+// ring and a circle, a circle's centre is the only thing saying where it
+// belongs, and five centres that disagree about their arc do not read as one
+// wheel. The stem says where a circle belongs instead, and says it better —
+// each one is plainly the same 40 clear of the track, and the big one reaches
+// further out because it is bigger, which is a thing the stem shows you rather
+// than an inconsistency it hides.
+const SPOKE = 40;
+/** How far out the centre of a circle of `size` parks: the far end of its stem,
+ *  plus its own radius. */
+const slotRadius = (size) => RING_RADIUS + SPOKE + size / 2;
 // One step, and everything on the ring is a multiple of it.
 //
 // The design lays these out as two horizontal rows rather than by angle, so
@@ -163,8 +168,9 @@ const SLOT_ANGLES = [
 //
 // They sit *on* the line — measured at 643..653 from the ring's centre against
 // a radius of 646.5, so the design draws them centred on it — while the slots
-// sit clear of it (SLOT_GAP). That difference is the whole reading: the dots are
-// part of the track, the slots are what travels along it.
+// stand a SPOKE clear of it. That difference is the whole reading: the beads are
+// part of the track, the circles are what travels along it, and the stem is what
+// says which of the two a given mark is.
 //
 // Every position on the wheel that a slot does not take — all the way round,
 // not only across the visible arc.
@@ -182,7 +188,7 @@ const DOT_ANGLES = Array.from(
   { length: 360 / SLOT_STEP_DEG },
   (_, n) => n * SLOT_STEP_DEG,
 ).filter((deg) => deg % SLOT_NEAR_DEG !== 0);
-const DOT_RADIUS = RING.size / 2;
+const DOT_RADIUS = RING_RADIUS;
 
 /** Top-left corner of a DOT_SIZE bead sitting `deg` around the ring. */
 function dotAt(deg) {
@@ -193,21 +199,38 @@ function dotAt(deg) {
   };
 }
 
+/** Where the stem for the slot at `deg` meets the track. */
+function spokeFoot(deg) {
+  const rad = (deg * Math.PI) / 180;
+  return {
+    x: RING_CENTER.x + RING_RADIUS * Math.sin(rad),
+    y: RING_CENTER.y - RING_RADIUS * Math.cos(rad),
+  };
+}
+
 /** Centre of a circle of `size` sitting `deg` around the ring.
  *
  *  Centres, not corners. With two circle sizes a corner says nothing on its own
  *  — the same corner puts a 40 and an 80 in different places — and every caller
  *  wants the middle anyway: the slot is a point on the wheel, and the circle is
- *  whatever is currently parked on it. */
-function slotAt(deg) {
+ *  whatever is currently parked on it.
+ *
+ *  `deg` comes back out again because the stem has to be drawn along the same
+ *  line the circle was placed on, and reaching that angle by working backwards
+ *  from x/y is both slower and a chance for the two to disagree. */
+function slotAt(deg, size) {
   const rad = (deg * Math.PI) / 180;
+  const radius = slotRadius(size);
   return {
-    x: RING_CENTER.x + SLOT_RADIUS * Math.sin(rad),
-    y: RING_CENTER.y - SLOT_RADIUS * Math.cos(rad),
+    deg,
+    x: RING_CENTER.x + radius * Math.sin(rad),
+    y: RING_CENTER.y - radius * Math.cos(rad),
   };
 }
-// Where the focused circle sits, and so where the convergence gathers.
-const CENTER_POS = slotAt(0);
+// Where the focused circle sits, and so where the convergence gathers. The
+// focused one is always the large one, so this is its radius the circle is
+// asked for at.
+const CENTER_POS = slotAt(0, CIRCLE_SIZE);
 
 // Only the circle sitting at CENTER is filled; the other four are white
 // outlines. This is how wide the crossfade between those two states is, in
@@ -302,7 +325,7 @@ const ROTATE_SPIN = -360;
 // It opens rather than downloads, so nothing lands in a stranger's downloads
 // folder uninvited — see the link itself for the rest of that.
 const RESUME_HREF =
-  "https://docs.google.com/document/d/1J4Lugqig3H9UnldSMYS8E8U1CPbKyR3s/edit?usp=sharing&ouid=106727088774758261640&rtpof=true&sd=true";
+  "https://docs.google.com/document/d/1BD-tuQ1CIKCkFO7WHgnvyTyeyUlkUPOZ/edit?usp=sharing&ouid=106727088774758261640&rtpof=true&sd=true";
 
 const CHAPTER_TITLE_POS = { x: 118, y: 118 };
 const WORD_RIGHT = 1249;
@@ -647,9 +670,35 @@ const HIDDEN_FADE = 0.35;
 // role 3). Matches the Figma keyframes exactly at integer centerValues —
 // every leg lands on its slot fully visible, so no circle is ever hidden
 // at rest, only mid-turn.
+/**
+ * How far the wheel has turned, in slots, at `centerValue`.
+ *
+ * The whole point of this existing separately is that everything standing on
+ * the wheel is placed from it — the beads on the track, the stems, and the
+ * circles — so no two of them can travel at different rates.
+ *
+ * They did. The beads turned on `centerValue` raw while the circles eased
+ * across each leg on `smoothstep`, which agree at rest and nowhere else: stop
+ * the scroll mid-step and a circle sat visibly off the gap in the beads it is
+ * supposed to be standing in, and through the middle of a step the circles
+ * ran ahead of the track and then waited for it. Five things sliding against
+ * each other is not a wheel turning, it is five things moving at once, and it
+ * is the reason the wheel read as lights coming on in a fixed row.
+ *
+ * Note that the eased fraction is shared by all five circles for free: the leg
+ * a circle is on differs per role, but how far along it is does not, because
+ * role numbers are whole and `centerValue - r` therefore has the same
+ * fractional part for every one of them.
+ */
+function wheelTurn(centerValue) {
+  const whole = Math.floor(centerValue);
+  return whole + smoothstep(centerValue - whole);
+}
+
 function slotFor(r, centerValue) {
   const e = (((centerValue - r) % 5) + 5) % 5;
   const i = Math.floor(e);
+  // The same easing wheelTurn applies to the track — see there.
   const frac = smoothstep(e - i);
   const from = SLOT_ANGLES[i];
   const to = SLOT_ANGLES[(i + 1) % 5];
@@ -666,14 +715,14 @@ function slotFor(r, centerValue) {
     // The angle is what travels, not the x/y. Interpolating the positions drew
     // a straight line between two points on a circle, which dips inside it —
     // the circle visibly closed on the ring mid-leg and pulled away again.
-    return { ...slotAt(lerp(from, to, frac)), visible: 1, focus, size };
+    return { ...slotAt(lerp(from, to, frac), size), visible: 1, focus, size };
   }
   // The jump from one end to the other happens at the halfway point,
   // where both fades have already bottomed out at zero — so the circle
   // is never once drawn anywhere between C and D.
   const landed = frac >= 0.5;
   return {
-    ...slotAt(landed ? to : from),
+    ...slotAt(landed ? to : from, size),
     visible: landed
       ? smoothstep(clamp01((frac - (1 - HIDDEN_FADE)) / HIDDEN_FADE))
       : 1 - smoothstep(clamp01(frac / HIDDEN_FADE)),
@@ -694,6 +743,9 @@ export default function CareerSection() {
   // per frame without touching the copy that sits under it.
   const rolePhotoRefs = useRef([]);
   const circleRefs = useRef([]);
+  // The stem each circle hangs off the track on — one per circle, travelling
+  // with it.
+  const spokeRefs = useRef([]);
   // [outline, lime, blue] per circle — see the crossfade in applyRaw.
   const coatRefs = useRef([]);
   const ringRef = useRef(null);
@@ -1084,6 +1136,28 @@ export default function CareerSection() {
         // Only the survivor takes the blue. The other four are still white
         // outlines when they go, so nothing stacks up under the blob.
         if (blueEl) blueEl.style.opacity = String(isSurvivor ? growT : 0);
+
+        // The stem, laid along the very angle the circle was placed on: from
+        // the track outwards, ending where the circle's edge begins.
+        //
+        // It belongs to the track rather than to the circle once they part
+        // company, so it fades on the ring's own `convergeT` and does not
+        // travel to the meeting point — five stems following their circles
+        // into the middle would draw a star in the centre of the canvas.
+        const spoke = spokeRefs.current[r - 1];
+        if (spoke) {
+          const foot = spokeFoot(base.deg);
+          spoke.style.left = `${canvasOffsetX + foot.x * s}px`;
+          // The bar is 2 screen px tall and turns about its left edge, so it
+          // has to be lifted its own half-height to put its *middle* on the
+          // track rather than its top.
+          spoke.style.top = `${canvasOffsetY + foot.y * s - 1}px`;
+          spoke.style.width = `${SPOKE * s}px`;
+          // A bar with no rotation points along +x; `deg` is measured from
+          // straight up, so pointing it outwards is a quarter turn back.
+          spoke.style.transform = `rotate(${base.deg - 90}deg)`;
+          spoke.style.opacity = String(base.visible * (1 - convergeT));
+        }
       }
 
       // Circles paint above the role photos during the wheel — so the one
@@ -1270,7 +1344,13 @@ export default function CareerSection() {
       // `centerValue` is continuous, so this is scrubbed by the scroll like
       // everything else here: stop halfway between two roles and the ring is
       // halfway through its turn.
-      dotsRef.current.style.transform = `rotate(${-centerValue * SLOT_NEAR_DEG}deg)`;
+      //
+      // Through wheelTurn rather than off `centerValue` raw, so the track eases
+      // exactly as the circles standing on it do — see wheelTurn. Four of the
+      // five legs are a 24deg step in the same direction this turns, so with
+      // the easing shared a circle holds its place in the gap between two beads
+      // for the whole leg, and the wheel moves as one piece.
+      dotsRef.current.style.transform = `rotate(${-wheelTurn(centerValue) * SLOT_NEAR_DEG}deg)`;
 
       const titleDist = Math.abs(stepPos - TITLE_STEP);
       chapterTitleRef.current.style.opacity = String(
@@ -1464,6 +1544,32 @@ export default function CareerSection() {
           ref={circlesLayerRef}
           className="absolute inset-0 pointer-events-none"
         >
+          {/* The stems, before the circles so they paint underneath — a stem
+              runs to the circle's edge, and a pixel of it crossing the edge on
+              a rounded corner is the kind of thing you only see once you have
+              seen it.
+
+              One per circle rather than one per slot, and they move with the
+              circle rather than sitting on the track. That is the difference
+              between a wheel and a row of sockets: five fixed stems with
+              circles hopping between them says the mounts stay and the circles
+              move, which is exactly the reading the beads exist to prevent.
+
+              Sized in screen px per frame like everything else in this layer,
+              which is also why the 2px is not scaled here — the track's own
+              stroke is set in screen px too, and a stem thinner than the line
+              it joins reads as a hair rather than a bar. */}
+          {[1, 2, 3, 4, 5].map((r) => (
+            <div
+              key={r}
+              ref={(el) => {
+                spokeRefs.current[r - 1] = el;
+              }}
+              className="absolute bg-white"
+              style={{ left: 0, top: 0, height: 2, transformOrigin: "0 50%" }}
+            />
+          ))}
+
           <div
             ref={startCircleRef}
             className="absolute bg-[#c9e529] rounded-full flex items-center justify-center"

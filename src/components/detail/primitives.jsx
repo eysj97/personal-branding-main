@@ -16,13 +16,26 @@ export function SpreadPalette({ panel, ink, children }) {
   return <Palette.Provider value={{ panel, ink }}>{children}</Palette.Provider>;
 }
 
-/** A content block: panel, image well on top, then heading and body. */
-export function Block({ gap = 12, children }) {
+/**
+ * A content block: panel, image well on top, then heading and body.
+ *
+ * `minHeight` is for the handful of blocks the design draws taller than their
+ * own content (Figma gives them a fixed height and centres what is inside).
+ * It is a *minimum* rather than the design's literal height because the browser
+ * wraps Korean text at slightly different points than Figma does — a hard
+ * height would clip the block the first time a line ran long.
+ */
+export function Block({ gap = 12, minHeight, children }) {
   const { panel } = useContext(Palette);
   return (
     <div
       className="flex flex-col rounded-[8px] p-[16px]"
-      style={{ gap, backgroundColor: panel }}
+      style={{
+        gap,
+        backgroundColor: panel,
+        minHeight,
+        justifyContent: minHeight ? "center" : undefined,
+      }}
     >
       {children}
     </div>
@@ -115,6 +128,46 @@ export function VisitLink({ href, label = "직접 살펴보기" }) {
       {label}
       <span aria-hidden="true">→</span>
     </a>
+  );
+}
+
+/**
+ * The first column — the one that carries the project header above its blocks.
+ *
+ * In all three designs the header is not part of that column's flow: it is
+ * pinned over the row at its own coordinates (154:4077, 204:2185, 205:2624)
+ * while the blocks underneath hang off the row's shared bottom edge exactly
+ * like the other two columns do. Pinning it is what keeps the header level with
+ * the top of the middle column no matter how tall this column's own blocks come
+ * out — the previous arrangement grew this column from the top instead, so any
+ * difference in how the browser wrapped the copy moved the header with it.
+ *
+ * `at` is the header's position in the row's own pixels: `{left, top}`, plus
+ * `width` where the design gives the header one (Layer's is hug-width).
+ *
+ * Stacked, none of it applies — the header is simply the first thing in the
+ * single column, which is what the phone design does.
+ */
+export function HeaderColumn({ at, gap, header, stacked, children }) {
+  if (stacked) {
+    return (
+      <div className={`${COLUMN} w-[475px]`}>
+        {header}
+        {children}
+      </div>
+    );
+  }
+  return (
+    <div className="relative w-[475px] shrink-0 self-stretch">
+      <div className="absolute" style={{ left: at.left, top: at.top, width: at.width }}>
+        {header}
+      </div>
+      {/* h-full against the stretched wrapper, so `justify-end` bottom-aligns
+          these with the row the way `items-end` does for the other columns. */}
+      <div className="flex h-full flex-col justify-end" style={{ gap }}>
+        {children}
+      </div>
+    </div>
   );
 }
 
