@@ -88,8 +88,15 @@ const CARD_LEAN = 8;
 
 // How far each card sits from the drum's axis, as a multiple of the card's own
 // width — the two must agree, since the bend below is computed from the ratio
-// rather than measured in px. The cube's width clamp is 120/12vw/229, so this
-// is that times RADIUS_RATIO. (It has to be written out as a literal: Tailwind
+// rather than measured in px. The cube's width clamp is 92.16/12vw/229, so this
+// is that times RADIUS_RATIO.
+//
+// The floors are 12vw and 18vw evaluated at 768px, which is not a taste choice:
+// 768 is where the mobile layout takes over (see lib/viewport), so the desktop
+// composition only ever has to reach that far. They used to be the values at
+// 1000px, which meant the drum stopped shrinking a third of the way down the
+// range and sat marooned in the middle of a window that kept getting narrower.
+// (It has to be written out as a literal: Tailwind
 // reads class names out of the source text, so a built string would generate no
 // CSS. This one is only used in inline styles, but keeping the pair adjacent is
 // what stops them drifting apart.)
@@ -102,7 +109,7 @@ const CARD_LEAN = 8;
 // radius to 2.3 leaves 35.6deg — 1.43 card widths, six times the gap, not twice.
 // 1.365 is the ratio that lands the leftover on 0.45 card widths instead.
 const RADIUS_RATIO = 1.365;
-const CARD_RADIUS = "clamp(163.8px,16.38vw,312.6px)";
+const CARD_RADIUS = "clamp(125.8px,16.38vw,312.6px)";
 // How far in front of the screen the eye sits. A near camera on purpose: the
 // front folder projecting much larger than the ones behind it *is* the effect —
 // it is what makes the ring read as coming towards you and turning away rather
@@ -204,6 +211,7 @@ const CARDS = [
     angle: 60,
     image: faceAquaWeb,
     tabColor: "#2686e7",
+    pageColor: "#018cfc",
     detail: AquaplanetSpread,
     hover: {
       origin: "50% 50%",
@@ -223,9 +231,8 @@ const CARDS = [
     angle: 120,
     image: faceLayerDark,
     tabColor: "#ff4800",
+    pageColor: "#f26a30",
     detail: LayerSpread,
-    // Layer's opened pages carry a 20% black wash over the tab colour.
-    pageColor: "#cc3a00",
     hover: {
       origin: "50% 50%",
       assets: [
@@ -248,6 +255,7 @@ const CARDS = [
     angle: 0,
     image: faceReviuApp,
     tabColor: "#78db44",
+    pageColor: "#c9e529",
     detail: ReviuSpread,
     hover: {
       origin: "50% 50%",
@@ -275,6 +283,7 @@ const CARDS = [
     angle: 240,
     image: faceAquaApp,
     tabColor: "#2686e7",
+    pageColor: "#018cfc",
     detail: AquaplanetSpread,
     hover: {
       origin: "50% 50%",
@@ -302,8 +311,8 @@ const CARDS = [
     angle: 300,
     image: faceLayerLight,
     tabColor: "#ff4800",
+    pageColor: "#f26a30",
     detail: LayerSpread,
-    pageColor: "#cc3a00",
     hover: {
       origin: "50% 50%",
       assets: [
@@ -326,6 +335,7 @@ const CARDS = [
     angle: 180,
     image: faceReviuSurvey,
     tabColor: "#78db44",
+    pageColor: "#c9e529",
     detail: ReviuSpread,
     hover: {
       origin: "50% 50%",
@@ -735,7 +745,7 @@ export default function ProjectSection() {
               // radius below has to come down with it or the cards fly apart:
               // it is stated as a multiple of the width for exactly that
               // reason, and the bend is derived from the same ratio.
-              className="relative w-[clamp(120px,12vw,229px)] h-[clamp(173px,18vw,348px)] [transform-style:preserve-3d] will-change-transform"
+              className="relative w-[clamp(92.16px,12vw,229px)] h-[clamp(138.24px,18vw,348px)] [transform-style:preserve-3d] will-change-transform"
             >
               {CARDS.map((card, i) => {
                 const { angle, hover, mockup } = card;

@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import SnapkeepSpread from "./detail/SnapkeepSpread";
 import ProjectAppWindow from "./ProjectAppWindow";
 import { driveWithScroll } from "../lib/scrollDriver";
+import { MOBILE_MAX } from "../lib/viewport";
 
 import noteMark from "../assets/experience/note-mark.avif";
 import boxBase from "../assets/experience/box-base.svg";
@@ -105,6 +106,40 @@ const backOut = (v, overshoot = 1.70158) => {
 // SkillsSection and CareerSection use for their canvases.
 const DESIGN_HEIGHT = 1080;
 const SCREEN = 1920;
+
+/** How big the strip is drawn, and where it sits vertically in its stage.
+ *
+ *  Desktop fits it to the viewport's *height*: the strip is one 1080-tall band
+ *  and all its travel is sideways, so height is the dimension that has to
+ *  match, and the width follows from the design's own ratio. On anything close
+ *  to 16:9 that also lands a panel at about a screen wide, which is what makes
+ *  a stop frame one panel.
+ *
+ *  A phone breaks that. At 430 x 932 the height rule gives a scale of 0.86 and a
+ *  panel 1657px wide, so a quarter of one is on screen at a time and the strip
+ *  reads as a wall being panned past rather than as panels arriving. Fitting to
+ *  the *width* instead puts one whole panel on the screen again — which is the
+ *  only thing that changes down here. Same composition, same travel, same
+ *  sequencing; it is simply smaller, and the copy is small with it. That is the
+ *  deliberate trade: this section has no mobile design of its own, and showing
+ *  all of it small is nearer the truth than showing a quarter of it large.
+ *
+ *  `offsetY` centres what is left over. It is exactly 0 on the desktop branch —
+ *  the strip is the viewport's height there, so there is nothing to centre — so
+ *  one formula covers both and the desktop composition is untouched.
+ */
+function fitStrip() {
+  // clientWidth, not innerWidth: see the note in metrics() below.
+  const viewportWidth = document.documentElement.clientWidth;
+  const scale =
+    viewportWidth <= MOBILE_MAX
+      ? viewportWidth / SCREEN
+      : window.innerHeight / DESIGN_HEIGHT;
+  return {
+    scale,
+    offsetY: Math.max(0, (window.innerHeight - DESIGN_HEIGHT * scale) / 2),
+  };
+}
 // `stops` defaults to how many screens wide the panel is, which is the fewest
 // that can frame all of it. A panel whose content sits in more groups than
 // that asks for more, so that each group gets a scroll of its own.
@@ -479,10 +514,16 @@ function IntroPanel() {
         {/* Starts on the same beat as the title rather than waiting for the
             sweep to finish. This is the panel that hands off from the hero, and
             the two lines read as one title card — staggering them left the
-            second line arriving late enough to feel like a separate event. */}
+            second line arriving late enough to feel like a separate event.
+
+            16 at -0.05em, which is what every other section sets its line under
+            the name at — LEARN, SKILLS and the phone's PROJECT all use it. This
+            one was 22, and a section heading that sizes its caption differently
+            from the rest of the site reads as belonging to a different site.
+            The title above is already the shared 120. */}
         <TypedText
           lines={["말보다 먼저, 만든 걸 보여드릴게요."]}
-          className="font-['Pretendard'] text-[22px] tracking-[-0.44px]"
+          className="font-['Pretendard'] text-[16px] tracking-[-0.05em]"
           stop={STOP.intro}
           delay={0}
         />
@@ -709,13 +750,34 @@ function SafariWindow({ url, children }) {
 }
 
 // Where the three windows sit inside the 738x622 monitor and how big they are.
-// The monitor's glass is inset 4%/4.62%/3.89%/32.05%, and the stack is centred
-// in it with room for two cascade steps.
+const MONITOR = { width: 738, height: 622 };
+// The glass, as fractions of the monitor — the screen inside the bezel, which
+// is what the windows are laid out against and clipped to. Written here rather
+// than only as a Tailwind inset on the element, because the placement below is
+// measured off it and the two must not be able to disagree.
+const GLASS = { top: 0.0462, right: 0.0389, bottom: 0.3205, left: 0.04 };
+const GLASS_WIDTH = MONITOR.width * (1 - GLASS.left - GLASS.right);
+
 const WINDOW_SCALE = 0.62;
 const WINDOW_STEP = { x: 46, y: 34 };
-const WINDOW_ORIGIN = { x: 58, y: 38 };
 // One beat apart, after the monitor itself has finished opening.
 const WINDOW_DELAY = [1000, 1340, 1680];
+
+// Where the first window's top-left corner goes.
+//
+// The x is derived rather than set, and that is the point: the three windows
+// cascade to the right, so the shape they make once they are all out is a block
+// two steps wider than one window. Centring the *first* window leaves that
+// block sitting off to the right — which is what it was doing, hard against the
+// bezel with 58px of empty glass down the left. Centring the block is what
+// makes the finished stack look placed rather than dropped.
+//
+// The y is left as the design's. Vertically the stack deliberately runs past
+// the bottom of the glass and is cut off by the bezel, the way a real window
+// stack would be, so there is nothing to centre.
+const WINDOW_STACK_WIDTH =
+  WINDOW_STEP.x * (WINDOW_DELAY.length - 1) + WINDOW.width * WINDOW_SCALE;
+const WINDOW_ORIGIN = { x: (GLASS_WIDTH - WINDOW_STACK_WIDTH) / 2, y: 38 };
 
 /** One browser window in the stack: a full-size window scaled down into place.
  *
@@ -869,7 +931,14 @@ function SavedPanel() {
             is the desktop the windows are opening onto — without it they float
             on the section's own dark teal and read as pasted-on rather than as
             windows on a screen. */}
-        <div className="absolute inset-[4.62%_3.89%_32.05%_4%] overflow-hidden rounded-[10px] bg-[#d9d9d9]">
+        <div
+          className="absolute overflow-hidden rounded-[10px] bg-[#d9d9d9]"
+          // The same GLASS the windows are centred against, so the box they
+          // are centred in and the box they are clipped to are one number.
+          style={{
+            inset: `${GLASS.top * 100}% ${GLASS.right * 100}% ${GLASS.bottom * 100}% ${GLASS.left * 100}%`,
+          }}
+        >
           <StackedWindow index={0}>
             <SafariWindow url="khazifire.com">
               {/* The board overflows its viewport in the design — the crop is
@@ -1455,15 +1524,15 @@ function SnapkeepPanel({ onOpen }) {
 export default function ExperienceSection() {
   const sectionRef = useRef(null);
   const trackRef = useRef(null);
-  const [scale, setScale] = useState(1);
+  const [{ scale, offsetY }, setFit] = useState({ scale: 1, offsetY: 0 });
   // Snapkeep opens over the whole page rather than inside the strip, so it
   // lives here and not in the panel that launches it.
   const [appOpen, setAppOpen] = useState(false);
 
-  // Fit the strip's height to the viewport; the width then follows from the
-  // design's own aspect ratio and becomes the horizontal travel distance.
+  // See fitStrip: height on the desktop, width on a phone, and the leftover
+  // centred either way.
   useEffect(() => {
-    const fit = () => setScale(window.innerHeight / DESIGN_HEIGHT);
+    const fit = () => setFit(fitStrip());
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
@@ -1498,7 +1567,7 @@ export default function ExperienceSection() {
     let currentX = 0;
 
     function metrics() {
-      const stripScale = window.innerHeight / DESIGN_HEIGHT;
+      const { scale: stripScale } = fitStrip();
       // clientWidth, not innerWidth. innerWidth — and CSS `100vw` — count the
       // vertical scrollbar, which is not part of what you can actually see, so
       // centring on half of it puts everything half a scrollbar's width off to
@@ -1607,6 +1676,11 @@ export default function ExperienceSection() {
       trackRef.current.style.transform = `translate3d(${-x}px, 0, 0)`;
     }
 
+    /** How opaque the strip is. Only the stepped mobile mode ever moves it. */
+    function applyFade(opacity) {
+      trackRef.current.style.opacity = String(opacity);
+    }
+
     /** Is this element's middle actually inside the viewport right now? */
     function inView(el) {
       const rect = el.getBoundingClientRect();
@@ -1621,7 +1695,15 @@ export default function ExperienceSection() {
     // second or so with nothing on it yet. Firing a little early has the
     // entrances play as the panel settles, which is what they were written to
     // do back when it arrived in one 520ms tween.
-    const TRIGGER_LEAD = 0.35;
+    //
+    // Half a leg, which is the exact moment a panel becomes the nearest stop.
+    // It was 0.35, and on the phone's stepped mode that is a sixth of a leg
+    // *after* the panel has appeared: the screen arrived and then sat there
+    // blank for a beat before anything on it started. Armed at the switch, the
+    // entrance runs with the fade-in rather than behind it. The desktop, where
+    // the strip creeps up on a panel over most of a screen of scrolling, is
+    // barely affected — it was already arming while the panel was on its way.
+    const TRIGGER_LEAD = 0.5;
 
     // How far the section's top may still be below the top of the screen and
     // count as arrived, as a fraction of a screen.
@@ -1755,9 +1837,41 @@ export default function ExperienceSection() {
       return from + (to - from) * smoothstep(local);
     }
 
+    // Where the mid-point handover ends and the panel is fully itself again, as
+    // a fraction of a leg. Half a leg is where the strip switches; this is how
+    // much of the run either side of that is spent fading.
+    //
+    // A third of the leg, not a fifth. At 0.22 the handover was over almost as
+    // soon as it started — one panel snapped out and the next snapped in, which
+    // reads as a cut rather than as a page being turned. Widening it spends
+    // more of the scroll on the change itself and less of it parked.
+    const STEP_FADE = 0.34;
+
     function render(raw) {
       stopPos = raw * (STOPS.length - 1);
-      applyX(stripXAt(stopPos));
+
+      if (document.documentElement.clientWidth <= MOBILE_MAX) {
+        // Stepped, not travelled. On the desktop the strip slides sideways and
+        // that sideways travel *is* the section — six panels laid out left to
+        // right, panned past. A phone cannot pan: a panel is the whole screen
+        // wide down here, so the same travel is a full-screen image sliding off
+        // one edge while the next comes in the other, over and over, and the
+        // reader spends most of the section looking at two half-panels.
+        //
+        // So the strip does not travel at all. It sits exactly on whichever
+        // stop is nearest and jumps to the next one at the midpoint, and the
+        // handover is a fade rather than a slide. The scroll still drives it
+        // and the stops are still the stops — what changes is that a screen
+        // arrives, is looked at, and gives way to the next one.
+        const nearest = Math.round(stopPos);
+        // 0 at a stop, 0.5 at the midpoint between two.
+        const away = Math.abs(stopPos - nearest);
+        applyX(targetXFor(nearest));
+        applyFade(clamp01((0.5 - away) / STEP_FADE));
+      } else {
+        applyX(stripXAt(stopPos));
+      }
+
       refreshTriggers();
     }
 
@@ -1820,7 +1934,11 @@ export default function ExperienceSection() {
             style={{
               width: TOTAL_WIDTH,
               height: DESIGN_HEIGHT,
-              transform: `scale(${scale})`,
+              // Scale first, then drop the result into the middle of the stage.
+              // Written in this order the translate is *not* multiplied by the
+              // scale, so offsetY is the screen px it says it is. It is 0 on the
+              // desktop, where the strip already fills the height.
+              transform: `translateY(${offsetY}px) scale(${scale})`,
             }}
           >
             <div className="flex h-full">

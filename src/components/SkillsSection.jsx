@@ -1,4 +1,15 @@
 import { useEffect, useRef, useState } from "react";
+// The board's content and the folder it is drawn on live in data/skills — the
+// phone lays the same eight out 4x2 (see mobile/MobileSkills), and only the
+// sizes and the arrangement differ.
+import {
+  FOLDER_BODY_TOP as BODY_TOP,
+  FOLDER_H as PATH_HEIGHT,
+  FOLDER_PATH as TAB_PATH,
+  FOLDER_W as PATH_WIDTH,
+  SKILLS,
+  bodyTopFor,
+} from "../data/skills";
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
@@ -11,106 +22,74 @@ const DESIGN_WIDTH = 1920;
 // The frame's full height, not a crop of it: the three rows of cards run from
 // its very top to its very bottom, so there is no dead space left to trim.
 const DESIGN_HEIGHT = 1156;
-const GRID_LEFT = 40;
-const GRID_TOP = 0;
 
-// One column grid the whole staircase stands on. The rows used to be laid out
-// by justify-start / justify-end against a fixed grid width, which only lines
-// the columns up if the row widths happen to divide into it — and they did not,
-// so every card in rows 2 and 3 sat a pixel to the left of the card above it.
-// Stated as a pitch instead: a card is always at `GRID_LEFT + col * COL_PITCH`,
-// whichever row it is in, so the columns cannot drift apart.
-const CARD_WIDTH = 400;
-const CARD_HEIGHT = 348;
-const CARD_GAP = 80;
-const ROW_GAP = 56;
-const COL_PITCH = CARD_WIDTH + CARD_GAP;
-const GRID_COLUMNS = 4;
-const GRID_WIDTH = GRID_COLUMNS * COL_PITCH - CARD_GAP;
+// The layout the design moved to. It used to be a staircase — each row starting
+// a column further right than the one above, opening a hole at bottom-left for
+// the heading. It is a plain 3x3 grid now with the heading standing *in* the
+// grid, in the middle row's first cell, so the composition is symmetrical and
+// SKILLS reads as one of the nine things on the board rather than as a label
+// pushed into the leftover space.
+//
+// One pitch for both axes and every cell measured off it, so nothing can drift:
+// the columns are 370 apart, the rows 352.303, and a card is always at
+// (COL_X[c], ROW_Y[r]).
+const CARD_WIDTH = 290;
+const CARD_HEIGHT = 252.303;
+const COL_PITCH = 370;
+const ROW_PITCH = 352.303;
+// Where the grid's first cell sits on the canvas. The design nests this two
+// frames deep (154:3510 > 352:3605 > the row); both offsets are folded in here
+// rather than reproduced as wrappers, since nothing else hangs off either.
+const GRID_LEFT = 408.786 + 72.428;
+const GRID_TOP = 99.547;
+const COL_X = [0, 1, 2].map((c) => GRID_LEFT + c * COL_PITCH);
+const ROW_Y = [0, 1, 2].map((r) => GRID_TOP + r * ROW_PITCH);
 
-// Three folder colours, used straight from the design. They are not a scale —
-// nothing about a card's colour says anything about its level, which every card
-// now states in words anyway.
-const BLUE = "#0492bd";
-const LIME = "#c9e529";
-const PINK = "#ff60b8";
 
-const SKILLS = [
-  {
-    title: "UX Research",
-    desc: "사용자 조사와 경쟁 분석으로 문제를 정의",
-    level: "Proficient",
-    color: BLUE,
-  },
-  {
-    title: "Planning",
-    desc: "서비스 구조와 화면 흐름 설계",
-    level: "Proficient",
-    color: BLUE,
-  },
-  {
-    title: "UI Design",
-    desc: "화면 설계와 비주얼 디자인",
-    level: "Proficient",
-    color: LIME,
-  },
-  {
-    // Broken over two lines in the design rather than left to wrap — the card
-    // is wide enough to hold it on one, so the break is a choice, and
-    // `whitespace-pre-line` on the heading is what honours it.
-    title: "Interaction\nDesign",
-    desc: "화면의 움직임과 전환 설계",
-    level: "Proficient",
-    color: LIME,
-  },
-  {
-    title: "FIGMA",
-    desc: "디자인 시스템과 프로토타입 제작",
-    level: "Proficient",
-    color: LIME,
-  },
-  {
-    title: "AI",
-    list: [
-      "CLAUDE - 코딩 및 기획",
-      "CHAT GPT - 아이디어확장, 기획, 이미지생성",
-      "JEMINI - 이미지 및 영상 생성",
-    ],
-    level: "Proficient",
-    color: PINK,
-  },
-  {
-    title: "HTML",
-    desc: "구조에 맞게 마크업",
-    level: "Proficient",
-    color: PINK,
-  },
-  {
-    title: "CSS",
-    desc: "디자인을 반응형 화면으로 구현",
-    level: "Proficient",
-    color: PINK,
-  },
-];
+// The heading's cell. SKILLS is set at 120 and comes out wider than a card, so
+// the block is 338 across and hangs past its cell's left edge — the design lets
+// it, and the canvas has the room there. Both numbers are offsets from the cell
+// rather than absolute canvas coordinates, so moving the grid carries the
+// heading with it.
+const HEADING_WIDTH = 338;
+const HEADING_OVERHANG = 60.214;
+const HEADING_DROP = 42.152;
 
 
 
-// Rows match the Figma layout's staircase: each one starts a column further
-// right than the one above it, which is what opens the growing gap at
-// bottom-left for the "SKILLS" heading to sit in. Stated as the column each row
-// begins at rather than as an alignment, so every card lands on the shared
-// pitch above and the staircase is the only thing the rows disagree about.
-const ROWS = [
-  { startCol: 0, cards: SKILLS.slice(0, 3).map((skill, i) => ({ skill, i })) },
-  {
-    startCol: 1,
-    cards: SKILLS.slice(3, 6).map((skill, i) => ({ skill, i: i + 3 })),
-  },
-  {
-    startCol: 2,
-    cards: SKILLS.slice(6, 8).map((skill, i) => ({ skill, i: i + 6 })),
-  },
-];
+
+// Which cell each card sits in, as [row, col] on the 3x3 grid above. The
+// heading takes [1, 0] and is the only cell without a folder in it.
+//
+// Written per card rather than as three rows sliced out of SKILLS, because the
+// grid order and the deal order are no longer the same list: the design reads
+// left-to-right, top-to-bottom, and the SKILLS array is grouped by colour.
+// Ordered so the three colours band across the rows — blue, lime, pink — with
+// the heading taking the one cell the top-left of the pink row would have used.
+// It is the design's own arrangement and worth stating: the grid is not sorted
+// by discipline, it is sorted by colour, and the colours are what carry the
+// reading order down the board.
+const CELLS = {
+  "UX Research": [0, 0],
+  Planning: [0, 1],
+  "UI Design": [0, 2],
+  FIGMA: [1, 1],
+  "Interaction Design": [1, 2],
+  AI: [2, 0],
+  CSS: [2, 1],
+  HTML: [2, 2],
+};
+const HEADING_CELL = [1, 0];
+
+// The cards are dealt in reading order — row by row, left to right — which is
+// not the order SKILLS is written in (that list is grouped by colour). Sorted
+// off CELLS rather than reordered by hand, so a card that moves cell is dealt
+// in its new place without this being touched.
+const DEAL_ORDER = [...SKILLS].sort((a, b) => {
+  const [ar, ac] = CELLS[a.title];
+  const [br, bc] = CELLS[b.title];
+  return ar - br || ac - bc;
+});
 
 // Cards appear where they belong — no travel, they are simply not there and
 // then they are, one at a time.
@@ -145,31 +124,17 @@ const ARM_AT = 0;
 // the line does not replay the deal every few pixels.
 const REARM_AT = 0.12;
 
-// The card is a manila folder seen face-on, and it is two shapes rather than
-// one: a tab that runs the full width behind the card, stepping down partway
-// across from its raised left end, and the folder body laid over it. The body
-// hides all but the top BODY_TOP of the tab, which is why the path below is far
-// taller than the sliver of it you actually see.
-//
-// Two shapes, not one silhouette, because the tab is darker than the body — the
-// design paints the same fill and then washes 8% black over it, which is what
-// makes the tab read as sitting behind rather than as part of the front face.
-// A single path could not carry two fills.
-//
-// Taken from the design (node 316:1684) at the card's own 400x348, so it needs
-// no scaling of its own, and drawn rather than exported per colour since the
-// three variants differ only in that fill.
-const TAB_PATH =
-  "M0 125.516H400V48.7928C400 40.5085 393.284 33.7928 385 33.7928H175.305C170.461 33.7928 165.915 31.4533 163.099 27.5114L147.935 6.28137C145.119 2.33946 140.573 0 135.729 0H15C6.71573 0 0 6.71573 0 15V125.516Z";
-// Where the folder body starts, and so how much of the tab stays visible.
-const BODY_TOP = 52;
+// Where the folder body's top edge falls on this card, in card px — which is
+// what the text block is positioned against. Derived rather than measured a
+// second time: the design's 37.7 on a 290-wide card is exactly this.
+const BODY_TOP_PX = bodyTopFor(CARD_HEIGHT);
 
 function CardFace({ title, desc, list, level, color }) {
   return (
     <div className="absolute inset-0 [backface-visibility:hidden]">
       <svg
         className="absolute inset-0 h-full w-full"
-        viewBox={`0 0 ${CARD_WIDTH} ${CARD_HEIGHT}`}
+        viewBox={`0 0 ${PATH_WIDTH} ${PATH_HEIGHT}`}
         preserveAspectRatio="none"
         aria-hidden="true"
       >
@@ -178,8 +143,8 @@ function CardFace({ title, desc, list, level, color }) {
         <rect
           x="0"
           y={BODY_TOP}
-          width={CARD_WIDTH}
-          height={CARD_HEIGHT - BODY_TOP}
+          width={PATH_WIDTH}
+          height={PATH_HEIGHT - BODY_TOP}
           rx="15"
           fill={color}
         />
@@ -193,25 +158,25 @@ function CardFace({ title, desc, list, level, color }) {
           three-line list without either one being measured. */}
       <div
         className="absolute inset-x-0 bottom-0 flex flex-col justify-between px-[18px] py-[20px] leading-none text-black"
-        style={{ top: BODY_TOP }}
+        style={{ top: BODY_TOP_PX }}
       >
         <div className="flex flex-col gap-[16px] items-start">
-          <p className="font-['Plus_Jakarta_Sans'] font-semibold text-[28px] tracking-[-0.1em] whitespace-pre-line">
+          <p className="font-['Plus_Jakarta_Sans'] font-semibold text-[24px] tracking-[-0.1em] whitespace-pre-line">
             {title}
           </p>
           {list ? (
-            <div className="flex flex-col gap-[10px] font-['Plus_Jakarta_Sans'] text-[18px] tracking-[-0.1em]">
+            <div className="flex flex-col gap-[10px] font-['Plus_Jakarta_Sans'] text-[12px] tracking-[-0.1em]">
               {list.map((item) => (
                 <p key={item}>{item}</p>
               ))}
             </div>
           ) : (
-            <p className="font-['Pretendard'] text-[18px] tracking-[-0.1em]">
+            <p className="font-['Pretendard'] text-[12px] tracking-[-0.1em]">
               {desc}
             </p>
           )}
         </div>
-        <p className="font-['Plus_Jakarta_Sans'] font-semibold text-[24px] tracking-[-0.02em] text-right">
+        <p className="font-['Plus_Jakarta_Sans'] font-semibold text-[18px] tracking-[-0.02em] text-right">
           {level}
         </p>
       </div>
@@ -354,62 +319,75 @@ export default function SkillsSection() {
             transform: `scale(${scale})`,
           }}
         >
-          <div
-            className="absolute flex flex-col"
-            style={{
-              left: GRID_LEFT,
-              top: GRID_TOP,
-              width: GRID_WIDTH,
-              gap: ROW_GAP,
-            }}
-          >
-            {ROWS.map((row, r) => (
+          {/* Every card placed straight onto the canvas at its cell, rather
+              than as three flex rows. The rows no longer share a starting
+              column or a card count — the middle one has a hole in it where the
+              heading goes — so a row is not a thing the layout needs any more,
+              and a grid of nine cells with one left empty says it plainly. */}
+          {DEAL_ORDER.map((skill, d) => {
+            const [row, col] = CELLS[skill.title];
+            return (
               <div
-                key={r}
-                className="flex"
+                key={skill.title}
+                className="absolute"
                 style={{
-                  gap: CARD_GAP,
-                  paddingLeft: row.startCol * COL_PITCH,
+                  left: COL_X[col],
+                  top: ROW_Y[row],
+                  width: CARD_WIDTH,
+                  height: CARD_HEIGHT,
                 }}
               >
-                {row.cards.map(({ skill, i }) => (
-                  <div
-                    key={skill.title}
-                    className="relative shrink-0"
-                    style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
-                  >
-                    {/* No perspective, no back face, no preserve-3d: the cards
-                        used to flip, and all of that existed for the turn.
-                        They do not move at all now — they are simply not
-                        there, and then they are. */}
-                    <div
-                      ref={(el) => {
-                        cardRefs.current[i] = el;
-                      }}
-                      className="absolute inset-0 will-change-[opacity]"
-                      style={{ opacity: 0 }}
-                    >
-                      <CardFace {...skill} />
-                    </div>
-                  </div>
-                ))}
+                {/* No perspective, no back face, no preserve-3d: the cards used
+                    to flip, and all of that existed for the turn. They do not
+                    move at all now — they are simply not there, and then they
+                    are. Indexed by deal order, so the run reads across the
+                    board rather than jumping about it. */}
+                <div
+                  ref={(el) => {
+                    cardRefs.current[d] = el;
+                  }}
+                  className="absolute inset-0 will-change-[opacity]"
+                  style={{ opacity: 0 }}
+                >
+                  <CardFace {...skill} />
+                </div>
               </div>
-            ))}
-          </div>
+            );
+          })}
 
-          {/* The heading stands in the hole the staircase opens at bottom-left:
-              row 2 starts a column in, so the space beside it is the one place
-              on the canvas nothing else wants. Placed in canvas px like
-              everything else here — the whole composition is scaled as one
-              piece, so viewport units would get scaled a second time and drift
-              off the design. */}
-          <p
+          {/* The heading, standing in the grid's empty middle-left cell. It is
+              a cell like the other eight now rather than a label parked in
+              leftover space, so it is centred in that cell instead of ranged
+              left against the canvas: the design gives SKILLS 338px and centres
+              the two-line caption under it.
+              Placed in canvas px like everything else here — the whole
+              composition is scaled as one piece, so viewport units would get
+              scaled a second time and drift off the design. */}
+          <div
             ref={headingRef}
-            className="absolute font-['Plus_Jakarta_Sans'] font-semibold leading-none text-white whitespace-nowrap tracking-[-0.1em]"
-            style={{ left: 22, top: 429, fontSize: 120, opacity: 0 }}
+            className="absolute flex flex-col items-center gap-[10px]"
+            style={{
+              left: COL_X[HEADING_CELL[1]] - HEADING_OVERHANG,
+              top: ROW_Y[HEADING_CELL[0]] + HEADING_DROP,
+              width: HEADING_WIDTH,
+              opacity: 0,
+            }}
           >
-            SKILLS
-          </p>
+            <p
+              className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-white whitespace-nowrap tracking-[-0.1em]"
+              style={{ fontSize: 120 }}
+            >
+              SKILLS
+            </p>
+            <p
+              className="font-['Pretendard'] text-center leading-[1.2] text-white tracking-[-0.05em]"
+              style={{ fontSize: 16 }}
+            >
+              기획부터 화면 구현까지,
+              <br />
+              직접 만들 수 있는 범위입니다
+            </p>
+          </div>
         </div>
       </div>
     </section>

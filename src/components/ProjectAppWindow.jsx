@@ -94,7 +94,13 @@ export default function ProjectAppWindow({ card, onClose }) {
     // leave gestures that start inside it alone.
     <div
       data-interactive
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[#06252e]"
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      // A case study's page has a colour of its own — Reviu's is lime, Layer's
+      // orange, Aquaplanet's blue — and the spreads are drawn to be read on it:
+      // Reviu's header is black type that sits directly on the page rather than
+      // in a panel, so on the dark default it disappears. Anything without a
+      // page of its own (the Snapkeep app) keeps the dark ground.
+      style={{ backgroundColor: card.pageColor ?? "#06252e" }}
     >
       {/* The outer box takes the scaled footprint so the app stays centred;
           the inner one is the app at its own size, scaled from its top-left. */}

@@ -1,5 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { driveWithScroll } from "../lib/scrollDriver";
+// The same two files the hero is built from. Not a copy of them: the glasses
+// that lands on the handoff blob *is* the hero's glasses, and the black that
+// fills its lenses is the same shape at the same 50% the hero opens on. Doing
+// it with a second, flatter drawing would be a different pair of glasses that
+// happened to look similar.
+import glassesImg from "../assets/hero/glasses.avif";
+import heroEyes from "../assets/hero/hero-eyes.svg?raw";
 import role1Img from "../assets/role/1.avif";
 import role2Img from "../assets/role/2.avif";
 import role3Img from "../assets/role/3.avif";
@@ -65,7 +72,16 @@ const ROLES = [
   },
 ];
 
+// Two sizes, not one. The design draws the circle at CENTER — START, and then
+// whichever role has come round to it — at 80, and the four waiting their turn
+// on the ring at 40 (node 154:3767). They were all 80 here, which made the
+// wheel five identical beads with only a fill to tell them apart; at half the
+// size the four are plainly the queue and the big one is plainly the subject.
+//
+// A circle is whatever size its own focus says, so it grows on its way in to
+// CENTER and shrinks on the way out rather than snapping between the two.
 const CIRCLE_SIZE = 80;
+const CIRCLE_SIZE_SMALL = 40;
 // Both blobs in the design are 620 across — the handoff one at "Role / Led me
 // to a career" (node 154:3911) and the closing one behind the contact card
 // (node 154:3984) — and both sit dead centre of the canvas, so this is the size
@@ -97,18 +113,37 @@ const RING_CENTER = {
   x: RING.x + RING.size / 2,
   y: RING.y + RING.size / 2,
 };
-// Taken from the three slots the design does agree on: 710.5 out from the ring's
-// centre, which off a radius of 646.5 and a circle of 40 leaves this much air.
-const SLOT_GAP = 24;
-const SLOT_RADIUS = RING.size / 2 + SLOT_GAP + CIRCLE_SIZE / 2;
-// Five slots around the top of the ring, measured in degrees from straight up:
-// CENTER at 0, a pair to each side. They are *not* evenly spaced — the design
-// lays the four out as two horizontal rows rather than by angle, and those rows
-// land 27.46deg and 45.67deg off centre. Written out as the two the design
-// actually uses rather than as multiples of one step, since a single step that
-// fits the near pair misses the far one by more than a circle's width.
-const SLOT_NEAR_DEG = 27.46;
-const SLOT_FAR_DEG = 45.67;
+// One radius for every circle on the wheel, whatever size it is.
+//
+// It used to be a fixed *clearance* instead — each circle sat the same distance
+// off the line, so the 80 was centred further out than the 40s. That is what
+// the design's own coordinates do, and on a curve it does not read as a wheel:
+// the circles are strung along an arc, and putting them on two different arcs
+// makes the gap between the big one and its neighbours visibly wider than the
+// gap between two small ones, even though every one of them is the same number
+// of degrees apart. Spacing on a circle is arc length, and arc length is the
+// angle times *this* — so it is only equal if this is.
+//
+// The value is the design's own for the four outline circles (703.5 out from
+// the ring's centre), so they land exactly where they are drawn; the focused
+// one comes down to join them.
+const SLOT_RADIUS = 703.5;
+// One step, and everything on the ring is a multiple of it.
+//
+// The design lays these out as two horizontal rows rather than by angle, so
+// lifting its literal positions gave a wheel whose beads were 8.4, 10.2, 8.4,
+// 5.7, 7.1 and 6.5 degrees apart — a rhythm that wanders, on the one shape
+// where a wandering rhythm is impossible to miss. A circle is regular or it is
+// wrong.
+//
+// 8deg is that step, fitted to the design's own two slot angles (27.0 and 46.3)
+// so the wheel keeps the footprint it was drawn with: the near pair lands at
+// 24, the far pair at 48, and the beads fill in every position between.
+const SLOT_STEP_DEG = 8;
+// Slots take every third position, which leaves exactly two beads between the
+// centre and each near slot and two more between near and far.
+const SLOT_NEAR_DEG = SLOT_STEP_DEG * 3;
+const SLOT_FAR_DEG = SLOT_STEP_DEG * 6;
 // The order is the wheel's own — CENTER -> A -> C -> D -> B -> CENTER — so the
 // circles run down the left side, cross the bottom unseen, and come back up the
 // right.
@@ -120,14 +155,58 @@ const SLOT_ANGLES = [
   SLOT_NEAR_DEG,
 ];
 
-/** Top-left corner of the 80px box for a circle sitting `deg` around the ring. */
+// Beads threaded on the ring itself (node 154:3767). New in the design, and the
+// only thing that changed about the wheel: the arc used to be a bare hairline
+// with five circles floating clear of it, and a line that thin reads as a stray
+// stroke rather than as the track the wheel runs on. Eight solid dots strung
+// along it say what it is.
+//
+// They sit *on* the line — measured at 643..653 from the ring's centre against
+// a radius of 646.5, so the design draws them centred on it — while the slots
+// sit clear of it (SLOT_GAP). That difference is the whole reading: the dots are
+// part of the track, the slots are what travels along it.
+//
+// Every position on the wheel that a slot does not take — all the way round,
+// not only across the visible arc.
+//
+// The whole ring turns as the wheel advances (see the dots' rotation in
+// applyRaw), so beads leave through one end of the arc and have to come up
+// through the other. A band that only covered what is on screen at rest would
+// empty itself out the first time it moved. The ones off-canvas cost nothing:
+// they are 20px divs with no content.
+//
+// Derived from the step rather than listed, so the beads and the slots can
+// never drift apart: change SLOT_STEP_DEG and both move.
+const DOT_SIZE = 20;
+const DOT_ANGLES = Array.from(
+  { length: 360 / SLOT_STEP_DEG },
+  (_, n) => n * SLOT_STEP_DEG,
+).filter((deg) => deg % SLOT_NEAR_DEG !== 0);
+const DOT_RADIUS = RING.size / 2;
+
+/** Top-left corner of a DOT_SIZE bead sitting `deg` around the ring. */
+function dotAt(deg) {
+  const rad = (deg * Math.PI) / 180;
+  return {
+    x: RING_CENTER.x + DOT_RADIUS * Math.sin(rad) - DOT_SIZE / 2,
+    y: RING_CENTER.y - DOT_RADIUS * Math.cos(rad) - DOT_SIZE / 2,
+  };
+}
+
+/** Centre of a circle of `size` sitting `deg` around the ring.
+ *
+ *  Centres, not corners. With two circle sizes a corner says nothing on its own
+ *  — the same corner puts a 40 and an 80 in different places — and every caller
+ *  wants the middle anyway: the slot is a point on the wheel, and the circle is
+ *  whatever is currently parked on it. */
 function slotAt(deg) {
   const rad = (deg * Math.PI) / 180;
   return {
-    x: RING_CENTER.x + SLOT_RADIUS * Math.sin(rad) - CIRCLE_SIZE / 2,
-    y: RING_CENTER.y - SLOT_RADIUS * Math.cos(rad) - CIRCLE_SIZE / 2,
+    x: RING_CENTER.x + SLOT_RADIUS * Math.sin(rad),
+    y: RING_CENTER.y - SLOT_RADIUS * Math.cos(rad),
   };
 }
+// Where the focused circle sits, and so where the convergence gathers.
 const CENTER_POS = slotAt(0);
 
 // Only the circle sitting at CENTER is filled; the other four are white
@@ -184,7 +263,13 @@ const BLOB_STEPS = [
 // 11th and reuses the same blob-tween mechanism. It comes back to the same
 // 620 dead-centre circle the handoff step used (node 154:3984) rather than
 // stopping somewhere of its own, so the story closes where it turned.
-const OUTRO_BLOB = BLOB_STEPS[0];
+// The closing card's blob is the centred one the handoff step used to be —
+// nothing sits above it there, so it has the middle of the canvas to itself.
+const OUTRO_BLOB = {
+  x: BLOB_CENTER_X - GROWN_SIZE / 2,
+  y: BLOB_CENTER_Y - GROWN_SIZE / 2,
+  size: GROWN_SIZE,
+};
 
 // The blob sits still at this same spot for all three chapters — so this
 // is also the fixed pivot each chapter's word/title/paragraph rotates
@@ -207,6 +292,18 @@ const ROTATE_SPIN = -360;
 // rather than as sitting at the top of the page. Level with its own left inset
 // instead: the same 118 down as across, which puts it clear of the blob's arc
 // and gives the two lines the top of the canvas to themselves.
+// Where the contact card's resume link points.
+//
+// Hosted rather than shipped: it used to be a PDF expected at a path under
+// public/, which meant the link 404'd until someone remembered to drop the file
+// there, and every revision needed a redeploy. A document she can edit in place
+// is always the current one, and the site never has to be rebuilt for it.
+//
+// It opens rather than downloads, so nothing lands in a stranger's downloads
+// folder uninvited — see the link itself for the rest of that.
+const RESUME_HREF =
+  "https://docs.google.com/document/d/1J4Lugqig3H9UnldSMYS8E8U1CPbKyR3s/edit?usp=sharing&ouid=106727088774758261640&rtpof=true&sd=true";
+
 const CHAPTER_TITLE_POS = { x: 118, y: 118 };
 const WORD_RIGHT = 1249;
 const WORD_TOP = 492;
@@ -244,11 +341,9 @@ const CHAPTERS = [
     box: { x: 740, y: 465, width: 722 },
     dark: false,
     paragraph: [
-      "그런데 개입은 늘 문제가 발생한 이후였습니다.",
+      "개입은 늘 문제가 발생한 이후였습니다.",
       "문제가 생기기 전에 막을 수는 없을까",
-      "이 고민의 끝에서 디자인을 만났습니다.",
-      "저는 무언가를 막아설 때보다",
-      "조금씩 나아지게 만들 때 힘을 얻는 사람입니다.",
+      "그 고민의 끝에서 디자인을 만났습니다.",
       "도망친 것이 아니라, 개입의 시점을",
       "사후에서 사전으로 재정의한 것입니다.",
     ].join("\n"),
@@ -261,13 +356,10 @@ const CHAPTERS = [
     box: { x: 753, y: 447, width: 770 },
     dark: false,
     paragraph: [
-      "체계가 없는 작은 기관에서 일하며,",
-      "방향이 필요하면 스스로 답을 찾는 게 익숙해졌습니다.",
-      "지금도 막히면 방법을 찾아 풀고,",
-      "그 과정에 기록과 AI를 도구로 씁니다.",
+      "방향이 필요하면 스스로 답을 찾는 것이 익숙합니다.",
+      "막히면 방법을 찾아 풀고,",
+      "그 과정에 AI를 도구로 씁니다.",
       "지금 보고 계신 이 사이트도 직접 설계하고 만들었습니다.",
-      "개입의 시점을 문제 이후에서 설계 이전으로 옮기는 것.",
-      "사용자도 의식하지 못한 불편을 설계하려는 이유입니다.",
     ].join("\n"),
   },
 ];
@@ -279,9 +371,11 @@ const CHANGE_CHAPTER = CHAPTERS.find((c) => c.ridesWipe);
 //
 // This used to be a window the text was read *through*: the paragraph ran to
 // fifteen lines, eight showed, and CHANGE was given a second step whose only
-// job was to page down to the rest. The copy is seven lines now — it fits
+// job was to page down to the rest. The copy is five lines now — it fits
 // whole — so that step had nothing to do but take a scroll, and both it and
-// the paging are gone. The box is sized to the copy and asserts it.
+// the paging are gone. The box is sized to the copy and asserts it: it is
+// measured off the line count below, so trimming or adding a line resizes it
+// on its own.
 const CHANGE_PARA_LINE_HEIGHT = 24 * 1.3;
 const CHANGE_PARA_LINES = CHANGE_CHAPTER.paragraph.split("\n").length;
 const CHANGE_PARA_WINDOW_HEIGHT = CHANGE_PARA_LINE_HEIGHT * CHANGE_PARA_LINES;
@@ -466,6 +560,48 @@ const CHAPTER_REVEAL_WINDOW = 0.5;
 // so the wheel turning between two steps shows the circle actually travelling
 // its arc — which used to be a 600ms tween played back at a fixed speed no
 // matter how you scrolled.
+// The step "Role / Led me to a career" belongs to — the handoff between the
+// wheel and the chapters. Named because two things read it: the title's own
+// reveal, and the moment the circles drop behind the canvas so the title can
+// paint over the blob.
+const TITLE_STEP = 6;
+
+// The glasses that lands on the handoff blob (node 154:3910), and the four
+// beats it plays once it has.
+//
+// The box is the design's own, in canvas px. Black rather than the hero's blue,
+// which is a `brightness(0)` on the same file: the artwork is one flat colour
+// through an alpha mask, so knocking its brightness out leaves the exact same
+// shape in black and there is no second export to keep in step.
+const GLASSES_BOX = { x: 634, y: 247, width: 651, height: 632.0785 };
+// Where the drawing's right tip actually is inside that box, as a fraction of
+// it. The file carries margin — the frame stops about 29px short of the box's
+// right edge — and this is the point the whole thing is hinged on, so it has to
+// be the tip and not the box.
+const GLASSES_PIVOT_X = 0.955;
+
+// Standing on its right end, then swung down flat. Positive is upright: with
+// the origin at the right tip, +90 puts the free end above the pivot, and
+// coming back to 0 drops it into place.
+const GLASSES_START_DEG = 90;
+// Upright to flat.
+const GLASSES_SWING_MS = 760;
+// The lenses filling with the hero's own 50% black.
+const GLASSES_DARKEN_MS = 420;
+// A band of light crossing them.
+const GLASSES_SHINE_MS = 720;
+// A beat with the light gone and the glasses simply sitting there.
+const GLASSES_HOLD_MS = 260;
+// And out, leaving a clean blob for whatever the reader scrolls to next.
+const GLASSES_LEAVE_MS = 420;
+const GLASSES_AT = {
+  darken: GLASSES_SWING_MS,
+  shine: GLASSES_SWING_MS + GLASSES_DARKEN_MS,
+  hold: GLASSES_SWING_MS + GLASSES_DARKEN_MS + GLASSES_SHINE_MS,
+  leave:
+    GLASSES_SWING_MS + GLASSES_DARKEN_MS + GLASSES_SHINE_MS + GLASSES_HOLD_MS,
+};
+const GLASSES_END = GLASSES_AT.leave + GLASSES_LEAVE_MS;
 const STEP_COUNT = 10;
 // How much page scroll each step costs, plus the one screen the sticky stage
 // occupies. This is the section's pace: a screen of scrolling moves the story
@@ -522,11 +658,15 @@ function slotFor(r, centerValue) {
   // e = 4.8 (arriving) as at e = 0.2 (leaving) — hence the distance is measured
   // both ways round.
   const focus = 1 - smoothstep(clamp01(Math.min(e, 5 - e) / FOCUS_WINDOW));
+  // 40 out on the ring, 80 at CENTER, and everything between on the way. It
+  // rides the same `focus` the fill does, so a circle grows as it colours in
+  // and shrinks as it fades back to an outline — one gesture, not two.
+  const size = lerp(CIRCLE_SIZE_SMALL, CIRCLE_SIZE, focus);
   if (i !== HIDDEN_LEG) {
     // The angle is what travels, not the x/y. Interpolating the positions drew
     // a straight line between two points on a circle, which dips inside it —
     // the circle visibly closed on the ring mid-leg and pulled away again.
-    return { ...slotAt(lerp(from, to, frac)), visible: 1, focus };
+    return { ...slotAt(lerp(from, to, frac)), visible: 1, focus, size };
   }
   // The jump from one end to the other happens at the halfway point,
   // where both fades have already bottomed out at zero — so the circle
@@ -538,6 +678,7 @@ function slotFor(r, centerValue) {
       ? smoothstep(clamp01((frac - (1 - HIDDEN_FADE)) / HIDDEN_FADE))
       : 1 - smoothstep(clamp01(frac / HIDDEN_FADE)),
     focus,
+    size,
   };
 }
 
@@ -556,6 +697,12 @@ export default function CareerSection() {
   // [outline, lime, blue] per circle — see the crossfade in applyRaw.
   const coatRefs = useRef([]);
   const ringRef = useRef(null);
+  const dotsRef = useRef(null);
+  // The handoff glasses: the box that swings, the inlined overlay whose lens
+  // shapes are the black, and the band of light that crosses them.
+  const glassesRef = useRef(null);
+  const glassesLensRef = useRef(null);
+  const glassesShineRef = useRef(null);
   const changeWipeRef = useRef(null);
   const changeWhiteLayerRef = useRef(null);
   const changeWhiteCanvasRef = useRef(null);
@@ -605,6 +752,60 @@ export default function CareerSection() {
     let settledChapter = -1;
     let settleTime = 0;
     let sharpenRaf = null;
+    // The handoff glasses runs on its own clock too: when it started, and the
+    // frame loop driving it. `null` means it is not playing — either it has
+    // never been reached or the reader has scrolled off the step.
+    let glassesTime = null;
+    let glassesRaf = null;
+    // Everything in hero-eyes.svg except the shut lens. That file carries three
+    // eye states and two tints for the hero to cross-fade between; here only
+    // the 50% black is wanted, so the rest is switched off once and never
+    // touched again.
+    // The gradient that sweeps across the lenses, and the id it is referenced
+    // by. In user space so it can be moved in the drawing's own units — the
+    // band is 160 wide against the file's 512.91, and angled by running its two
+    // ends down the full height.
+    const SHINE_ID = "role-glasses-shine";
+    const SHINE_BAND = 160;
+    const SHINE_DEFS = `<defs><linearGradient id="${SHINE_ID}" gradientUnits="userSpaceOnUse" x1="${-SHINE_BAND}" y1="0" x2="0" y2="498"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs>`;
+    // How far the band travels: clear off one side to clear off the other.
+    const SHINE_TRAVEL = 512.91 + SHINE_BAND * 2;
+    let shineGradient = null;
+
+    /** Strip an overlay copy down to its shut-lens shapes. */
+    function onlyClosedLens(root) {
+      const kept = [];
+      for (const el of root.querySelectorAll("[data-eye], [data-lens]")) {
+        if (el.dataset.lens === "closed") kept.push(el);
+        else el.style.opacity = "0";
+      }
+      for (const el of kept) el.style.opacity = "1";
+      return kept;
+    }
+
+    function prepareGlasses() {
+      const lensRoot = glassesLensRef.current;
+      const shineRoot = glassesShineRef.current;
+      if (!lensRoot || !shineRoot || shineGradient) return;
+
+      // The black: the file's own shut-lens tint, at the 50% the hero opens on.
+      onlyClosedLens(lensRoot);
+
+      // The light: the same shapes again, repainted with the gradient.
+      const svg = shineRoot.querySelector("svg");
+      if (!svg) return;
+      svg.insertAdjacentHTML("afterbegin", SHINE_DEFS);
+      shineGradient = svg.querySelector(`#${SHINE_ID}`);
+      for (const group of onlyClosedLens(shineRoot)) {
+        for (const shape of group.querySelectorAll("path, ellipse, circle")) {
+          shape.setAttribute("fill", `url(#${SHINE_ID})`);
+          shape.setAttribute("fill-opacity", "1");
+          // The tint carries a stroke of its own, which would draw a white
+          // outline round each lens as the light went by.
+          shape.setAttribute("stroke", "none");
+        }
+      }
+    }
 
     // CHANGE is the exception everywhere in this file: it never touches the
     // shared canvas, it rides the wipe as two colour copies, so its title is
@@ -663,6 +864,64 @@ export default function CareerSection() {
         titleT < 1 || typeT < 1 ? requestAnimationFrame(paintSettled) : null;
     }
 
+    /** Park the glasses back before its first frame. */
+    function resetGlasses() {
+      glassesTime = null;
+      if (glassesRaf) cancelAnimationFrame(glassesRaf);
+      glassesRaf = null;
+      const box = glassesRef.current;
+      if (!box) return;
+      box.style.opacity = "0";
+      box.style.transform = `rotate(${GLASSES_START_DEG}deg)`;
+      if (glassesLensRef.current) glassesLensRef.current.style.opacity = "0";
+      if (glassesShineRef.current) glassesShineRef.current.style.opacity = "0";
+    }
+
+    // Four beats, in order: swung down onto the blob from upright, the lenses
+    // filling with black, a band of light crossing them, and out.
+    function paintGlasses() {
+      if (glassesTime === null) return;
+      const box = glassesRef.current;
+      const lens = glassesLensRef.current;
+      const shine = glassesShineRef.current;
+      if (!box) return;
+      const t = performance.now() - glassesTime;
+
+      // Swing. Eased at both ends so it leaves the upright slowly and settles
+      // rather than slamming flat.
+      const swing = smoothstep(clamp01(t / GLASSES_SWING_MS));
+      box.style.transform = `rotate(${GLASSES_START_DEG * (1 - swing)}deg)`;
+
+      // On screen for the whole of the swing, and gone again over the last
+      // beat. Nothing else fades the frame itself.
+      const leaving = clamp01((t - GLASSES_AT.leave) / GLASSES_LEAVE_MS);
+      box.style.opacity = String(clamp01(t / 160) * (1 - smoothstep(leaving)));
+
+      // The lenses fill once it has landed.
+      if (lens) {
+        lens.style.opacity = String(
+          smoothstep(clamp01((t - GLASSES_AT.darken) / GLASSES_DARKEN_MS)),
+        );
+      }
+
+      // And the light crosses them. Travels a full width and a half so the
+      // band is clear of the box at both ends, and fades at the extremes so it
+      // never simply switches off mid-sweep.
+      if (shine && shineGradient) {
+        const p = clamp01((t - GLASSES_AT.shine) / GLASSES_SHINE_MS);
+        const across = p > 0 && p < 1;
+        // Faded in and out at the extremes so the band never simply switches
+        // off part-way across a lens.
+        shine.style.opacity = across ? String(Math.sin(p * Math.PI)) : "0";
+        shineGradient.setAttribute(
+          "gradientTransform",
+          `translate(${(p * SHINE_TRAVEL).toFixed(1)} 0)`,
+        );
+      }
+
+      glassesRaf = t < GLASSES_END ? requestAnimationFrame(paintGlasses) : null;
+    }
+
     // Called with whichever step the scroll is nearest. CHANGE owns two steps,
     // so moving within it stays on the same chapter and deliberately does
     // not restart the sweep — the title is already settled and sharp.
@@ -685,6 +944,22 @@ export default function CareerSection() {
       settledChapter = next;
       settleTime = performance.now();
       if (next >= 0) paintSettled();
+    }
+
+    // The glasses belongs to the handoff step, which is not a chapter — so it
+    // gets its own arrival rather than riding settleOn's chapter index.
+    // Restarted every time the step is left and returned to, like the chapter
+    // sweeps: an animation you can only ever see once is one most readers never
+    // see at all.
+    function settleGlasses(stepIdx) {
+      if (stepIdx === TITLE_STEP) {
+        if (glassesTime !== null) return;
+        prepareGlasses();
+        glassesTime = performance.now();
+        paintGlasses();
+        return;
+      }
+      if (glassesTime !== null) resetGlasses();
     }
 
     function applyRaw(raw) {
@@ -727,13 +1002,12 @@ export default function CareerSection() {
       const s = scaleRef.current;
       const canvasOffsetX = (window.innerWidth - DESIGN_WIDTH * s) / 2;
       const canvasOffsetY = (window.innerHeight - DESIGN_HEIGHT * s) / 2;
-      const baseSize = CIRCLE_SIZE * s;
-      const grownSize = baseSize * circleScale;
-
-      startCircleRef.current.style.left = `${canvasOffsetX + CENTER_POS.x * s}px`;
-      startCircleRef.current.style.top = `${canvasOffsetY + CENTER_POS.y * s}px`;
-      startCircleRef.current.style.width = `${baseSize}px`;
-      startCircleRef.current.style.height = `${baseSize}px`;
+      // START is always the focused circle, so it is always the large one.
+      const startSize = CIRCLE_SIZE * s;
+      startCircleRef.current.style.left = `${canvasOffsetX + CENTER_POS.x * s - startSize / 2}px`;
+      startCircleRef.current.style.top = `${canvasOffsetY + CENTER_POS.y * s - startSize / 2}px`;
+      startCircleRef.current.style.width = `${startSize}px`;
+      startCircleRef.current.style.height = `${startSize}px`;
       startCircleRef.current.style.opacity = String(1 - startT);
 
       for (let r = 1; r <= 5; r++) {
@@ -742,14 +1016,29 @@ export default function CareerSection() {
         const base = slotFor(r, centerValue);
         const dx = lerp(base.x, CENTER_POS.x, convergeT);
         const dy = lerp(base.y, CENTER_POS.y, convergeT);
-        let centerX = canvasOffsetX + dx * s + baseSize / 2;
-        let centerY = canvasOffsetY + dy * s + baseSize / 2;
-        // Role 5 is the survivor, and it does not just swell where the wheel
-        // left it: the wheel sits low on the canvas, so a circle this size
-        // grown there would hang off the bottom. It travels to the blob's own
-        // centre on the same curve it grows on — which is also exactly where
-        // the next step reads it from, so 6 -> 7 has nothing to jump over.
-        if (r === 5) {
+        // Its own size out on the ring, growing to the focused one as the five
+        // gather in the middle — so the blob they become starts from the size
+        // the survivor is already wearing rather than jumping to it.
+        const baseSize = lerp(base.size, CIRCLE_SIZE, convergeT) * s;
+        // Only the survivor swells and only the survivor travels. The other
+        // four gather at the meeting point and stay the size they arrived at.
+        //
+        // Both of those used to apply to all five, which is what put two blobs
+        // on the screen at once: the survivor climbed towards the canvas centre
+        // as it grew while the other four sat back at the wheel's slot, growing
+        // in place. They were invisible before only because they faded out
+        // before they arrived — now that they stay for the meeting, they have
+        // to stay *at* it.
+        const isSurvivor = r === 5;
+        const grownSize = isSurvivor ? baseSize * circleScale : baseSize;
+        let centerX = canvasOffsetX + dx * s;
+        let centerY = canvasOffsetY + dy * s;
+        // The survivor does not just swell where the wheel left it: the wheel
+        // sits low on the canvas, so a circle this size grown there would hang
+        // off the bottom. It travels to the blob's own centre on the same curve
+        // it grows on — which is also exactly where the next step reads it
+        // from, so 6 -> 7 has nothing to jump over.
+        if (isSurvivor) {
           centerX = lerp(centerX, canvasOffsetX + BLOB_CENTER_X * s, growT);
           centerY = lerp(centerY, canvasOffsetY + BLOB_CENTER_Y * s, growT);
         }
@@ -757,14 +1046,20 @@ export default function CareerSection() {
         el.style.top = `${centerY - grownSize / 2}px`;
         el.style.width = `${grownSize}px`;
         el.style.height = `${grownSize}px`;
-        // Role 5 is the one hiding behind the START circle near
-        // centerValue 0, and the one that survives the convergence to
-        // become the sole blob for the rest of the story — the other 4
-        // fade out as they arrive so 5 stacked translucent layers don't
-        // compound into something far more opaque than the single blob.
-        const survivorFade = r === 5 ? 1 : 1 - convergeT;
+        // The four that are not the survivor stay whole for the whole journey
+        // in, and only give way once they have actually met.
+        //
+        // They used to fade across the travel itself, so they never arrived:
+        // the convergence read as four circles evaporating on their way to the
+        // middle rather than as five becoming one. The window here starts at
+        // half the collapse, by which point they are stacked on the same spot,
+        // so what you watch is a gathering and not a disappearance — and being
+        // coincident by then, fading them *is* merging them.
+        const survivorFade = isSurvivor
+          ? 1
+          : 1 - smoothstep(clamp01((collapsePos - 0.5) / 0.2));
         el.style.opacity = String(
-          circleOpacity * (r === 5 ? startT : 1) * survivorFade * base.visible,
+          circleOpacity * (isSurvivor ? startT : 1) * survivorFade * base.visible,
         );
 
         // Three coats, one circle. On the ring a circle is a white outline
@@ -780,18 +1075,31 @@ export default function CareerSection() {
           // a flat 2px however far the canvas has been shrunk.
           ringEl.style.borderWidth = `${2 * s}px`;
         }
-        if (limeEl) limeEl.style.opacity = String(base.focus * (1 - growT));
-        if (blueEl) blueEl.style.opacity = String(growT);
+        // The fill goes as the five gather, not as the blob grows. The focused
+        // circle is the big lime one, and it should be gone by the time they
+        // meet — what swells out of that meeting is the blue blob, and a lime
+        // disc still sitting inside it while it grows reads as the big circle
+        // *becoming* the blob rather than as five circles making one.
+        if (limeEl) limeEl.style.opacity = String(base.focus * (1 - convergeT));
+        // Only the survivor takes the blue. The other four are still white
+        // outlines when they go, so nothing stacks up under the blob.
+        if (blueEl) blueEl.style.opacity = String(isSurvivor ? growT : 0);
       }
 
-      // Circles paint above the role photos during the wheel (so the one
-      // sitting right below a photo is never clipped by it), then below
-      // the canvas once past the handoff, since the survivor becomes a
-      // background blob that chapter text needs to sit on top of.
-      // Strictly < 6, not <=: at step 6 itself the "Role / Led me to a
-      // career" title needs to sit in front of the now-grown blob, not
-      // behind it.
-      circlesLayerRef.current.style.zIndex = stepPos < 6 ? "2" : "0";
+      // Circles paint above the role photos during the wheel — so the one
+      // sitting right below a photo is never clipped by it — and below the
+      // canvas from the handoff onwards, since the survivor is a background
+      // blob by then and the chapter copy has to sit on top of it.
+      //
+      // The swap happens when the handoff title starts to appear, not when the
+      // step lands. It used to be `stepPos < 6`, and the half-step before 6 is
+      // exactly the band where the title is fading up *and* the blob is
+      // swelling: for that whole stretch the circle was still the upper layer
+      // and grew straight over the words. The title has to be in front of the
+      // circle for every frame it is legible, so the two switch on the same
+      // number — see the title's own reveal below, which uses this window.
+      const titleIn = TITLE_STEP - REVEAL_WINDOW;
+      circlesLayerRef.current.style.zIndex = stepPos < titleIn ? "2" : "0";
       canvasLayerRef.current.style.zIndex = "1";
 
       // Act 2: past step 6, role 5's circle (still the very same element)
@@ -953,8 +1261,18 @@ export default function CareerSection() {
       // every role and for START, and gone the moment the circles leave their
       // slots and gather in the middle.
       ringRef.current.style.opacity = String(1 - convergeT);
+      // The track turns with the wheel. One slot's worth of angle per role, in
+      // the direction the circles themselves travel — CENTER to A is a step
+      // anticlockwise — so a bead and the circle beside it move together and
+      // the whole thing reads as one wheel rotating rather than as five lights
+      // moving along a fixed row.
+      //
+      // `centerValue` is continuous, so this is scrubbed by the scroll like
+      // everything else here: stop halfway between two roles and the ring is
+      // halfway through its turn.
+      dotsRef.current.style.transform = `rotate(${-centerValue * SLOT_NEAR_DEG}deg)`;
 
-      const titleDist = Math.abs(stepPos - 6);
+      const titleDist = Math.abs(stepPos - TITLE_STEP);
       chapterTitleRef.current.style.opacity = String(
         1 - smoothstep(clamp01(titleDist / REVEAL_WINDOW)),
       );
@@ -1014,9 +1332,13 @@ export default function CareerSection() {
       }
 
       const contactDist = Math.abs(stepPos - 10);
-      contactRef.current.style.opacity = String(
-        1 - smoothstep(clamp01(contactDist / REVEAL_WINDOW)),
-      );
+      const contactShown = 1 - smoothstep(clamp01(contactDist / REVEAL_WINDOW));
+      contactRef.current.style.opacity = String(contactShown);
+      // The card holds the resume link, and a faded-out element is still a
+      // click target. Without this it would sit invisibly over the section for
+      // the whole scroll, catching clicks meant for whatever is on screen.
+      contactRef.current.style.pointerEvents =
+        contactShown > 0.5 ? "auto" : "none";
     }
 
     // Which step the scroll is currently nearest. Only the chapter copy cares
@@ -1026,7 +1348,9 @@ export default function CareerSection() {
     // already centred on.
     function render(raw) {
       applyRaw(raw);
-      settleOn(Math.round(raw * STEP_COUNT));
+      const step = Math.round(raw * STEP_COUNT);
+      settleOn(step);
+      settleGlasses(step);
     }
 
     const driver = driveWithScroll(section, render);
@@ -1039,6 +1363,7 @@ export default function CareerSection() {
       window.removeEventListener("load", driver.refresh);
       driver.stop();
       if (sharpenRaf) cancelAnimationFrame(sharpenRaf);
+      if (glassesRaf) cancelAnimationFrame(glassesRaf);
     };
   }, []);
 
@@ -1135,7 +1460,10 @@ export default function CareerSection() {
             catches the pointer over the photo and the hover below never fires.
             The circles are drawn decoration — nothing here is meant to be
             clicked or hovered. */}
-        <div ref={circlesLayerRef} className="absolute inset-0 pointer-events-none">
+        <div
+          ref={circlesLayerRef}
+          className="absolute inset-0 pointer-events-none"
+        >
           <div
             ref={startCircleRef}
             className="absolute bg-[#c9e529] rounded-full flex items-center justify-center"
@@ -1212,14 +1540,75 @@ export default function CareerSection() {
                 is ever meant to be seen. */}
             <div
               ref={ringRef}
-              className="absolute rounded-full border border-solid border-white"
-              style={{
-                left: RING.x,
-                top: RING.y,
-                width: RING.size,
-                height: RING.size,
-              }}
-            />
+              className="absolute"
+              style={{ left: 0, top: 0, width: "100%", height: "100%" }}
+            >
+              {/* The line the wheel runs on. Its centre is below the canvas's
+                  bottom edge on purpose — only the top of the arc is ever meant
+                  to be seen.
+
+                  The stroke is set in *screen* pixels — divided by the canvas
+                  scale, since everything in here is drawn in canvas units and
+                  then scaled. A flat 1px was 1 canvas px, which on a 1440-wide
+                  window is three quarters of a screen pixel and less than that
+                  on a laptop: the browser renders the shortfall as a grey wash
+                  rather than a line, and along the shallow top of the arc,
+                  where the curve is nearly horizontal and the antialiasing
+                  spreads over two rows, it disappears entirely.
+
+                  Two screen px rather than one for the same reason a hairline
+                  is the wrong weight here at all: this is the track five
+                  circles run on, and it has to be visible enough to be read as
+                  one. */}
+              <div
+                className="absolute rounded-full border-solid border-white"
+                style={{
+                  left: RING.x,
+                  top: RING.y,
+                  width: RING.size,
+                  height: RING.size,
+                  borderWidth: 2 / scale,
+                }}
+              />
+              {/* The beads on the line, in a layer of their own so the whole
+                  string can be turned at once — one transform a frame rather
+                  than thirty positions.
+
+                  Turned about the ring's own centre, which is well below the
+                  canvas, so what you see at the top of the arc is the beads
+                  travelling sideways along the line. That is the point: the
+                  five circles hopping from slot to slot say the wheel advanced,
+                  but only the track moving says the wheel *turned*. Without it
+                  the circles read as lights coming on in a fixed row of
+                  sockets.
+
+                  Inside the ring's element, so the beads fade with the line —
+                  they are the track, and a track that half-disappears as the
+                  wheel converges would leave a string of dots hanging in an
+                  empty canvas. */}
+              <div
+                ref={dotsRef}
+                className="absolute"
+                style={{
+                  left: 0,
+                  top: 0,
+                  width: "100%",
+                  height: "100%",
+                  transformOrigin: `${RING_CENTER.x}px ${RING_CENTER.y}px`,
+                }}
+              >
+                {DOT_ANGLES.map((deg) => {
+                  const { x, y } = dotAt(deg);
+                  return (
+                    <div
+                      key={deg}
+                      className="absolute rounded-full bg-white"
+                      style={{ left: x, top: y, width: DOT_SIZE, height: DOT_SIZE }}
+                    />
+                  );
+                })}
+              </div>
+            </div>
 
             <div
               ref={startPanelRef}
@@ -1261,7 +1650,7 @@ export default function CareerSection() {
                   ref={(el) => {
                     rolePhotoRefs.current[i] = el;
                   }}
-                  className="absolute overflow-hidden rounded-[8px]"
+                  className="absolute overflow-hidden rounded-[20px]"
                   style={{
                     left: IMAGE_BOX.x,
                     top: IMAGE_BOX.y,
@@ -1323,12 +1712,76 @@ export default function CareerSection() {
             >
               <p>Role</p>
               <p>Led me to a career</p>
+
               {/* Every text property here is restated rather than inherited —
                   the wrapper carries the 120px bold heading style, which this
                   caption would otherwise pick up wholesale. */}
               <p className="mt-[24px] font-['Pretendard'] font-medium text-[16px] tracking-[-0.02em] leading-[1.2]">
                 개입의 시점을 재정의합니다
               </p>
+            </div>
+
+            {/* The glasses that lands on the blob at the handoff (154:3910).
+                On the canvas rather than in the circles layer, so it paints
+                over the blob — the circles drop behind the canvas at exactly
+                this step (see the z-index swap in applyRaw).
+
+                It plays on a clock rather than off the scroll, like the chapter
+                sweeps and for the same reason: it is a four-beat sequence with
+                an order, and scrubbed it would run backwards, stall halfway and
+                have no end. Reaching the step is the cue; it plays itself out
+                from there. See paintGlasses. */}
+            <div
+              ref={glassesRef}
+              aria-hidden="true"
+              className="pointer-events-none absolute overflow-hidden"
+              style={{
+                left: GLASSES_BOX.x,
+                top: GLASSES_BOX.y,
+                width: GLASSES_BOX.width,
+                height: GLASSES_BOX.height,
+                // Hinged on the drawing's own right tip — the point the whole
+                // thing stands on and swings down from.
+                transformOrigin: `${GLASSES_PIVOT_X * 100}% 50%`,
+                opacity: 0,
+              }}
+            >
+              {/* Back to front, as in the hero: the lens tint, then the light
+                  crossing it, then the frame over both. The frame comes last
+                  because it is the thing in front — a lens painted over its own
+                  glasses is the one arrangement that reads as wrong at once. */}
+              <div
+                ref={glassesLensRef}
+                className="absolute inset-0 [&_svg]:absolute [&_svg]:inset-0 [&_svg]:h-full [&_svg]:w-full"
+                style={{ opacity: 0 }}
+                dangerouslySetInnerHTML={{ __html: heroEyes }}
+              />
+              {/* The light crossing them — a second copy of the same overlay,
+                  with the lens shapes filled by a moving gradient instead of
+                  black.
+
+                  A plain band swept over the box was the obvious thing and the
+                  wrong one: the box is the artwork's, which is half again as
+                  tall as the glasses and sits on a 620px circle, so what
+                  crossed the screen was a searchlight over the whole blob. The
+                  light belongs to the lenses, so it is painted *as* the lenses
+                  — masked by the only shapes that are actually lens-shaped,
+                  which are already in this file. */}
+              <div
+                ref={glassesShineRef}
+                className="absolute inset-0 [&_svg]:absolute [&_svg]:inset-0 [&_svg]:h-full [&_svg]:w-full"
+                style={{ opacity: 0 }}
+                dangerouslySetInnerHTML={{ __html: heroEyes }}
+              />
+              <img
+                src={glassesImg}
+                alt=""
+                className="absolute inset-0 h-full w-full"
+                // The hero's blue knocked out to the black the design draws
+                // here. One flat colour through an alpha mask, so this is the
+                // same shape and nothing is re-exported to keep in step.
+                style={{ filter: "brightness(0)" }}
+              />
             </div>
 
             {/* CHANGE is absent here on purpose — it lives entirely in the
@@ -1393,9 +1846,21 @@ export default function CareerSection() {
                   <p>email</p>
                   <p>| eysj1620@gmail.com</p>
                 </div>
-                <div className="flex items-center justify-between w-[379px]">
+                {/* Opens the document, and in a new tab: a recruiter reading
+                    this is somewhere in the middle of a scroll-driven page, and
+                    navigating away from it loses that place. `noreferrer` for
+                    the usual reason — a new tab opened this way otherwise gets a
+                    handle back to the page that opened it. */}
+                <div className="flex items-center justify-between w-[215px]">
                   <p>이력서</p>
-                  <p>| eysj1620@gmail.com</p>
+                  <a
+                    href={RESUME_HREF}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline decoration-1 underline-offset-4 transition-opacity hover:opacity-60"
+                  >
+                    | 보러가기
+                  </a>
                 </div>
                 <p>이 사이트는 Claude Code로 직접 만들었습니다</p>
                 <p>©2026yunsujeong</p>

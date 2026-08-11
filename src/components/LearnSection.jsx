@@ -1,20 +1,16 @@
 import { useEffect, useRef } from "react";
-// Used exactly as supplied. These are browser mockups drawn in perspective —
-// each one is a trapezoid, not a tilted rectangle: on card-6 the left edge is
-// 1555px against 1781px on the right. That is the artwork, and no rotation or
-// scale turns a trapezoid into a rectangle, so nothing here tries. The card
-// simply shows the file, and the transparent corners around the mockup are part
-// of how it is drawn.
-import card1 from "../assets/learn/card-1.avif";
-import card2 from "../assets/learn/card-2.avif";
-import card3 from "../assets/learn/card-3.avif";
-import card4 from "../assets/learn/card-4.avif";
-import card5 from "../assets/learn/card-5.avif";
-import card6 from "../assets/learn/card-6.avif";
-// The tab that hangs off each card's right edge, exported from Figma
-// (node 283:206). Not a plain rounded rectangle: its top edge slants up
-// slightly to the right, matching the perspective the mockups are drawn in.
-import tab from "../assets/learn/tab.svg";
+// The deck itself — the six files, their artwork and where each one opens —
+// lives in data/learn, because the phone deals the same six a different way
+// (see mobile/MobileLearn). Everything below is this layout's business: the
+// scroll-driven travel and the sizes it travels at.
+import {
+  LEARN_CARDS as CARDS,
+  LEARN_CARD_ASPECT as CARD_ASPECT,
+  LEARN_TAB_ASPECT,
+  LEARN_TAB_FRAC as TAB_FRAC,
+  learnHref,
+  learnTab as tab,
+} from "../data/learn";
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (from, to, x) => {
@@ -22,58 +18,14 @@ const smoothstep = (from, to, x) => {
   return t * t * (3 - 2 * t);
 };
 
-// Back-to-front stacking order — the last one in this list paints on top
-// and sits at the front (leftmost) of the stack.
-//
-// `href` is where the card opens, in a new tab. Two ways to fill it in:
-//
-//   1. Already hosted somewhere — use the full URL.
-//   2. A local build — drop the self-contained folder into
-//      public/learn/<slug>/ and point at '/learn/<slug>/index.html'.
-//      Vite copies public/ into dist/ *untouched*, so the piece's own CSS and
-//      JS keep working as-is. Two things follow from "untouched": it must not
-//      live under src/ (the bundler would rewrite it), and Vite will not fix
-//      up paths inside it — so keep its assets in the same folder and
-//      reference them relatively ('./app.js') or from the root
-//      ('/learn/<slug>/app.js').
-//
-// `slug: null` leaves a card as a plain div: visible, not clickable. That is
-// what an unfinished one should be, rather than a link that goes nowhere.
-//
-// The slugs are the folder names exactly as they sit on disk. They still carry
-// their original numbering, which runs opposite to the card order and is why
-// the two columns below disagree — renaming them is pending (see the note in
-// the commit/notes), and when it happens only these strings change.
-const learnHref = (slug) => `/learn/${encodeURIComponent(slug)}/index.html`;
-
-// Two things decide this list, and they pull in opposite directions:
-//
-//   - Each image is that site's own screenshot, so image and slug are a fixed
-//     pair. card-1 is the chemical site, card-6 is Musign, and so on — the
-//     numbering in the image filenames is unrelated to the running order.
-//     Verified against each page's <title> and hero copy.
-//   - The array is back-to-front (see above), so it reads bottom-up: the LAST
-//     entry is the card the viewer meets first.
-//
-// So this list is the intended running order — 뮤자인, 대방산업, 크루어라모드,
-// 와이스튜디오, 한화케미컬, 한국소비자원 — written in reverse. The slug numbers
-// run with that order, which is why they count down here.
-//
-// Labels are each site's own <title>, which is not always the folder name.
-const CARDS = [
-  { image: card2, slug: "6-kca", label: "한국소비자원 매거진" },
-  { image: card1, slug: "5-hanwha-chemical", label: "한화케미컬" },
-  { image: card3, slug: "4-y-studio", label: "와이스튜디오" },
-  { image: card4, slug: "3-crew-alamode", label: "크루 어 라 모드" },
-  { image: card5, slug: "2-daebang", label: "대방산업" },
-  { image: card6, slug: "1-mujain", label: "뮤자인" },
-];
+// CARDS is back-to-front: the last one in the list paints on top and sits at
+// the front (leftmost) of the stack. See data/learn for why it is written that
+// way round and for what each entry means.
 
 // 0.8x what it was (29vw -> 23.2vw). Smaller cards also mean the fanned-out
 // row takes up less of the screen, which is what stops the far ones running off
 // the edges.
 const CARD_WIDTH = "clamp(176px,23.2vw,443px)";
-const CARD_ASPECT = 446.5 / 554;
 // Gap between each stacked card, as a fraction of the card width. One number,
 // held for the whole run: the deck keeps the spacing it starts with and simply
 // travels.
@@ -99,7 +51,6 @@ const GAP_FRAC = 60 / 120;
 // (It used to be -2.9 card widths, chosen to leave the rearmost card sitting in
 // frame on the left. That is the part being changed: the section now hands over
 // to SKILLS on an empty stage.)
-const TAB_FRAC = 0.072; // matches the tab's w-[7.2%] below
 const EXIT_MARGIN_PX = 24; // a little clear air past the edge
 // "LEARN" holds in place for a beat before it starts exiting left, instead
 // of moving the instant you scroll — then fully gone before the cards start.
@@ -285,9 +236,10 @@ export default function LearnSection() {
                   <img
                     src={tab}
                     alt=""
-                    className="absolute right-0 top-[5%] w-[7.2%] max-w-none"
+                    className="absolute right-0 top-[5%] max-w-none"
                     style={{
-                      aspectRatio: "41 / 122.372",
+                      width: `${TAB_FRAC * 100}%`,
+                      aspectRatio: LEARN_TAB_ASPECT,
                       transform: "translateX(calc(100% - 1px))",
                     }}
                   />

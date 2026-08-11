@@ -1,5 +1,32 @@
 @import "tailwindcss";
 
+/* No scrollbars anywhere on the site.
+   The whole page is a scroll-driven piece — sections pin, hand over and play
+   off the scroll position — and a bar ticking down the edge is the one element
+   that reads as browser chrome rather than as part of the design. It also gives
+   away the length of a hero that is meant to feel like one screen.
+
+   Hidden, not disabled: every one of these still scrolls by wheel, trackpad,
+   touch, keyboard and by the scroll-driven animations themselves. Only the
+   indicator is gone.
+
+   The two properties are the same rule for different engines — `scrollbar-width`
+   for Firefox, the pseudo-element for WebKit and Blink. Both are needed.
+
+   This supersedes the per-container versions of the same rule further down
+   (.snapkeep-frame, the Snapkeep filter aside); those are left in place because
+   each carries its own reason for hiding a bar that would still be wrong even
+   if this global rule ever went away. */
+* {
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
+
 /* The three stars in the Experience section's sparkle cluster
    (archive-sparkles.svg — each one a <g data-twinkle>). They go out and come
    back rather than merely brightening: these are thin line drawings on a dark
@@ -59,6 +86,26 @@
   [data-twinkle] {
     animation: none;
   }
+}
+
+/* A case study spread folded into one column for a phone — see SpreadFrame's
+   `stacked` and MobileCaseStudy.
+
+   Each column carries its own spacing on its own class (gap-[91px], pb-[130px]
+   and so on). Those numbers are not about the gap between two blocks: they are
+   what makes three columns of different heights line up along a shared bottom
+   edge, chosen per column by hand. Stacked into one file they are just noise —
+   40px between one pair of blocks and 107 between the next, with a hundred
+   pixels of padding hanging off the end of what used to be a column.
+
+   So the stacked layout takes the spacing back and sets one rhythm, which is
+   the 22 the design puts between two blocks. Done here rather than by editing
+   the three spreads because the numbers are right for the desktop and there is
+   nothing to fix in them — this is one layout overriding another's spacing, and
+   the override belongs with the layout that wants it. */
+.spread-stacked > div {
+  gap: 22px;
+  padding-bottom: 0;
 }
 
 /* The Experience section's Snapkeep window scrolls internally so the frame can
@@ -952,4 +999,54 @@ div:has(> header .font-serif) .snapkeep-analysis-basis {
 .snapkeep-scan-dropzone span:last-child {
   font-size: 14px;
   line-height: 1.4;
+}
+
+/* The docked chat character — the pink circle with the hero's glasses parked on
+   it — breathing in place.
+
+   Two elements in two components that have to read as one body, so the motion
+   is a single shared animation applied to both rather than anything either of
+   them drives. Same name, same duration, and both switched on at the same
+   scroll position (`t >= 1` in Hero's dock loop, `bottom <= 0` in Chatbot), so
+   they start in the same frame and never drift.
+
+   The two constraints that shape the keyframes:
+
+   - Rotation only for the tilt. The glasses is nested inside a transform that
+     scales it down to 64px; anything measured in px there would come out eight
+     times smaller than the same value on the circle, and the pair would pull
+     apart. Rotation is scale-invariant, so both turn by the same angle.
+
+   - The bob is a percentage, which resolves against each element's own height —
+     and those are nearly equal on screen. The glasses ends up 64 x 62.1px (its
+     art is 512.91 x 498) against the circle's 56px, so 7% is 4.35px on one and
+     3.92px on the other. Four tenths of a pixel apart at the extremes of the
+     travel: not a difference anyone can see, and it holds at every viewport
+     size because both numbers are fixed.
+
+   No transform on the circle other than this, which is why its hover state is a
+   brightness change — a hover scale would move the circle out from under the
+   glasses, which is exactly the thing this is here to prevent. */
+/* Two frames rather than three, so the float is a clean rise and fall with the
+   tilt riding on it. Broken into more steps it starts to read as fidgeting
+   rather than as breathing. */
+@keyframes chatbot-idle {
+  0%,
+  100% {
+    transform: translateY(7%) rotate(3deg);
+  }
+
+  50% {
+    transform: translateY(-7%) rotate(-3deg);
+  }
+}
+
+[data-chat-idle] {
+  animation: chatbot-idle 3.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-chat-idle] {
+    animation: none;
+  }
 }

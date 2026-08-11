@@ -54,8 +54,12 @@ const FRAME_MOVE = ["left", "top", "width", "height"]
 
 export default function ProjectDetailOverlay({ card, originRect, onClose }) {
   const Spread = card.detail;
-  // The opened pages are usually the tab's own colour, but a project can
-  // darken or shift it — Layer's pages carry a 20% black wash over the tab.
+  // What the opened pages — the case study's own background — are painted.
+  //
+  // Chosen per project rather than taken from the cover: the cover colours are
+  // sampled off the face artwork, and these are picked to be read against. They
+  // are close enough to the covers that opening a folder still reads as seeing
+  // inside it, but they are their own decision. See CARDS in ProjectSection.
   const pageColor = card.pageColor ?? card.tabColor;
   const outerRef = useRef(null);
   const innerRef = useRef(null);
@@ -264,15 +268,18 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
             }}
           />
           {/* The tab belongs to the folder, not the cover, so it stays put
-              through the whole turn. It takes the opened pages' colour on the
-              way, since that is what it is attached to once the folder is
-              open — the spread brings its own tab in at the bloom. */}
+              through the whole turn.
+
+              The page's colour throughout, not the card's own `tabColor` until
+              the cover swings away. A folder is one piece of card: a tab in a
+              different colour from the file it is attached to reads as a
+              sticker stuck on the side, and the difference was plain — #2686e7
+              against #018cfc, #78db44 against #c9e529. It used to cross-fade
+              between the two as the cover opened, which only made the mismatch
+              something you watched happen. */}
           <div
             className="absolute right-0 top-[3.5%] h-[24%] w-[11%] translate-x-full rounded-r-[10px]"
-            style={{
-              backgroundColor: opened ? pageColor : card.tabColor,
-              transition: `background-color ${FLIP_MS}ms ease-out`,
-            }}
+            style={{ backgroundColor: pageColor }}
           />
         </div>
       </div>
