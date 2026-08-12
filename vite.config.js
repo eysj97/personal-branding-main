@@ -69,6 +69,111 @@ function snapkeepAnalyze(apiKey) {
   }
 }
 
+// The chatbot's answers, generated rather than looked up.
+//
+// Same shape as the analyzer above and for the same reasons: inside the dev
+// server, key never bundled, `apply: 'serve'` so a static build simply does not
+// have it. When it is not there the client falls back to the keyword matcher it
+// used to be — see lib/chatbotAsk.
+//
+// The one thing that is not like the analyzer: this is *grounded*, not open.
+// data/chatbot.js opens by arguing against putting a model in this loop at all,
+// and the argument is right — it speaks for a real person to people deciding
+// whether to hire her, and an answer that is nearly right about her career is
+// worse than none. So the model is not asked what it knows. It is handed her
+// written answers as the only permitted source and told to answer out of them:
+// what it adds is understanding the question, not the facts.
+//
+// Which is the actual gap. The matcher needs a visitor to type a substring it
+// has been given; ask it something phrased sideways, or two things at once, and
+// it dead-ends on the email line. This closes that without inventing anything.
+function chatbotAnswer(apiKey) {
+  return {
+    name: 'chatbot-answer',
+    apply: 'serve',
+    configureServer(server) {
+      server.middlewares.use('/api/chat', async (request, response) => {
+        const send = (status, body) => {
+          response.statusCode = status
+          response.setHeader('Content-Type', 'application/json')
+          response.end(JSON.stringify(body))
+        }
+
+        if (request.method !== 'POST') return send(405, { error: 'POST만 지원합니다.' })
+        if (!apiKey) return send(503, { error: 'ANTHROPIC_API_KEY가 없습니다.' })
+
+        try {
+          const { default: Anthropic } = await import('@anthropic-ai/sdk')
+          // The same file the matcher and the panel read. One place to edit an
+          // answer, and no second copy of her career to drift out of date.
+          const facts = await import('./src/data/chatbot.js')
+          const { question, history } = await readJson(request)
+          if (!question?.trim()) return send(400, { error: '질문이 없습니다.' })
+
+          const client = new Anthropic({ apiKey })
+          const result = await client.messages.create({
+            model: 'claude-opus-5',
+            // An answer is two or three sentences. Room for that and no room to
+            // wander into an essay about her.
+            max_tokens: 512,
+            output_config: { effort: 'low' },
+            system: chatSystemPrompt(facts),
+            messages: [
+              // A few turns of context so "그건 왜요?" has an antecedent. Only a
+              // few: this is a question box beside a portfolio, not a thread
+              // anyone scrolls back through.
+              ...(Array.isArray(history) ? history.slice(-6) : []).map((m) => ({
+                role: m.from === 'you' ? 'user' : 'assistant',
+                content: String(m.text ?? ''),
+              })),
+              { role: 'user', content: question.trim() },
+            ],
+          })
+
+          const text = result.content
+            .filter((block) => block.type === 'text')
+            .map((block) => block.text)
+            .join('')
+            .trim()
+
+          if (!text) return send(502, { error: '답변을 만들지 못했습니다.' })
+          send(200, { text })
+        } catch (error) {
+          server.config.logger.error(`[chatbot-answer] ${error?.message ?? error}`)
+          send(502, { error: error?.message ?? '답변에 실패했습니다.' })
+        }
+      })
+    },
+  }
+}
+
+function chatSystemPrompt({ ANSWERS, EMAIL, FALLBACK, OUT_OF_SCOPE }) {
+  // Her answers, verbatim, as the only material. Ids come along so the rules
+  // below can talk about them, not because the model should ever say one.
+  const material = ANSWERS.map((a) => `[${a.id}] ${a.text}`).join('\n\n')
+
+  return `당신은 UX/UI 디자이너 윤수정의 포트폴리오 사이트에 있는 안내 챗봇입니다.
+방문자는 대부분 그를 채용할지 검토하는 사람입니다.
+
+# 자료
+아래는 수정님이 직접 쓴 답변 전문입니다. 이것이 당신이 가진 정보의 전부입니다.
+
+${material}
+
+# 규칙
+- 위 자료에 있는 내용만으로 답하세요. 자료에 없는 경력·수치·회사명·기간·도구·성과를 새로 만들어내지 마세요. 추측도 하지 마세요.
+- 자료로 답할 수 없는 질문에는 정확히 이렇게 답하세요: "${FALLBACK}"
+- 수정님과 무관한 질문(날씨, 뉴스, 번역, 코드 작성 등)에는 정확히 이렇게 답하세요: "${OUT_OF_SCOPE}"
+- 여러 자료에 걸친 질문이면 관련된 내용을 합쳐서 답해도 됩니다. 자료 안에서 합치는 것은 괜찮고, 자료 밖으로 나가는 것은 안 됩니다.
+- 자료의 문장을 그대로 쓰거나 자연스럽게 다듬어 쓰세요. 뜻이 달라지면 안 됩니다.
+
+# 말투
+- 한국어 존댓말. 수정님을 3인칭으로 "수정님"이라고 부릅니다.
+- 2~4문장. 길게 늘어놓지 마세요.
+- 목록, 제목, 마크다운 기호를 쓰지 마세요. 말하듯 이어지는 문장으로 씁니다.
+- 연락처를 안내할 때는 ${EMAIL} 를 씁니다.`
+}
+
 function readJson(request) {
   return new Promise((resolve, reject) => {
     let body = ''
@@ -195,7 +300,12 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    plugins: [react(), tailwindcss(), snapkeepAnalyze(env.ANTHROPIC_API_KEY)],
+    plugins: [
+      react(),
+      tailwindcss(),
+      snapkeepAnalyze(env.ANTHROPIC_API_KEY),
+      chatbotAnswer(env.ANTHROPIC_API_KEY),
+    ],
   }
 })
 

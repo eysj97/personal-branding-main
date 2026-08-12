@@ -1,18 +1,23 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GREETING, QUICK } from "../data/chatbot";
-import { match } from "../lib/chatbotMatch";
+import { askChatbot } from "../lib/chatbotAsk";
 import { useIsMobile } from "../lib/viewport";
 
 // A launcher in the corner and a panel above it. Fixed, so it rides over every
 // section without joining any of them — none of the scroll timelines on this
 // page should ever have to know it is there.
 //
-// The answers are written and matched by keyword; see ../data/chatbot.js for
-// why there is no model behind this.
+// The answers are generated from her own written material — see ../data/
+// chatbot.js for what that material is and lib/chatbotAsk for how the panel
+// gets one, including what it does when there is no endpoint to ask.
 
-// Long enough to read as the reply being written rather than as a lookup, short
-// enough that nobody waits for it. Purely cosmetic — the answer is already
-// known the moment the question is asked.
+// A floor on how long "답변 중…" is up, not a delay added to the answer.
+//
+// It was theatre over an instant lookup. Now the answer is a real request and
+// usually takes longer than this anyway — what the floor is for is the case
+// that does not: a fallback to the written answer returns in about a
+// millisecond, and a reply that appears in the same frame as the question reads
+// as a canned response rather than as her answering.
 const REPLY_MS = 380;
 
 // How long the greeting has the panel to itself before the quick questions
@@ -252,18 +257,30 @@ export default function Chatbot() {
 
   useEffect(() => () => clearTimeout(timerRef.current), []);
 
-  function ask(question) {
+  // Ask, then answer. The wait used to be REPLY_MS of theatre over an instant
+  // lookup; it is a real request now, so the delay is only a floor — enough for
+  // "답변 중…" to register as her thinking rather than as a flicker, and no more
+  // than that if the answer takes longer anyway.
+  async function ask(question) {
     const text = question.trim();
     if (!text || pending) return;
     setDraft("");
+    // Captured before the question is appended: the model is given what was
+    // said *before* this, and the question itself goes in as its own turn.
+    const history = thread.map((m) => ({ from: m.from, text: m.text }));
     setThread((t) => [...t, { id: nextId(), from: "you", text }]);
     setPending(true);
-    clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => {
-      const { text: answer } = match(text);
-      setThread((t) => [...t, { id: nextId(), from: "bot", text: answer }]);
-      setPending(false);
-    }, REPLY_MS);
+
+    const [answer] = await Promise.all([
+      askChatbot(text, history),
+      new Promise((resolve) => {
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(resolve, REPLY_MS);
+      }),
+    ]);
+
+    setThread((t) => [...t, { id: nextId(), from: "bot", text: answer }]);
+    setPending(false);
   }
 
   return (

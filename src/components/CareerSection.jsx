@@ -13,6 +13,22 @@ import role3Img from "../assets/role/3.avif";
 import role4Img from "../assets/role/4.avif";
 import role5Img from "../assets/role/5.avif";
 
+// The hero's overlay file is a face: three eye states, two pupils, and the lens
+// tint that goes over them. Only the tint belongs here — what lands on the
+// handoff blob is a pair of glasses, not somebody's eyes looking out of it.
+//
+// The eyes are cut out of the markup rather than hidden once the sequence
+// starts. Hiding them meant every frame painted before that code ran showed a
+// pair of eyes through the lenses, which is a race no amount of ordering makes
+// safe; a shape that is not in the document cannot be drawn.
+const LENS_ONLY = (() => {
+  const doc = new DOMParser().parseFromString(heroEyes, "image/svg+xml");
+  for (const el of doc.querySelectorAll("[data-eye], [data-pupil], [data-lens]")) {
+    if (el.dataset.lens !== "closed") el.remove();
+  }
+  return doc.documentElement.outerHTML;
+})();
+
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (t) => {
   const x = clamp01(t);
@@ -589,6 +605,14 @@ const CHAPTER_REVEAL_WINDOW = 0.5;
 // paint over the blob.
 const TITLE_STEP = 6;
 
+// The band of the timeline the glasses sequence owns. It opens a hair before
+// the step rather than exactly on it so that stopping a fraction short still
+// plays it — by 5.9 the chapter photo has gone and the circle is round — and
+// closes at 6.5, where the blob sets off for the next chapter and there is
+// nothing left under the glasses to land on.
+const GLASSES_FROM = TITLE_STEP - 0.1;
+const GLASSES_TO = TITLE_STEP + 0.5;
+
 // The glasses that lands on the handoff blob (node 154:3910), and the four
 // beats it plays once it has.
 //
@@ -611,10 +635,13 @@ const GLASSES_START_DEG = 90;
 const GLASSES_SWING_MS = 760;
 // The lenses filling with the hero's own 50% black.
 const GLASSES_DARKEN_MS = 420;
-// A band of light crossing them.
-const GLASSES_SHINE_MS = 720;
-// A beat with the light gone and the glasses simply sitting there.
-const GLASSES_HOLD_MS = 260;
+// A band of light crossing them. 800, which is GlareHover's own
+// transitionDuration — see the gradient below, which is that effect's shape.
+const GLASSES_SHINE_MS = 800;
+// A beat with the glare gone and the glasses simply sitting there — long
+// enough for the light running round the rim to make a full pass, which is what
+// this beat is now for. It was 260 when there was nothing to watch during it.
+const GLASSES_HOLD_MS = 1400;
 // And out, leaving a clean blob for whatever the reader scrolls to next.
 const GLASSES_LEAVE_MS = 420;
 const GLASSES_AT = {
@@ -755,6 +782,7 @@ export default function CareerSection() {
   const glassesRef = useRef(null);
   const glassesLensRef = useRef(null);
   const glassesShineRef = useRef(null);
+  const glassesRimRef = useRef(null);
   const changeWipeRef = useRef(null);
   const changeWhiteLayerRef = useRef(null);
   const changeWhiteCanvasRef = useRef(null);
@@ -809,53 +837,59 @@ export default function CareerSection() {
     // never been reached or the reader has scrolled off the step.
     let glassesTime = null;
     let glassesRaf = null;
-    // Everything in hero-eyes.svg except the shut lens. That file carries three
-    // eye states and two tints for the hero to cross-fade between; here only
-    // the 50% black is wanted, so the rest is switched off once and never
-    // touched again.
-    // The gradient that sweeps across the lenses, and the id it is referenced
-    // by. In user space so it can be moved in the drawing's own units — the
-    // band is 160 wide against the file's 512.91, and angled by running its two
-    // ends down the full height.
+    // The eased timeline position of the last painted frame, which is what the
+    // glasses arrives on. Everything else here works off the nearest step.
+    let lastStepPos = 0;
+    // The band of light that crosses the lenses — GlareHover's glare, painted
+    // into the lens shapes.
+    //
+    // Its numbers are that component's defaults, because that is the look asked
+    // for: white at 0.3, tilted -30deg, wide and soft, and 800ms end to end. The
+    // softness is what makes it read as a reflection rather than a stripe — a
+    // hard bright edge is a wipe, a wide gentle one is light moving across
+    // glass.
+    //
+    // Where it differs from GlareHover is only what it is applied to. That
+    // component lays its glare over a whole box; this one is masked to the two
+    // lenses, because the box here is the artwork's — half again as tall as the
+    // glasses, sitting on a 620px circle — and a band across it is a searchlight
+    // over the blob rather than a glint on a pair of sunglasses.
+    //
+    // And it starts on its own. GlareHover waits for a pointer; there is nothing
+    // to hover here, so it plays as the fourth beat of the sequence.
     const SHINE_ID = "role-glasses-shine";
-    const SHINE_BAND = 160;
-    const SHINE_DEFS = `<defs><linearGradient id="${SHINE_ID}" gradientUnits="userSpaceOnUse" x1="${-SHINE_BAND}" y1="0" x2="0" y2="498"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0.95"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs>`;
-    // How far the band travels: clear off one side to clear off the other.
+    // Against the drawing's own 512.91 — roughly the 300% glareSize, which on a
+    // gradient this wide is most of the lens lit at once.
+    const SHINE_BAND = 300;
+    const SHINE_ANGLE = -30;
+    const SHINE_OPACITY = 0.3;
+    // The stops are GlareHover's: nothing until 60%, the glare at 70%, gone by
+    // 100%. Written as one band travelling rather than a background-position, so
+    // the same shape works inside an SVG.
+    const SHINE_DEFS = `<defs><linearGradient id="${SHINE_ID}" gradientUnits="userSpaceOnUse" x1="${-SHINE_BAND}" y1="0" x2="0" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/><stop offset="0.7" stop-color="#ffffff" stop-opacity="${SHINE_OPACITY}"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient></defs>`;
+    // Clear off one side to clear off the other. Rotating the band means it has
+    // further to go than the drawing is wide, hence the generous overshoot.
     const SHINE_TRAVEL = 512.91 + SHINE_BAND * 2;
+    // What the band is turned about — the drawing's own middle.
+    const SHINE_PIVOT = { x: 512.91 / 2, y: 498 / 2 };
     let shineGradient = null;
 
-    /** Strip an overlay copy down to its shut-lens shapes. */
-    function onlyClosedLens(root) {
-      const kept = [];
-      for (const el of root.querySelectorAll("[data-eye], [data-lens]")) {
-        if (el.dataset.lens === "closed") kept.push(el);
-        else el.style.opacity = "0";
-      }
-      for (const el of kept) el.style.opacity = "1";
-      return kept;
-    }
-
+    // Both copies are LENS_ONLY, so the black needs no preparing at all — it is
+    // already the file's shut-lens tint at the 50% the hero opens on. All this
+    // does is repaint the second copy with the travelling gradient.
     function prepareGlasses() {
-      const lensRoot = glassesLensRef.current;
       const shineRoot = glassesShineRef.current;
-      if (!lensRoot || !shineRoot || shineGradient) return;
-
-      // The black: the file's own shut-lens tint, at the 50% the hero opens on.
-      onlyClosedLens(lensRoot);
-
-      // The light: the same shapes again, repainted with the gradient.
+      if (!shineRoot || shineGradient) return;
       const svg = shineRoot.querySelector("svg");
       if (!svg) return;
       svg.insertAdjacentHTML("afterbegin", SHINE_DEFS);
       shineGradient = svg.querySelector(`#${SHINE_ID}`);
-      for (const group of onlyClosedLens(shineRoot)) {
-        for (const shape of group.querySelectorAll("path, ellipse, circle")) {
-          shape.setAttribute("fill", `url(#${SHINE_ID})`);
-          shape.setAttribute("fill-opacity", "1");
-          // The tint carries a stroke of its own, which would draw a white
-          // outline round each lens as the light went by.
-          shape.setAttribute("stroke", "none");
-        }
+      for (const shape of svg.querySelectorAll("path, ellipse, circle")) {
+        shape.setAttribute("fill", `url(#${SHINE_ID})`);
+        shape.setAttribute("fill-opacity", "1");
+        // The tint carries a stroke of its own, which would draw a white
+        // outline round each lens as the light went by.
+        shape.setAttribute("stroke", "none");
       }
     }
 
@@ -927,6 +961,7 @@ export default function CareerSection() {
       box.style.transform = `rotate(${GLASSES_START_DEG}deg)`;
       if (glassesLensRef.current) glassesLensRef.current.style.opacity = "0";
       if (glassesShineRef.current) glassesShineRef.current.style.opacity = "0";
+      if (glassesRimRef.current) glassesRimRef.current.style.opacity = "0";
     }
 
     // Four beats, in order: swung down onto the blob from upright, the lenses
@@ -936,6 +971,7 @@ export default function CareerSection() {
       const box = glassesRef.current;
       const lens = glassesLensRef.current;
       const shine = glassesShineRef.current;
+      const rim = glassesRimRef.current;
       if (!box) return;
       const t = performance.now() - glassesTime;
 
@@ -948,6 +984,17 @@ export default function CareerSection() {
       // beat. Nothing else fades the frame itself.
       const leaving = clamp01((t - GLASSES_AT.leave) / GLASSES_LEAVE_MS);
       box.style.opacity = String(clamp01(t / 160) * (1 - smoothstep(leaving)));
+
+      // The rim lights up as it lands and stays lit for as long as the glasses
+      // is there. It is a CSS loop of its own (see .glasses-rim), so all that
+      // happens here is switching it on — which is also why it is faded in
+      // rather than started: the animation has been running underneath all
+      // along, and catching it mid-pass is what a light going round looks like.
+      if (rim) {
+        rim.style.opacity = String(
+          smoothstep(clamp01((t - GLASSES_AT.darken) / GLASSES_DARKEN_MS)),
+        );
+      }
 
       // The lenses fill once it has landed.
       if (lens) {
@@ -962,12 +1009,15 @@ export default function CareerSection() {
       if (shine && shineGradient) {
         const p = clamp01((t - GLASSES_AT.shine) / GLASSES_SHINE_MS);
         const across = p > 0 && p < 1;
-        // Faded in and out at the extremes so the band never simply switches
-        // off part-way across a lens.
-        shine.style.opacity = across ? String(Math.sin(p * Math.PI)) : "0";
+        // Full strength for the whole crossing. The band's own stops are what
+        // fade it in and out — an envelope on top of that was dimming the glare
+        // exactly when it was over the lens.
+        shine.style.opacity = across ? "1" : "0";
+        // Turned first, then run along its own axis, so the band keeps its
+        // -30deg tilt the whole way across instead of skewing as it travels.
         shineGradient.setAttribute(
           "gradientTransform",
-          `translate(${(p * SHINE_TRAVEL).toFixed(1)} 0)`,
+          `rotate(${SHINE_ANGLE} ${SHINE_PIVOT.x} ${SHINE_PIVOT.y}) translate(${(p * SHINE_TRAVEL).toFixed(1)} 0)`,
         );
       }
 
@@ -1003,8 +1053,15 @@ export default function CareerSection() {
     // Restarted every time the step is left and returned to, like the chapter
     // sweeps: an animation you can only ever see once is one most readers never
     // see at all.
-    function settleGlasses(stepIdx) {
-      if (stepIdx === TITLE_STEP) {
+    // Off the eased position, not the nearest step. Rounding started it at 5.5,
+    // half a step early, and the half-step before 6 is the one place it must
+    // not play: the previous chapter's photograph is still on screen and the
+    // circle has not finished converging, so the sequence ran over a picture of
+    // people — their faces showing through the half-black lenses. The design's
+    // cue is the blob arriving in the middle at its finished size, which is
+    // step 6, and that is what this waits for.
+    function settleGlasses(pos) {
+      if (pos >= GLASSES_FROM && pos < GLASSES_TO) {
         if (glassesTime !== null) return;
         prepareGlasses();
         glassesTime = performance.now();
@@ -1036,6 +1093,9 @@ export default function CareerSection() {
       // than slamming into its hold.
       const local = clamp01((linear - whole - STEP_HOLD) / (1 - STEP_HOLD));
       const stepPos = whole + smoothstep(local);
+      // Kept for the glasses, which is the one thing here that needs the eased
+      // position rather than the nearest step. See settleGlasses.
+      lastStepPos = stepPos;
 
       // Act 1, phase A: the wheel — 0 (START at center) to 5 (role 5).
       // Already eased per leg by stepPos above, so it is taken straight.
@@ -1430,7 +1490,7 @@ export default function CareerSection() {
       applyRaw(raw);
       const step = Math.round(raw * STEP_COUNT);
       settleOn(step);
-      settleGlasses(step);
+      settleGlasses(lastStepPos);
     }
 
     const driver = driveWithScroll(section, render);
@@ -1860,7 +1920,7 @@ export default function CareerSection() {
                 ref={glassesLensRef}
                 className="absolute inset-0 [&_svg]:absolute [&_svg]:inset-0 [&_svg]:h-full [&_svg]:w-full"
                 style={{ opacity: 0 }}
-                dangerouslySetInnerHTML={{ __html: heroEyes }}
+                dangerouslySetInnerHTML={{ __html: LENS_ONLY }}
               />
               {/* The light crossing them — a second copy of the same overlay,
                   with the lens shapes filled by a moving gradient instead of
@@ -1877,7 +1937,7 @@ export default function CareerSection() {
                 ref={glassesShineRef}
                 className="absolute inset-0 [&_svg]:absolute [&_svg]:inset-0 [&_svg]:h-full [&_svg]:w-full"
                 style={{ opacity: 0 }}
-                dangerouslySetInnerHTML={{ __html: heroEyes }}
+                dangerouslySetInnerHTML={{ __html: LENS_ONLY }}
               />
               <img
                 src={glassesImg}
@@ -1888,6 +1948,36 @@ export default function CareerSection() {
                 // same shape and nothing is re-exported to keep in step.
                 style={{ filter: "brightness(0)" }}
               />
+              {/* The light running round the rim. Masked by the glasses
+                  artwork, so the two travelling points below are only ever
+                  visible on the frame itself — see .glasses-rim in index.css.
+
+                  Above the frame rather than under it: the frame is painted
+                  solid black, so a light behind it would never show. The mask
+                  is what keeps this from becoming a glow floating over the
+                  blob. */}
+              <div
+                ref={glassesRimRef}
+                className="absolute inset-0 overflow-hidden"
+                style={{
+                  opacity: 0,
+                  maskImage: `url(${glassesImg})`,
+                  WebkitMaskImage: `url(${glassesImg})`,
+                  maskSize: "100% 100%",
+                  WebkitMaskSize: "100% 100%",
+                  maskRepeat: "no-repeat",
+                  WebkitMaskRepeat: "no-repeat",
+                }}
+              >
+                <div
+                  className="glasses-rim glasses-rim-top"
+                  style={{ background: "radial-gradient(circle, #ffffff, transparent 60%)" }}
+                />
+                <div
+                  className="glasses-rim glasses-rim-bottom"
+                  style={{ background: "radial-gradient(circle, #ffffff, transparent 60%)" }}
+                />
+              </div>
             </div>
 
             {/* CHANGE is absent here on purpose — it lives entirely in the

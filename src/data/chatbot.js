@@ -1,18 +1,30 @@
 // What the chatbot knows and what it says.
 //
-// Written answers, matched by keyword — no model in the loop. That is a choice,
-// not a shortcut: this thing speaks for a real person to people deciding
-// whether to hire her, and an answer that is *nearly* right about her career is
-// worse than no answer at all. Everything below is a sentence she wrote, said
-// back verbatim, and anything not covered gets pointed at her inbox.
+// Everything below is a sentence she wrote. That has not changed and is the
+// whole point of the file: this thing speaks for a real person to people
+// deciding whether to hire her, and an answer that is *nearly* right about her
+// career is worse than no answer at all.
 //
-// It also means the site stays static. There is no key to keep out of the
-// bundle, no serverless function to deploy, nothing to inject into, and no bill.
+// What changed is what reads it. There are two consumers now:
+//
+//   - chatbotMatch picks one of these answers by keyword and says it verbatim.
+//   - the /api/chat endpoint (see chatbotAnswer in vite.config.js) hands the
+//     whole of ANSWERS to the model as its *only* permitted source and asks it
+//     to answer out of them. It is told not to add a fact that is not here.
+//
+// So a model is in the loop, and the guard against it inventing her career is
+// that it is never asked to supply one. What it supplies is understanding the
+// question — which is the thing the matcher could not do: ask it something
+// phrased sideways and it dead-ends on FALLBACK.
+//
+// The matcher is still what answers when there is no endpoint to ask, which is
+// every statically deployed build. So both paths have to stay correct, and both
+// of them read this file.
 //
 // Adding an answer: put it in ANSWERS with a few `keys` a visitor would
 // actually type. Keys are matched as substrings against the question with
 // spaces stripped, so short ones are dangerous — see match() for how they are
-// weighted.
+// weighted. The model sees `text` and ignores `keys` entirely.
 
 export const EMAIL = "eysj1620@gmail.com";
 

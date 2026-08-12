@@ -88,6 +88,69 @@
   }
 }
 
+/* The light that runs round the rim of the glasses at the handoff step — see
+   the rim layer in CareerSection.
+
+   StarBorder's trick, applied to a shape instead of a box. That component puts
+   a `radial-gradient(circle, white, transparent)` in a wide strip along the top
+   and bottom of a rectangle and slides the two across in opposite directions;
+   what you read is a point of light travelling round the border.
+
+   A rectangle is not what needs lighting here. The wrapper carries the glasses
+   artwork as a mask, so these two travel behind the frame and are only visible
+   where the frame is — the light runs along the rim of the glasses and nowhere
+   else. The lens interiors are transparent in that file, which is why this
+   lights the outline and the glare (a separate layer) lights the glass.
+
+   Both are `translate` only, so they stay on the compositor. */
+@keyframes glasses-rim-across {
+  from {
+    transform: translateX(-120%);
+  }
+
+  to {
+    transform: translateX(220%);
+  }
+}
+
+@keyframes glasses-rim-back {
+  from {
+    transform: translateX(220%);
+  }
+
+  to {
+    transform: translateX(-120%);
+  }
+}
+
+.glasses-rim {
+  position: absolute;
+  /* Round, and about a third of the drawing across, so the core reads as a
+     point rather than as a wash over the whole frame. */
+  width: 34%;
+  aspect-ratio: 1;
+  will-change: transform;
+}
+
+.glasses-rim-top {
+  top: 22%;
+  animation: glasses-rim-across var(--glasses-rim-speed, 2.4s) linear infinite;
+}
+
+/* The lower one runs the other way and starts half a cycle in, so the two are
+   never side by side and the rim always has a light somewhere on it. */
+.glasses-rim-bottom {
+  bottom: 22%;
+  animation: glasses-rim-back var(--glasses-rim-speed, 2.4s) linear infinite;
+  animation-delay: calc(var(--glasses-rim-speed, 2.4s) / -2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glasses-rim {
+    animation: none;
+  }
+}
+
 /* A case study spread folded into one column for a phone — see SpreadFrame's
    `stacked` and MobileCaseStudy.
 

@@ -1,0 +1,136 @@
+@charset "utf-8";
+
+/* pc - 1650px */
+@media screen and (max-width:1650px){
+    /* 메인 index  */
+    .con03.motion .btnWrap {right: 10%;}
+
+}
+
+/* pc - 1300px */
+@media screen and (max-width:1300px){
+    /* 메인 index  */
+    .visual .mainText {font-size: 11vw;margin: 0 auto; width: 100%; padding: 0 5%; box-sizing: border-box}
+    .visual .mainText p {margin-top: 0}
+    .visual .subText {margin-left: 0; width: 100%; padding: 0 5%; box-sizing: border-box; position: absolute; left: 0%; bottom: 8%;}
+    .visual .svgAni {width: 70%; top: 25%;}
+    
+    /* 서브 work */
+    .subVisual {padding-top: 120px}
+    .subVisual .inner {width: 90%}
+    .works ul {padding: 3% 20%} /* li가 화면 중앙에 오도록 양쪽 패딩 값 조절 */
+}
+
+/* 테블릿 - 1024px */
+@media screen and (max-width:1024px){
+    /* 메인 index  */
+    .visual .svgAni {width: 80%; }
+    .con01 .title h2 {font-size: 7vw}
+    .con02 .title {font-size:18vw}
+    .con02 .title .en2 {font-size: 20vw}
+    .con02 .workList {width: 90%}
+    .con03 .textWrap {width: 85%}
+    .con03 .textWrap ul li {font-size: 12vw}
+    footer .textWrap {font-size: 12vw}
+    footer .textWrap a {margin-top: 0}
+    footer .bottom {font-size: 20px}
+
+    /* 서브 work */
+    .subVisual .inner .textBox .title {font-size: 20vw;}
+    .subVisual .inner .textBox .title .en2 {font-size: 23vw;}
+    .subVisual .inner .aniBox {bottom: 10%;}
+    .works {height: auto;}
+    .works .counter {display: none;}
+    .works ul {flex-wrap: wrap; justify-content: space-between;padding: 0 5%;}
+    .works ul li {padding: 0; width: 45%; margin-top: 150px;}
+    .works ul li:nth-child(2n) {margin-top: 0;}
+    .works ul li a .imgBox {clip-path: none;}
+    .works ul li a .textBox {opacity: 1; position: static;}
+    .works ul li a .textBox .title {font-size: 35px;margin: 20px 0 5px;}
+    .works ul li a .textBox .text {font-size: 16px;}
+    .works ul li a .imgBox:before, .works ul li a .imgBox:after {display: none;}
+    .works ul li a:hover .imgBox img  {filter: brightness(100%);}
+
+}
+
+/* 모바일 - 800px */
+@media screen and (max-width:800px){
+    /* 메인 index  */
+    .wrap {font-size: 16px}
+    header {padding: 3% 5%}
+    header .menuOpen {display: block; position: relative;width: 32px; height: 10px; margin-top: 10px; z-index: 101;}
+    header .menuOpen span.a {position: absolute; left: 0; top: 0; width: 100%; height: 1px; background: #fff; transition: .3s}
+    header .menuOpen span.b {position: absolute; left: 0; bottom: 0; width: 100%; height: 1px; background: #fff; transition: .3s}
+    .gnb {position: fixed; width: 0; height: 0; overflow: hidden; background: #fff; left: 0; top: -100%; color: #000; z-index: 100; transition: top .5s}
+    .gnb ul li a .char {color: #000; overflow:inherit}
+    .gnb ul li a .char:before, .gnb ul li a .char:after {display: none}
+    .gnb ul {display: block; width: 80%; margin: 20% auto}
+    .gnb ul li {margin-left: 0;}
+    .gnb ul li a {font-size: 18vw; line-height: 1.4; letter-spacing: -1px;}
+    .gnb ul li:nth-child(2n) a {font-family: 'Cormorant Infant', serif;} 
+
+    /* 메뉴 오픈 이벤트 -> 9번 스크립트 작성 */
+    .gnb.on {width: 100%; height: 100vh; top: 0;}
+    body.on {overflow: hidden}
+    header .menuOpen.on span.a {background: #000; transform: rotate(45deg) translate(5px, 5px)}
+    header .menuOpen.on span.b {background: #000; transform: rotate(-45deg) translate(2px, -1px)}
+
+    .visual .scroll {width: 100%; left: 5%; bottom: 2%}
+    .con02 .workList li {width: 100%; margin-top: 0; margin-bottom: 30px}
+    .con02 .workList li a .textBox h3 {font-size: 28px}
+    .btnWrap a {width: 90px; height: 90px}
+    .btnWrap a:before { background-size: 50px;}
+    .simply-scroll .simply-scroll-list li {width: 200px;}
+    .con03.motion .simply-scroll-clip {transform: rotate(10deg) translate(20%, 400px) scale(1.2);}
+
+    /* 모바일에서 호버효과 안되게 */
+    .con02 .workList li a:hover .imgBox:before {display: none}
+    .con02 .workList li a:hover .imgBox:after {display: none}
+    .btnWrap a:before {display: none}
+    .btnWrap a:hover {border-color: #fff}
+    .btnWrap a:hover img:nth-child(2) {display: none}
+
+    footer {height: 50vh}
+    footer .textWrap {width: 90%; padding: 0;left: 50%; top: 50%; transform: translate(-50%,-50%)}
+    footer .textWrap .title {padding-left: 0}
+
+    /* 서브 work */
+    .subVisual .inner .textBox .title .en2 {margin-left: -25px;}
+    .subVisual .inner .textBox .subTitle {width: 100%; padding-left: 5px; font-size: 25px;  margin: 0 0 30px;}
+    .subVisual .inner .textBox .text {padding-left: 5px; width: 50%;}
+    .subVisual .inner .aniBox {width: 300px; height: 300px; bottom: -30%; right: -15%;}
+    .works ul li {width: 100%; margin-top: 0;margin-bottom: 30px;}
+}
+
+/* 모바일 - 500px */
+@media screen and (max-width:500px){
+    br.mo {display: none}
+    .visual {padding-top: 60px;}
+    .visual .svgAni {width: 100%}
+    .con03 .textWrap ul li .en2 {padding-left:10px}
+    footer .bottom .sns li {margin-right: 10px}
+    footer .bottom {font-size: 17px}
+
+    /* 서브 work */
+    /* 개발자도구 아이폰 12 pro 틀고 작성 */
+    .subVisual {padding-top: 80px;}
+    .subVisual .inner .textBox .title .en2 {margin-left: -20px;}
+    .subVisual .inner .textBox .subTitle {font-size: 20px;}
+    .subVisual .inner .textBox .text {width: 100%;}
+    .subVisual .inner .aniBox {bottom: -85%;}
+    .works ul li a .textBox .title {font-size: 28px;}
+}
+
+/* 모바일 - 400px */
+@media screen and (max-width:400px){
+    .con03.motion .simply-scroll-clip {transform: rotate(10deg) translate(20%, 300px) scale(1.2);}
+}
+
+
+/* 모바일 - 350px */
+@media screen and (max-width:380px){
+
+    /* 서브 work */
+    /* 개발자도구 갤럭시 폴드 틀고 작성 */
+    .subVisual .inner .aniBox {width: 200px; height: 200px;bottom: -50%;}
+}

@@ -10,7 +10,12 @@
 // shows the file, and the transparent corners around the mockup are part of how
 // it is drawn.
 import card1 from "../assets/learn/card-1.avif";
-import card2 from "../assets/learn/card-2.avif";
+// The one card that is not an avif. The others were exported together as a
+// batch; this one was replaced later from a fresh 8864px capture, and the
+// project has no image toolchain to run that batch again — so it was downscaled
+// and re-encoded to webp instead. Same result at the sizes a card is actually
+// drawn: 1400px wide, 40KB against the avifs' 55-188.
+import card2 from "../assets/learn/card-2.webp";
 import card3 from "../assets/learn/card-3.avif";
 import card4 from "../assets/learn/card-4.avif";
 import card5 from "../assets/learn/card-5.avif";
@@ -55,16 +60,21 @@ export const learnHref = (slug) => `/learn/${encodeURIComponent(slug)}/index.htm
 //   - The array is back-to-front, so it reads bottom-up: the LAST entry is the
 //     card the viewer meets first, and the one that paints on top.
 //
-// So this list is the intended running order — 뮤자인, 대방산업, 크루어라모드,
-// 와이스튜디오, 한화케미컬, 한국소비자원 — written in reverse. The slug numbers
-// run with that order, which is why they count down here.
+// So this list is the intended running order — qude, 뮤자인, 대방산업,
+// 크루어라모드, 와이스튜디오, 한화케미컬 — written in reverse.
+//
+// The slug numbers used to run with that order, which is why they count down
+// here. They no longer do: qude was numbered 7 as the seventh folder to be
+// added, and then put at the front of the deck. The number is the folder's name
+// on disk and nothing more — this array is the only thing that says what comes
+// first.
 //
 // Labels are each site's own <title>, which is not always the folder name.
 export const LEARN_CARDS = [
-  { image: card2, slug: "6-kca", label: "한국소비자원 매거진" },
   { image: card1, slug: "5-hanwha-chemical", label: "한화케미컬" },
   { image: card3, slug: "4-y-studio", label: "와이스튜디오" },
   { image: card4, slug: "3-crew-alamode", label: "크루 어 라 모드" },
   { image: card5, slug: "2-daebang", label: "대방산업" },
   { image: card6, slug: "1-mujain", label: "뮤자인" },
+  { image: card2, slug: "7-qude", label: "qude" },
 ];

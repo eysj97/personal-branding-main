@@ -24,6 +24,12 @@ import problem from "../../assets/project/detail/aquaplanet/problem.avif";
 // white type — the bright Reviu and Layer pages invert that.
 const PAD = { top: 40, bottom: 52, left: 96, right: 194 };
 
+// One size for every paragraph on the page, matching Reviu and Layer. The Figma
+// frame ran some blocks at 24 and others at 18, which read as two different
+// kinds of copy when they are the same kind; the tracking is the -0.02em the
+// other two spreads use at this size.
+const BODY = { size: 18, tracking: "-0.36px" };
+
 // The header's own line breaks (154:4077). Authored, not wrapped: the block is
 // right-aligned against nothing, so where it turns is a decision — and left to
 // the browser this one broke between "AI" and "와". Stacked, the measure is
@@ -83,7 +89,7 @@ export default function AquaplanetSpread({ stacked }) {
               ]}
             />
             <Heading size={32}>Visual</Heading>
-            <Body size={24} tracking="-1.2px">
+            <Body {...BODY}>
               {[
                 "티켓 페이지는 요금을 확인하는 화면이지만, 아쿠아리움은 가고 싶게 만드는 것이 목적이라고 생각했습니다.",
                 "물과 어울리는 비눗방울에 각 지점의 대표 해양 생물을 담았고, 누르면 방울이 터지며 요금·할인 카드가 떠오릅니다.",
@@ -105,7 +111,7 @@ export default function AquaplanetSpread({ stacked }) {
               ]}
             />
             <Heading size={32}>AI Implementaion</Heading>
-            <Body size={24} tracking="-1.2px">
+            <Body {...BODY}>
               {[
                 "화면은 AI로 코드를 생성하고 검토·수정하며 구현했습니다. 비눗방울 위치가 하나도 맞지 않아 좌표를 직접 조정했습니다.",
                 "PC에서 자연스럽던 물빛이 작은 화면에서는 너무 강해 상단을 덮어버려 결국 덜어냈습니다. 무리해서 유지하기보다 덜어내는 편이 낫다는 걸 배웠습니다.",
@@ -127,7 +133,7 @@ export default function AquaplanetSpread({ stacked }) {
               ]}
             />
             <Heading size={26}>Ticket Page</Heading>
-            <Body size={18} tracking="-0.36px">
+            <Body {...BODY}>
               {[
                 "티켓 페이지를 맡고 가장 먼저 마주한 건 정보가 흩어져 있다는 것이었습니다. 프로모션, 기획상품, 제휴 혜택 같은 할인 정보가 페이지 곳곳에 제각각 놓여 있어, 저부터도 어떤 할인이 있는지 한눈에 파악하기 어려웠습니다. 그래서 흩어진 할인 정보를 모두 찾아 성격별로 정리하는 것부터 시작했습니다.",
                 "그런데 모아 놓고 보니 종류가 너무 많았습니다. 지점마다 요금과 할인이 다르고 종류도 다양해서, 한 화면에 다 담으면 오히려 읽는게 더 어렵다고 판단했습니다.",
@@ -148,7 +154,7 @@ export default function AquaplanetSpread({ stacked }) {
               ]}
             />
             <Heading size={26}>Planning Participation</Heading>
-            <Body size={18} tracking="-0.36px">
+            <Body {...BODY}>
               {[
                 "팀의 리뉴얼 방향을 문제 정의·리서치·인사이트로 구조화하는 기획 문서를 작성했고, 그중 제가 맡은 화면이 티켓 예매 페이지입니다.",
               ]}
@@ -170,7 +176,7 @@ export default function AquaplanetSpread({ stacked }) {
             />
             <div className="flex flex-col gap-[3px]">
               <Heading size={26}>Problem</Heading>
-              <Body size={24} tracking="-0.48px">
+              <Body {...BODY}>
                 {[
                   "처음엔 '4개 지점이 하나로 이어지지 않는다' 하나뿐이라, 어느 방향으로 정리해도 같은 말로 돌아왔습니다. 사이트를 다시 보며 문제를 셋으로 넓혔습니다.",
                   "첫번째, 지점마다 사이트가 따로 운영되고 이동 경로가 숨어 있어 하나의 브랜드로 이어지지 않습니다.",
@@ -192,7 +198,7 @@ export default function AquaplanetSpread({ stacked }) {
               ]}
             />
             <Heading size={32}>Retrospect</Heading>
-            <Body size={24} tracking="-0.48px">
+            <Body {...BODY}>
               {[
                 "처음으로 팀과 작업하며 제 기획과 디자인이 선택받지 못하는 경험을 여러 번 했습니다.",
                 "쉽지 않았지만 저를 객관적으로 보게 해줬고, 제 수준을 정확히 알고 나아갈 방향을 정할 수 있었습니다.",

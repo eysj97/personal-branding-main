@@ -320,7 +320,15 @@ export default function MobileProject() {
             if (e.key === "ArrowRight") deal(false);
             if (e.key === "ArrowLeft") deal(true);
           }}
-          className="relative touch-pan-y outline-none focus-visible:ring-2 focus-visible:ring-[#c9e529]"
+          // z-10 so the hand is always over the PROJECT title below it, not
+          // merely usually. The cards carry z-indexes of their own to stack
+          // against each other, which already put them above a static heading —
+          // but that is an accident of the painting rules rather than a stated
+          // intention, and it stops being true the moment anything in the chain
+          // above gains a stacking context. The front card is turned and hangs
+          // past the bottom of its own box; where it reaches the title, the card
+          // is the thing in front.
+          className="relative z-10 touch-pan-y outline-none focus-visible:ring-2 focus-visible:ring-[#c9e529]"
           style={{ width: vw(FAN.w), aspectRatio: `${FAN.w} / ${FAN.h}` }}
         >
           {CARDS.map((card, i) => {
@@ -350,7 +358,14 @@ export default function MobileProject() {
           })}
         </div>
 
-        <div className="flex flex-col items-center gap-[12px] text-white">
+        {/* Behind the hand, explicitly.
+            The front card is turned and hangs past the bottom of its own box,
+            so where it reaches this the card is what should be seen — the title
+            belongs under the files, not printed over them. Stated on the title
+            rather than left to the painting rules: a static block happens to
+            paint below a positioned one today, and that stops being true the
+            moment anything in the chain above gains a stacking context. */}
+        <div className="relative z-0 flex flex-col items-center gap-[12px] text-white">
           <p
             className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px]"
             style={{ fontSize: vw(60) }}
