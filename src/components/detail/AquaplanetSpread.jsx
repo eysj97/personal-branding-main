@@ -34,9 +34,20 @@ const BODY = { size: 18, tracking: "-0.36px" };
 // right-aligned against nothing, so where it turns is a decision — and left to
 // the browser this one broke between "AI" and "와". Stacked, the measure is
 // different and the same breaks would be wrong, so there they are spaces again.
+// The one place this spread knowingly departs from the design. Figma's 204:2191
+// still carries Layer's old about-line — an aquarium renewal described as a
+// perfume app — and has since the first commit, so there is no earlier version
+// to restore either. The line here is the project's own description, taken from
+// the two places the repo already states it: the chatbot's answer about
+// Aquaplanet (data/chatbot.js) and the card face's "Combine four branches into
+// one".
+//
+// Figma is left as it is by choice, so the two will read differently until
+// someone edits 204:2191. Anything else on this page that disagrees with the
+// frame is a bug; this is not.
 const ABOUT = [
-  "향수가 어려운 사람에게 자신에게 맞는 향을 찾아주는,",
-  "AI와 유저 추천으로 향을 제안하는 커뮤니티 앱입니다.",
+  "4개 지점으로 흩어진 아쿠아리움 사이트를",
+  "하나의 브랜드로 잇는 리뉴얼 제안입니다.",
 ];
 
 export default function AquaplanetSpread({ stacked }) {
@@ -120,7 +131,7 @@ export default function AquaplanetSpread({ stacked }) {
           </Block>
         </HeaderColumn>
 
-        {/* Column 2 — the tallest one, so it sets the spread's overall height. */}
+        {/* Column 2 — 208:2727. */}
         <div className={`${COLUMN} w-[475px] gap-[24px]`}>
           <Block>
             <Shot
@@ -142,28 +153,6 @@ export default function AquaplanetSpread({ stacked }) {
             </Body>
           </Block>
 
-          {/* Drawn taller than its content and centred inside — 219:2255. */}
-          <Block minHeight={694}>
-            <Shot
-              height={497}
-              sources={[
-                {
-                  src: planning,
-                  style: { width: "100%", height: "115.29%", left: "0.02%", top: "-7.52%" },
-                },
-              ]}
-            />
-            <Heading size={26}>Planning Participation</Heading>
-            <Body {...BODY}>
-              {[
-                "팀의 리뉴얼 방향을 문제 정의·리서치·인사이트로 구조화하는 기획 문서를 작성했고, 그중 제가 맡은 화면이 티켓 예매 페이지입니다.",
-              ]}
-            </Body>
-          </Block>
-        </div>
-
-        {/* Column 3 */}
-        <div className={`${COLUMN} w-[475px] gap-[130px] pb-[60px]`}>
           <Block gap={19}>
             <Shot
               height={222}
@@ -186,7 +175,14 @@ export default function AquaplanetSpread({ stacked }) {
               </Body>
             </div>
           </Block>
+        </div>
 
+        {/* Column 3 — 154:4068. The only column the design hangs from the top of
+            the row rather than its bottom (`self-stretch`, not `items-end`): it
+            is the tallest, so in Figma the two amount to the same thing, but if
+            the browser wraps column 2 longer than Figma did, this one should
+            stay put rather than being pushed down. */}
+        <div className={`${COLUMN} w-[475px] justify-start gap-[24px] self-stretch`}>
           <Block>
             <Shot
               height={222}
@@ -202,6 +198,25 @@ export default function AquaplanetSpread({ stacked }) {
               {[
                 "처음으로 팀과 작업하며 제 기획과 디자인이 선택받지 못하는 경험을 여러 번 했습니다.",
                 "쉽지 않았지만 저를 객관적으로 보게 해줬고, 제 수준을 정확히 알고 나아갈 방향을 정할 수 있었습니다.",
+              ]}
+            </Body>
+          </Block>
+
+          {/* Drawn taller than its content and centred inside — 380:166. */}
+          <Block minHeight={694}>
+            <Shot
+              height={497}
+              sources={[
+                {
+                  src: planning,
+                  style: { width: "100%", height: "115.29%", left: "0.02%", top: "-7.52%" },
+                },
+              ]}
+            />
+            <Heading size={26}>Planning Participation</Heading>
+            <Body {...BODY}>
+              {[
+                "팀의 리뉴얼 방향을 문제 정의·리서치·인사이트로 구조화하는 기획 문서를 작성했고, 그중 제가 맡은 화면이 티켓 예매 페이지입니다.",
               ]}
             </Body>
           </Block>

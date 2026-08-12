@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 // Snapkeep's own reference library — src/assets/snapkeep/ exists purely for
 // these, so swapping a sample out never touches the project cards' artwork.
 // They are thumbnails: the card shows them ~420px wide, so these are sized for
@@ -7,10 +7,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 // To add one: drop the file in that folder, import it here, and point a
 // REFERENCES entry's `image` at it. An entry with `image: null` renders the
 // built-in wireframe placeholder instead, which is what the last two do.
+// The wide desktop captures are 1400px; the phone ones keep the library's
+// original 840. A 1400x670 screenshot is fewer pixels than an 840x1800 one, so
+// the wider file is not the heavier file — and the detail panel shows a
+// screenshot at the panel's full width, where a landscape shot is the one that
+// runs out of resolution first.
 import aquaPlanet from "../../assets/snapkeep/aqua-planet.avif";
-import santal33 from "../../assets/snapkeep/santal-33.avif";
-import viewApp from "../../assets/snapkeep/view.avif";
-import dailyRoutine from "../../assets/snapkeep/daily-routine.avif";
+import followArtHero from "../../assets/snapkeep/follow-art-hero.avif";
+import followArtTestimonials from "../../assets/snapkeep/follow-art-testimonials.avif";
+import mosbysFiles from "../../assets/snapkeep/mosbys-files.avif";
+import duolingoQuiz from "../../assets/snapkeep/duolingo-quiz.avif";
+import duolingoResult from "../../assets/snapkeep/duolingo-result.avif";
+import zeroJelly from "../../assets/snapkeep/zero-jelly.avif";
+import groceryHome from "../../assets/snapkeep/grocery-home.avif";
 // A fully documented reference: the screen itself, its wireframe, and each
 // component in both states. `structure` and `components` are optional — an
 // entry without them falls back to the drawn wireframe and colour swatches.
@@ -21,6 +30,8 @@ import activityChipSelected from "../../assets/snapkeep/activity-chip-selected.a
 import activityLabelDefault from "../../assets/snapkeep/activity-label-default.avif";
 import activityLabelSelected from "../../assets/snapkeep/activity-label-selected.avif";
 import bookmarkIcon from "../../assets/bookmark.svg";
+import { REFERENCE_ASPECTS, REFERENCE_LAYOUTS } from "./snapkeepLayouts";
+import { REFERENCE_COMPONENTS } from "./snapkeepComponents";
 
 // The whole screen is styled from index.css with structural selectors
 // (`div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > button`,
@@ -50,13 +61,25 @@ const REFERENCES = [
     accent: "#e879c7",
     note: "운동 종류를 곡선 캐러셀로 훑어 고르는 화면. 선택된 항목만 색과 외곽선을 얻어, 나머지가 흐려진 자리에서 하나만 또렷하게 읽힙니다.",
   },
-  { id: "ref-aqua", title: "Aqua Planet", image: aquaPlanet, platform: "웹(데스크톱)", service: "여행·이동", screen: "랜딩·히어로", elements: ["헤더", "카드", "버튼"], mood: "사진 중심", accent: "#2686e7", note: "티켓 예매를 위한 메인 히어로. 사진과 카드의 레이어를 분명히 나눈 구성입니다." },
-  { id: "ref-santal", title: "Santal 33", image: santal33, platform: "모바일 앱", service: "커머스", screen: "상세", elements: ["헤더", "카드", "버튼"], mood: "다크", accent: "#ff5b16", note: "제품 사진을 중심에 두고, 구매 행동을 하단으로 모은 상세 화면입니다." },
-  { id: "ref-view", title: "VIEW", image: viewApp, platform: "모바일 앱", service: "콘텐츠·미디어", screen: "홈", elements: ["탭바", "카드", "검색바"], mood: "비비드", accent: "#78db44", note: "다양한 콘텐츠를 빠르게 훑을 수 있도록 카드와 탐색 요소를 배치했습니다." },
-  { id: "ref-routine", title: "Daily routine", image: dailyRoutine, platform: "태블릿", service: "헬스케어", screen: "대시보드", elements: ["리스트", "칩", "토글"], mood: "미니멀", accent: "#017c6e", note: "상태를 한눈에 보고 다음 행동을 선택하도록 정리한 루틴 대시보드입니다." },
-  { id: "ref-payment", title: "Quick pay", image: null, platform: "모바일 앱", service: "핀테크", screen: "결제·주문", elements: ["폼", "버튼", "스텝퍼"], mood: "라이트", accent: "#946ee9", note: "결제 정보를 단계별로 확인하며 진행하는 간결한 입력 플로우입니다." },
-  { id: "ref-profile", title: "Creator profile", image: null, platform: "웹(모바일)", service: "소셜", screen: "프로필·설정", elements: ["헤더", "리스트", "칩"], mood: "파스텔", accent: "#eb8fa8", note: "프로필 정보와 소통 카드를 위계로 구분한 설정 화면입니다." },
-];
+  { id: "ref-aqua", title: "Aqua Planet", image: aquaPlanet, platform: "웹(데스크톱)", service: "여행·이동", screen: "랜딩·히어로", elements: ["헤더", "버튼"], mood: "사진 중심", accent: "#2686e7", note: "유리질 해양 생물이 수면 위로 떠오르는 히어로. 내비게이션과 티켓 버튼만 남기고 첫 화면 전체를 이미지에 내줬습니다." },
+  { id: "ref-followart-hero", title: "FOLLOW.ART", image: followArtHero, platform: "웹(데스크톱)", service: "소셜", screen: "랜딩·히어로", elements: ["헤더", "카드", "버튼"], mood: "비비드", accent: "#ef6c2c", note: "화면을 가득 채운 글자 위로 카드가 지나가는 히어로. 배경 타이포를 카드가 가리게 두어 깊이를 만듭니다." },
+  { id: "ref-followart-voices", title: "FOLLOW.ART Testimonials", image: followArtTestimonials, platform: "웹(데스크톱)", service: "소셜", screen: "상세", elements: ["카드", "버튼"], mood: "라이트", accent: "#8f9cb0", note: "후기 카드를 흩뿌려 두고 가운데 한 장만 정면으로 세운 섹션. 읽을 것과 배경을 각도로 구분합니다." },
+  { id: "ref-mosbys", title: "Mosby's Files", image: mosbysFiles, platform: "웹(데스크톱)", service: "콘텐츠·미디어", screen: "홈", elements: ["헤더", "리스트", "라벨"], mood: "다크", accent: "#2c6ef2", note: "분류를 색이 다른 폴더 탭으로 쌓아 올린 아카이브 홈. 탭 하나를 열면 그 아래 목록이 드러납니다." },
+  { id: "ref-duolingo-quiz", title: "Duolingo 학습", image: duolingoQuiz, platform: "모바일 앱", service: "콘텐츠·미디어", screen: "상세", elements: ["버튼", "칩", "라벨"], mood: "비비드", accent: "#58cc02", note: "문장을 단어 조각으로 맞추는 학습 화면. 정답 피드백이 하단에서 올라와 다음 버튼과 한 덩어리로 붙습니다." },
+  { id: "ref-duolingo-result", title: "Duolingo 레슨 결과", image: duolingoResult, platform: "모바일 앱", service: "콘텐츠·미디어", screen: "대시보드", elements: ["카드", "버튼"], mood: "라이트", accent: "#1cb0f6", note: "레슨을 마친 뒤 성과를 카드 세 장으로 요약한 화면. 캐릭터·칭찬 문구·수치 순으로 위에서 아래로 읽힙니다." },
+  { id: "ref-zero-jelly", title: "제로 젤리 체험단", image: zeroJelly, platform: "웹(모바일)", service: "커머스", screen: "상세", elements: ["카드", "라벨"], mood: "비비드", accent: "#00a9e8", note: "체험단 후기를 말풍선 카드로 엮은 상세 구간. 계정 이름을 노란 라벨로 카드 밖에 띄워 출처를 붙였습니다." },
+  { id: "ref-grocery", title: "Grocery home", image: groceryHome, platform: "모바일 앱", service: "커머스", screen: "홈", elements: ["탭바", "카드", "리스트", "검색바"], mood: "미니멀", accent: "#3f6b3a", note: "카테고리를 세로 탭으로 세운 장보기 홈. 대표 상품은 큰 카드로, 인기 상품은 리스트로 훑는 밀도를 달리했습니다." },
+  // Attached here rather than written into each entry above: the structure data
+  // is thirty lines of coordinates per reference and would bury the one line
+  // that says what the reference actually is. Activity picker matches neither
+  // table and gets neither field, which is right — it has real structure
+  // artwork, and that wins over a redrawing of it either way.
+].map((reference) => ({
+  ...reference,
+  layout: REFERENCE_LAYOUTS[reference.id],
+  aspect: REFERENCE_ASPECTS[reference.id],
+  pieces: REFERENCE_COMPONENTS[reference.id],
+}));
 
 // [그룹 이름, 선택지, 레퍼런스에서 이 그룹의 값을 담고 있는 필드]
 // 필터 값과 카드 태그가 같은 목록에서 나오므로, 화면에 보이는 태그는 전부
@@ -160,14 +183,6 @@ const cropAspect = (part, aspect) => {
   // hairline is not worth one 20 screens tall.
   return Math.min(6, Math.max(0.6, ratio));
 };
-
-// Colour-swatch stand-ins, used only by references that have no real component
-// artwork of their own.
-const swatchesOf = (reference) => [
-  { name: "카드", spec: "Radius 16 · White", color: "#ffffff" },
-  { name: "필터 칩", spec: "Radius 100 · Selected", color: reference.accent },
-  { name: "주요 버튼", spec: "Height 44 · Filled", color: "#017c6e" },
-];
 
 // ---------------------------------------------------------------------------
 // Upload analysis, in two stages.
@@ -363,136 +378,467 @@ function Wireframe({ accent }) {
   );
 }
 
-// Wireframe drawing language. Monochrome and unfilled on purpose: a wireframe
-// says *what kind of thing goes here and how big*, and the moment blocks carry
-// their real colours it stops reading as a plan and starts reading as a bad
-// mock-up of the screen it came from. So each role gets a notation instead —
-// the crossed box for an image, ruled lines for text, an outlined pill for a
-// button — which is what makes the drawing legible without any labels.
-const WIRE_STROKE = "#8d9995";
-const WIRE_SOFT = "#c2cac7";
-const WIRE_TINT = "#f1f4f3";
+// Wireframe drawing language.
+//
+// Greyscale, not colourless. Dropping the hues is what stops the drawing from
+// reading as a bad mock-up of the screen it came from; keeping each element's
+// *darkness* is what stops it from reading as a diagram of nothing. A black nav
+// bar was the heaviest thing on the real screen and stays the heaviest thing
+// here, a pale card stays quiet, and the hierarchy survives losing the colour.
+//
+// Everything else is notation: text becomes abcd at the size the real text was,
+// a picture becomes a crossed box, an avatar a crossed circle. Same place, same
+// size, no colour, no words.
+//
+// Six steps rather than a continuous ramp. The tone coming back from the
+// analysis is an estimate read off an image, and estimates that disagree by a
+// hundredth should not produce two visibly different greys — quantising means
+// two things the model judged equally dark are drawn identically, which is what
+// makes "these two are the same weight" legible in the drawing.
+const WIRE_GREYS = ["#1c1c1c", "#4a4a4a", "#767676", "#a0a0a0", "#c8c8c8", "#e8e8e8"];
+// The lightest step of the ramp rather than pure white, so that the white
+// page is one of the six greys rather than pure white, so a pale card sits on a
+// ground that belongs to the same scale it does.
+const WIRE_PAPER = WIRE_GREYS[WIRE_GREYS.length - 1];
+
+const clampUnit = (value) => Math.min(1, Math.max(0, Number(value) || 0));
+
+/** The step this element's real lightness lands on. `tone` is 0 = black,
+ *  1 = white; the ramp above runs the same way, so this is a direct lookup.
+ *
+ *  Missing tone means an upload analysed before the field existed. Those get
+ *  the middle of the ramp rather than being dropped: an old wireframe should
+ *  still draw, just without the weighting. */
+const toneIndex = (tone) =>
+  Math.round(clampUnit(tone === undefined || tone === null ? 0.5 : tone) * (WIRE_GREYS.length - 1));
+const toneFill = (tone) => WIRE_GREYS[toneIndex(tone)];
+/**
+ * The edge: two steps away from the face it borders, in whichever direction has
+ * room. Without it a near-white element on white paper would have no shape at
+ * all — and "a white card sits here" is exactly the kind of thing a structure
+ * view has to be able to say.
+ *
+ * Darker was the only direction once, which meant an element already sitting on
+ * the darkest step got an edge its own colour and so no edge at all. On a dark
+ * page that is every card on the screen, and four black cards overlapping with
+ * no edges are one black shape.
+ */
+const toneEdge = (tone) => {
+  const index = toneIndex(tone);
+  return WIRE_GREYS[index <= 1 ? index + 2 : index - 2];
+};
+
 // In viewBox units, and the drawing is usually shown at about a third of that,
 // so a hairline here would disappear on screen.
 const WIRE_LINE = 4;
 
-const clampUnit = (value) => Math.min(1, Math.max(0, Number(value) || 0));
+// Every letterform in the drawing.
+//
+// A run is as many letters as the real text had characters — not a filler
+// repeated until the box is full. That is the difference between a drawing that
+// says "type goes here" and one you can read a heading off: eight letters where
+// there were eight, thirty where there were thirty, so the eye gets the length
+// of the real words and the gaps between them.
+//
+// The alphabet cycles rather than repeating one word, so nothing about the
+// filler suggests where one word ended and the next began — the run is a
+// measurement, and a measurement should not imply structure it did not take.
+const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
+const letterRun = (count) => {
+  let run = "";
+  for (let i = 0; i < Math.max(1, Math.min(200, Math.round(count) || 1)); i += 1) {
+    run += ALPHABET[i % ALPHABET.length];
+  }
+  return run;
+};
+const GLYPH_FONT = "'JetBrains Mono', ui-monospace, monospace";
+// One monospaced glyph is 0.6em wide. This is what converts a character count
+// into a width, so it has to match the font actually used above.
+const GLYPH_ADVANCE = 0.6;
 
 // The viewBox is the screenshot's own proportions, so a tall phone stays tall.
 const WIREFRAME_UNITS = 1000;
 
-/** One block, drawn in the notation for whatever it is. */
-function WireBlock({ role, x, y, w, h }) {
-  const outline = { fill: "none", stroke: WIRE_STROKE, strokeWidth: WIRE_LINE };
-  const pad = Math.min(w, h) * 0.18;
-  const mid = y + h / 2;
+const clampSigned = (value) => Math.min(1, Math.max(-1, Number(value) || 0));
+
+/**
+ * The four corners of a block, with `taper` narrowing one of the two horizontal
+ * edges about the centre.
+ *
+ * This is what a rectangle lying back in perspective actually is: its far edge
+ * is shorter than its near one. Drawn with both edges equal it stops being a
+ * card seen at an angle and becomes a card seen flat on, which on a page built
+ * out of tilted cards is the whole subject of the page thrown away.
+ *
+ * Positive taper narrows the top (leaning away), negative narrows the bottom.
+ */
+function taperedCorners(x, y, w, h, taper) {
+  const k = clampSigned(taper);
+  const top = k > 0 ? (k * w) / 2 : 0;
+  const bottom = k < 0 ? (-k * w) / 2 : 0;
+  return [
+    [x + top, y],
+    [x + w - top, y],
+    [x + w - bottom, y + h],
+    [x + bottom, y + h],
+  ];
+}
+
+/**
+ * A block as a path: tapered corners, bowed edges, rounded corners.
+ *
+ * `bend` bows the two *longer* edges, which is how a sheet of paper curls —
+ * it wraps around one axis and the edges running along that axis stay put. The
+ * shorter pair is left straight so the shape reads as bent rather than as a
+ * blob.
+ *
+ * Corners are rounded by cutting back along each edge and turning through the
+ * corner point itself, which works the same whether the edge arriving at that
+ * corner was straight or bowed.
+ */
+function blockPath(x, y, w, h, { taper = 0, bend = 0, radius = 0 } = {}) {
+  const points = taperedCorners(x, y, w, h, taper);
+  const bow = clampSigned(bend) * Math.min(w, h) * 0.5;
+  // Edge i runs from points[i] to points[(i+1) % 4]: top, right, bottom, left.
+  const bowed = h >= w ? [false, true, false, true] : [true, false, true, false];
+
+  const controls = points.map((from, i) => {
+    const to = points[(i + 1) % 4];
+    const mid = [(from[0] + to[0]) / 2, (from[1] + to[1]) / 2];
+    if (!bow || !bowed[i]) return null;
+    // Perpendicular to the edge, normalised, pushed out by the bow. Edges 1 and
+    // 2 face the opposite way round the ring, so the sign flips for them and
+    // the whole outline bends one way instead of pinching.
+    const dx = to[0] - from[0];
+    const dy = to[1] - from[1];
+    const len = Math.hypot(dx, dy) || 1;
+    const side = i === 1 || i === 2 ? 1 : -1;
+    return [mid[0] + ((-dy / len) * bow * side), mid[1] + ((dx / len) * bow * side)];
+  });
+
+  // How far back from each corner the rounding starts, capped so two roundings
+  // on a short edge cannot cross each other.
+  const shortest = Math.min(
+    ...points.map((from, i) => {
+      const to = points[(i + 1) % 4];
+      return Math.hypot(to[0] - from[0], to[1] - from[1]);
+    }),
+  );
+  const r = Math.max(0, Math.min(radius, shortest / 2));
+
+  const along = (from, to, distance) => {
+    const dx = to[0] - from[0];
+    const dy = to[1] - from[1];
+    const len = Math.hypot(dx, dy) || 1;
+    return [from[0] + (dx / len) * distance, from[1] + (dy / len) * distance];
+  };
+
+  let d = "";
+  for (let i = 0; i < 4; i += 1) {
+    const from = points[i];
+    const to = points[(i + 1) % 4];
+    const control = controls[i];
+    // Cut back toward whatever the edge actually heads for, so a bowed edge
+    // starts its rounding along the curve rather than along the chord.
+    const start = along(from, control ?? to, r);
+    const end = along(to, control ?? from, r);
+    d += i === 0 ? `M${start[0].toFixed(2)} ${start[1].toFixed(2)}` : "";
+    d += control
+      ? ` Q${control[0].toFixed(2)} ${control[1].toFixed(2)} ${end[0].toFixed(2)} ${end[1].toFixed(2)}`
+      : ` L${end[0].toFixed(2)} ${end[1].toFixed(2)}`;
+    if (r > 0) {
+      const next = points[(i + 1) % 4];
+      const following = points[(i + 2) % 4];
+      const resume = along(next, controls[(i + 1) % 4] ?? following, r);
+      d += ` Q${next[0].toFixed(2)} ${next[1].toFixed(2)} ${resume[0].toFixed(2)} ${resume[1].toFixed(2)}`;
+    }
+  }
+  return `${d} Z`;
+}
+
+/** Is this element anything other than an upright rectangle? */
+const isWarped = ({ rotate, taper, bend }) =>
+  Boolean((Number(rotate) || 0) || (Number(taper) || 0) || (Number(bend) || 0));
+
+/**
+ * Corner radius for a box, in viewBox units.
+ *
+ * A measured `radius` wins over everything. It is the difference between a
+ * design that rounds everything to a soft 24 and one that rounds to a crisp 8,
+ * and a formula cannot tell those apart — it gives both the same fraction of
+ * their own size, which is exactly the information a structure view is supposed
+ * to carry and the reason every screen used to come out looking alike.
+ *
+ * The `shape` and `role` branches below are only the fallback for uploads
+ * analysed before the field existed.
+ */
+function cornerRadius(role, shape, w, h, radius, frameWidth) {
+  if (Number.isFinite(radius) && radius > 0 && frameWidth) {
+    return Math.min(radius * frameWidth, Math.min(w, h) / 2);
+  }
+  if (shape === "원") return Math.min(w, h) / 2;
+  if (Number.isFinite(radius)) return 0;
+  if (shape === "사각형") return 0;
+  if (shape === "둥근사각형") return Math.min(w, h) * 0.16;
+  if (role === "칩" || role === "버튼" || role === "검색바") return Math.min(h / 2, 16);
+  if (role === "아이콘") return Math.min(w, h) / 2;
+  return 8;
+}
+
+/** One line of stand-in type: `chars` letters, set to fit the measured box.
+ *
+ *  The size is the smaller of what the line height allows and what the width
+ *  allows for this many letters. Both readings matter and they are measurements
+ *  of different things — the line height is how tall the real type was, the
+ *  width over the character count is how wide its glyphs were — so taking the
+ *  smaller keeps the run inside the box the real text occupied while still
+ *  spending the whole of it when the two agree.
+ *
+ *  Monospace makes that arithmetic hold: every letter is the same width, so
+ *  `chars` letters really is `chars` times one advance and not a guess that
+ *  drifts with which letters happen to be in the run. */
+function TextRun({ x, y, w, lineHeight, chars, fill, align, clipId }) {
+  const anchor = align === "가운데" ? "middle" : align === "오른쪽" ? "end" : "start";
+  const anchorX = align === "가운데" ? x + w / 2 : align === "오른쪽" ? x + w : x;
+  const count = Math.max(1, Math.round(chars) || 1);
+  const size = Math.min(lineHeight * 0.74, w / (count * GLYPH_ADVANCE));
+
+  return (
+    <text
+      x={anchorX}
+      y={y + size * 0.82}
+      textAnchor={anchor}
+      fontFamily={GLYPH_FONT}
+      fontSize={size}
+      fontWeight={600}
+      fill={fill}
+      clipPath={clipId ? `url(#${clipId})` : undefined}
+    >
+      {letterRun(count)}
+    </text>
+  );
+}
+
+/** One element, drawn in the notation for whatever it is: its real box, its
+ *  real darkness, and no colour or words. */
+function WireBlock({
+  role, x, y, w, h, tone, shape, radius, border, taper, bend,
+  lines, chars, align, clipId, frameWidth,
+}) {
+  const fill = toneFill(tone);
+  const edge = toneEdge(tone);
+  const rx = cornerRadius(role, shape, w, h, radius, frameWidth);
+
+  // A border is drawn only where the real element had one, at the weight it had.
+  //
+  // Everything used to get the same two-step-darker outline at the same weight.
+  // That is what made every reference come out looking like the same reference:
+  // an outline around a filled shape is a strong mark, and putting an identical
+  // one on all forty elements of every screen drowns out the differences that
+  // the drawing exists to show. A filled card has no outline, so it gets none —
+  // its edge is the tone change against what it sits on, which is exactly how
+  // the edge reads on the real screen.
+  //
+  // The floor keeps a hairline visible: this is drawn at about a third of the
+  // viewBox, so a border under ~2 units would vanish and read as "no border",
+  // which is a different design.
+  const stroke = Number.isFinite(border) && border > 0 && frameWidth
+    ? { stroke: edge, strokeWidth: Math.max(2, border * frameWidth) }
+    : null;
+
+  // Legacy uploads, analysed before `border` existed, keep the old outline so
+  // their wireframes do not silently turn into a field of flat rectangles.
+  const legacyStroke = border === undefined ? { stroke: edge, strokeWidth: WIRE_LINE } : null;
+  const outline = stroke ?? legacyStroke;
+
+  // An upright rectangle stays a <rect> — crisper, and the overwhelming
+  // majority of elements are one. Anything tapered or bowed becomes a path.
+  const warped = Boolean(taper || bend);
+  const box = warped
+    ? { d: blockPath(x, y, w, h, { taper, bend, radius: rx }), fill, ...(outline ?? {}) }
+    : { x, y, width: w, height: h, rx, fill, ...(outline ?? {}) };
+  const Box = warped ? "path" : "rect";
 
   switch (role) {
-    // The crossed rectangle: the one piece of wireframe notation everybody
-    // already reads as "a picture goes here".
-    case "이미지":
+    // The page's own ground, and the only element allowed to cover the frame.
+    // Present only when the real screen was not on white — a dark site's white
+    // headline is invisible on white paper, and losing it loses the loudest
+    // thing on the page. No edge: paper has no border.
+    case "배경":
+      return <rect x={x} y={y} width={w} height={h} fill={fill} />;
+
+    // The crossed box: the one piece of wireframe notation everybody already
+    // reads as "a picture goes here". Round when the picture was round, which
+    // is what an avatar is.
+    //
+    // An icon is a circle. Always, whatever glyph was really there.
+    //
+    // Two marks are enough for the whole vocabulary of pictorial things: a
+    // crossed box is a picture, a circle is an icon. Drawing the real glyph, or
+    // even crossing the circle, spends detail on the one part of a screen whose
+    // specifics this view is not deciding — and buys noise, because at icon size
+    // any of it is a smudge.
+    case "아이콘":
+      return (
+        <ellipse
+          cx={x + w / 2}
+          cy={y + h / 2}
+          rx={w / 2}
+          ry={h / 2}
+          fill={fill}
+          stroke={edge}
+          strokeWidth={outline?.strokeWidth ?? WIRE_LINE}
+        />
+      );
+
+    // The crossed box, or a crossed ellipse where the picture is round.
+    //
+    // `shape` follows the container that clips the picture, not the outline of
+    // the artwork inside it. A photograph dropped into the rounded end of a
+    // speech bubble is a circle here because the bubble cuts it into one; a
+    // cutout floating free on a page — a lime, a mascot, a shoal of fish — is
+    // still a rectangle, because what this view draws is the space the picture
+    // occupies in the layout and not the silhouette of what was drawn.
+    //
+    // Which is also why the box stays even when the real picture has no frame
+    // at all. Dropping it and leaving a bare X would say nothing about how far
+    // the picture reaches, and reach is the whole subject here.
+    case "이미지": {
+      const round = shape === "원";
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      // The diagonals have to stop where the outline actually is, not where its
+      // bounding box is: inside a circle that is the inscribed square's corner,
+      // and inside a rounded rectangle it is short of the corner by roughly the
+      // radius. Run to the box corner instead and the X pokes out through the
+      // curve, which is the one thing that makes the notation look broken.
+      const armX = round ? (w / 2) * 0.7071 : w / 2 - (round ? 0 : rx) * 0.45;
+      const armY = round ? (h / 2) * 0.7071 : h / 2 - (round ? 0 : rx) * 0.45;
+      // The ⊗ carries its own outline whatever the element's border was — the
+      // notation is the outline, and a crossed box with no box is two lines.
       return (
         <g>
-          <rect x={x} y={y} width={w} height={h} rx={6} fill={WIRE_TINT} stroke={WIRE_STROKE} strokeWidth={WIRE_LINE} />
+          {round ? (
+            <ellipse cx={cx} cy={cy} rx={w / 2} ry={h / 2} fill={fill} stroke={edge} strokeWidth={WIRE_LINE} />
+          ) : (
+            <Box {...box} stroke={edge} strokeWidth={outline?.strokeWidth ?? WIRE_LINE} />
+          )}
           <path
-            d={`M${x} ${y} L${x + w} ${y + h} M${x + w} ${y} L${x} ${y + h}`}
-            stroke={WIRE_SOFT}
+            d={`M${cx - armX} ${cy - armY} L${cx + armX} ${cy + armY} M${cx + armX} ${cy - armY} L${cx - armX} ${cy + armY}`}
+            stroke={edge}
             strokeWidth={WIRE_LINE}
             fill="none"
           />
         </g>
       );
+    }
 
-    // Ruled lines rather than a grey slab — a slab is a shape, lines are copy.
-    // The last one is short, the way a last line of a paragraph is.
+    // Text is the one thing with no box of its own — a paragraph is its letters
+    // and the space they take, not a rectangle around them. `tone` here is the
+    // ink, so pale grey captions stay pale next to black headings.
     case "텍스트": {
-      const count = Math.max(1, Math.min(4, Math.round(h / 26)));
-      const gap = h / count;
+      const count = Math.max(1, Math.min(12, Number(lines) || 1));
+
+      // A label turned on its side, which is what a vertical category rail is.
+      // Drawn flat it would be one enormous letter in a tall thin box — the
+      // size comes from the line height, and for this box the line height is
+      // the long side. Turning it puts the long side along the reading
+      // direction, where it belongs.
+      //
+      // No clip here: the run is already fitted to the width by TextRun, and
+      // the clip rects live in the drawing's unrotated space, so applying one
+      // inside this group would cut the text against a box at right angles to
+      // it.
+      if (count === 1 && h > w * 1.6) {
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        return (
+          <g transform={`rotate(-90 ${cx} ${cy})`}>
+            <TextRun
+              x={cx - h / 2}
+              y={cy - w / 2}
+              w={h}
+              lineHeight={w}
+              chars={chars}
+              fill={fill}
+              align={align}
+              clipId={null}
+            />
+          </g>
+        );
+      }
+
+      const lineHeight = h / count;
       return (
         <g>
           {Array.from({ length: count }, (_, i) => {
-            const lineY = y + gap * (i + 0.5);
-            const lineW = i === count - 1 && count > 1 ? w * 0.55 : w;
+            // A paragraph's last line runs short, the way a real one does — so
+            // it gets proportionally fewer letters rather than a shorter box,
+            // which is what keeps the letters themselves the same size as the
+            // lines above.
+            const last = i === count - 1 && count > 1;
             return (
-              <line key={i} x1={x} y1={lineY} x2={x + lineW} y2={lineY} stroke={WIRE_SOFT} strokeWidth={WIRE_LINE * 1.6} strokeLinecap="round" />
+              <TextRun
+                key={i}
+                x={x}
+                y={y + lineHeight * i}
+                w={w}
+                lineHeight={lineHeight}
+                chars={last ? Math.max(1, Math.round(chars * 0.62)) : chars}
+                fill={fill}
+                align={align}
+                clipId={clipId}
+              />
             );
           })}
         </g>
       );
     }
 
-    case "버튼":
+    // A rule, not a box: height is whatever the model reported, and what makes
+    // it read as a divider is that it is drawn solid at its own darkness.
+    case "구분선":
+      return <rect x={x} y={y} width={w} height={Math.max(WIRE_LINE, h)} fill={fill} />;
+
+    // A line that is not straight — the rail a row of items is threaded along,
+    // an arc sweeping through a screen. Nothing else in this notation can say
+    // "curve": a box with rounded corners is still a box, and a screen built
+    // around an arc drawn as a stack of rectangles is a different screen.
+    //
+    // The element's box is the envelope the curve travels through rather than
+    // a shape to fill: the run follows the longer side, and `bend` bows it out
+    // across the shorter one.
+    case "곡선": {
+      const vertical = h >= w;
+      const bow = clampSigned(bend);
+      const [from, control, to] = vertical
+        ? [
+            [x + w / 2, y],
+            [x + w / 2 + bow * w, y + h / 2],
+            [x + w / 2, y + h],
+          ]
+        : [
+            [x, y + h / 2],
+            [x + w / 2, y + h / 2 + bow * h],
+            [x + w, y + h / 2],
+          ];
       return (
-        <g>
-          <rect x={x} y={y} width={w} height={h} rx={Math.min(h / 2, 14)} {...outline} />
-          <line x1={x + w * 0.3} y1={mid} x2={x + w * 0.7} y2={mid} stroke={WIRE_SOFT} strokeWidth={WIRE_LINE * 1.6} strokeLinecap="round" />
-        </g>
-      );
-
-    case "검색바":
-      return (
-        <g>
-          <rect x={x} y={y} width={w} height={h} rx={h / 2} {...outline} />
-          <circle cx={x + h * 0.55} cy={mid} r={Math.min(h * 0.22, 9)} {...outline} />
-          <line x1={x + h * 0.95} y1={mid} x2={x + w * 0.55} y2={mid} stroke={WIRE_SOFT} strokeWidth={WIRE_LINE * 1.4} strokeLinecap="round" />
-        </g>
-      );
-
-    case "아이콘":
-      return <circle cx={x + w / 2} cy={mid} r={Math.min(w, h) / 2} {...outline} />;
-
-    case "칩":
-      return <rect x={x} y={y} width={w} height={h} rx={h / 2} {...outline} />;
-
-    // An outlined box with its rows ruled in, so a list reads as repetition
-    // rather than as one tall empty rectangle.
-    case "리스트": {
-      const rows = Math.max(2, Math.min(5, Math.round(h / 60)));
-      return (
-        <g>
-          <rect x={x} y={y} width={w} height={h} rx={8} {...outline} />
-          {Array.from({ length: rows - 1 }, (_, i) => (
-            <line key={i} x1={x} y1={y + (h / rows) * (i + 1)} x2={x + w} y2={y + (h / rows) * (i + 1)} stroke={WIRE_SOFT} strokeWidth={WIRE_LINE} />
-          ))}
-        </g>
-      );
-    }
-
-    // A band with a few marks in it: enough to say "navigation", not enough to
-    // pretend to be the real thing.
-    case "헤더":
-    case "탭바": {
-      const marks = 3;
-      return (
-        <g>
-          <rect x={x} y={y} width={w} height={h} rx={4} fill={WIRE_TINT} stroke={WIRE_STROKE} strokeWidth={WIRE_LINE} />
-          {Array.from({ length: marks }, (_, i) => (
-            <line
-              key={i}
-              x1={x + (w / (marks + 1)) * (i + 1) - w * 0.06}
-              y1={mid}
-              x2={x + (w / (marks + 1)) * (i + 1) + w * 0.06}
-              y2={mid}
-              stroke={WIRE_SOFT}
-              strokeWidth={WIRE_LINE * 1.6}
-              strokeLinecap="round"
-            />
-          ))}
-        </g>
+        <path
+          d={`M${from[0]} ${from[1]} Q${control[0]} ${control[1]} ${to[0]} ${to[1]}`}
+          fill="none"
+          stroke={fill}
+          strokeWidth={outline?.strokeWidth ?? WIRE_LINE}
+          strokeLinecap="round"
+        />
       );
     }
 
-    case "입력":
-      return (
-        <g>
-          <rect x={x} y={y} width={w} height={h} rx={8} {...outline} />
-          <line x1={x + pad} y1={mid} x2={x + w * 0.45} y2={mid} stroke={WIRE_SOFT} strokeWidth={WIRE_LINE * 1.4} strokeLinecap="round" />
-        </g>
-      );
-
-    // 카드, and anything the model names that this does not know about.
+    // Everything else is its box at its own weight. The role no longer changes
+    // what is drawn, only how the corners round — a button is a button because
+    // of where it sits and how dark it is, and the label on top of it is its
+    // own element.
     default:
-      return <rect x={x} y={y} width={w} height={h} rx={12} {...outline} />;
+      return <Box {...box} />;
   }
 }
 
@@ -502,9 +848,41 @@ function WireBlock({ role, x, y, w, h }) {
     Drawn as SVG rather than positioned divs because `preserveAspectRatio`
     letterboxes the whole drawing to whatever box it is given. Percentage
     divs would stretch a 9:19.5 phone layout flat across a wide panel. */
-function LayoutWireframe({ layout, aspect, compact }) {
+function LayoutWireframe({ layout, aspect, compact, frame = true }) {
   const height = WIREFRAME_UNITS;
   const width = Math.round(height * (Number(aspect) > 0 ? Number(aspect) : 0.5));
+
+  // Placed once here rather than inside each block: the boxes are needed both
+  // for drawing and for clipping the text, and computing them twice is how the
+  // clip ends up one rounding off the thing it is supposed to be clipping.
+  const blocks = layout
+    .map((block, index) => {
+      const x = clampUnit(block.x);
+      const y = clampUnit(block.y);
+      // Clamped against the origin so a block that overshoots the frame is
+      // trimmed at the edge instead of pushing past it.
+      return {
+        block,
+        index,
+        x: x * width,
+        y: y * height,
+        w: Math.min(1 - x, clampUnit(block.w)) * width,
+        h: Math.min(1 - y, clampUnit(block.h)) * height,
+      };
+    })
+    .filter(({ w, h }) => w >= 2 && h >= 2);
+
+  // Ids have to be unique across the document: a card and the detail panel can
+  // both be drawing the same reference at the same moment, and two clipPaths
+  // sharing an id means one of the two drawings silently uses the other's box.
+  // Stripped to alphanumerics: useId's own format has varied across React
+  // versions (`:r0:`, `«r0»`), and those characters are not safe inside the
+  // unquoted `url(#…)` a clip-path reference is.
+  const scope = `wf${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
+  // Text is the only thing clipped now, and only as a guard against an
+  // over-long run: a picture is drawn as notation rather than as a window onto
+  // the screenshot, so it has no window to cut.
+  const clipped = blocks.filter(({ block }) => block.role === "텍스트");
 
   return (
     <svg
@@ -518,31 +896,66 @@ function LayoutWireframe({ layout, aspect, compact }) {
       role="img"
       aria-label="화면 구조 와이어프레임"
     >
-      <rect width={width} height={height} fill="#ffffff" />
-      {layout.map((block, index) => {
-        const x = clampUnit(block.x);
-        const y = clampUnit(block.y);
-        // Clamped against the origin so a block that overshoots the frame is
-        // trimmed at the edge instead of pushing past it.
-        const w = Math.min(1 - x, clampUnit(block.w)) * width;
-        const h = Math.min(1 - y, clampUnit(block.h)) * height;
-        if (w < 2 || h < 2) return null;
+      <defs>
+        {clipped.map(({ index, x, y, w, h }) => (
+          <clipPath key={index} id={`${scope}-${index}`}>
+            <rect x={x} y={y} width={w} height={h} />
+          </clipPath>
+        ))}
+      </defs>
+      <rect width={width} height={height} fill={WIRE_PAPER} />
+      {blocks.map(({ block, index, x, y, w, h }) => {
+        // Rotation is applied here rather than inside the block so that every
+        // notation gets it for free — a label on a tilted card turns with the
+        // card, a crossed box turns, a curve turns. About the element's own
+        // centre, so `x`/`y` stay the upright position they were measured at
+        // and the angle is the only thing the rotation changes.
+        const angle = Number(block.rotate) || 0;
+        const drawn = (
+          <WireBlock
+            key={index}
+            role={block.role}
+            x={x}
+            y={y}
+            w={w}
+            h={h}
+            tone={block.tone}
+            shape={block.shape}
+            radius={block.radius}
+            border={block.border}
+            taper={block.taper}
+            bend={block.bend}
+            lines={block.lines}
+            chars={block.chars}
+            align={block.align}
+            clipId={`${scope}-${index}`}
+            frameWidth={width}
+          />
+        );
+        if (!angle) return drawn;
         return (
-          <WireBlock key={index} role={block.role} x={x * width} y={y * height} w={w} h={h} />
+          <g key={index} transform={`rotate(${angle} ${x + w / 2} ${y + h / 2})`}>
+            {drawn}
+          </g>
         );
       })}
       {/* The device outline, drawn last so it sits over anything that runs to
-          the edge — a wireframe reads as a screen only if it has a screen. */}
-      <rect
-        x={WIRE_LINE / 2}
-        y={WIRE_LINE / 2}
-        width={width - WIRE_LINE}
-        height={height - WIRE_LINE}
-        rx={14}
-        fill="none"
-        stroke={WIRE_STROKE}
-        strokeWidth={WIRE_LINE}
-      />
+          the edge — a wireframe reads as a screen only if it has a screen.
+          Off when this is one component rather than a screen: there the frame
+          is not a device, and a box drawn round every chip and button is a box
+          the design does not have. */}
+      {frame && (
+        <rect
+          x={WIRE_LINE / 2}
+          y={WIRE_LINE / 2}
+          width={width - WIRE_LINE}
+          height={height - WIRE_LINE}
+          rx={14}
+          fill="none"
+          stroke={WIRE_GREYS[1]}
+          strokeWidth={WIRE_LINE}
+        />
+      )}
     </svg>
   );
 }
@@ -598,15 +1011,51 @@ function ComponentSheet({ reference, compact }) {
     );
   }
 
+  // Drawn components: the same notation as the structure tab, one element at a
+  // time, with whichever of its states the screen actually shows. Each state is
+  // a miniature layout, so it goes through the drawing code the screens use and
+  // there is nothing here that knows how to paint a chip.
+  if (reference.pieces?.length) {
+    return (
+      <div
+        className={`flex h-full flex-col justify-center bg-[#eff1f0] ${compact ? "gap-[8px] p-[12px]" : "gap-[12px] p-[18px]"}`}
+      >
+        {reference.pieces.slice(0, compact ? 3 : 6).map((piece) => (
+          <div key={piece.name} className="rounded-[10px] border border-[#e2e6e3] bg-white p-[10px]">
+            <p className={`${compact ? "text-[10px]" : "text-[12px]"} font-semibold`}>{piece.name}</p>
+            <div className="mt-[6px] flex items-end justify-around gap-[10px]">
+              {piece.states.map((state) => (
+                <div key={state.label} className="flex min-w-0 flex-1 flex-col items-center gap-[4px]">
+                  <div className="w-full">
+                    <LayoutWireframe layout={state.layout} aspect={piece.aspect} compact={false} frame={false} />
+                  </div>
+                  {/* The state's name is dropped when there is only one and it
+                      is the default — a lone "기본" caption under every drawing
+                      is a column of the same word. */}
+                  {piece.states.length > 1 && (
+                    <span className={`${compact ? "text-[8px]" : "text-[10px]"} text-[#7c847f]`}>
+                      {state.label}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  // Nothing to show. Previously three invented colour swatches appeared here,
+  // identical for every reference — a card, a filter chip and a primary button
+  // that no screen had been looked at to produce. A view that says the same
+  // thing about everything is saying nothing, and worse, it looks like it read
+  // the screen.
   return (
-    <div className={`flex h-full flex-col justify-center bg-[#eff1f0] ${compact ? "gap-[8px] p-[16px]" : "gap-[10px] p-[20px]"}`}>
-      {swatchesOf(reference).map(({ name, spec, color }) => (
-        <div key={name} className="flex items-center gap-[10px] rounded-[10px] border border-[#e2e6e3] bg-white p-[10px]">
-          <span className="size-[26px] shrink-0 rounded-[7px] border border-black/10" style={{ backgroundColor: color }} />
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold">{name}</span>
-          <span className="shrink-0 text-[10px] text-[#7c847f]">{spec}</span>
-        </div>
-      ))}
+    <div className="flex h-full items-center justify-center bg-[#eff1f0] px-[24px] text-center">
+      <p className="text-[11px] leading-[1.5] text-[#7c847f]">
+        이 레퍼런스는 아직 컴포넌트를 정리하지 않았어요.
+      </p>
     </div>
   );
 }
@@ -854,15 +1303,32 @@ function DetailPanel({ reference, groups, onAddTag, onRemoveTag, onClose, onDele
                     )}
                   </div>
                 ))
-              : swatchesOf(reference).map(({ name, spec, color }) => (
-                  <div key={name} className="flex items-center gap-[12px] rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
-                    <span className="size-[35px] rounded-[9px] border border-black/5" style={{ backgroundColor: color }} />
-                    <div>
-                      <p className="text-[13px] font-semibold">{name}</p>
-                      <p className="mt-[2px] text-[11px] text-[#7c847f]">{spec}</p>
+              : reference.pieces?.length
+                ? reference.pieces.map((piece) => (
+                    /* Drawn rather than cropped, in the structure tab's own
+                       notation — see snapkeepComponents.js for why a component
+                       sheet in this app carries no colour. */
+                    <div key={piece.name} className="rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
+                      <p className="text-[13px] font-semibold">{piece.name}</p>
+                      <div className="mt-[10px] flex items-end justify-around gap-[14px] rounded-[9px] bg-[#eff1f0] p-[12px]">
+                        {piece.states.map((state) => (
+                          <div key={state.label} className="flex min-w-0 flex-1 flex-col items-center gap-[6px]">
+                            <div className="w-full">
+                              <LayoutWireframe layout={state.layout} aspect={piece.aspect} compact={false} frame={false} />
+                            </div>
+                            {piece.states.length > 1 && (
+                              <span className="text-[11px] text-[#7c847f]">{state.label}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))
+                : (
+                    <p className="text-[12px] leading-[1.6] text-[#7c847f]">
+                      이 레퍼런스는 아직 컴포넌트를 정리하지 않았어요.
+                    </p>
+                  )}
         </div>
       ) : (
         <>

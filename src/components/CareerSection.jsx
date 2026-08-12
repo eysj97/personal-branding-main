@@ -176,15 +176,22 @@ const SLOT_ANGLES = [
   SLOT_NEAR_DEG,
 ];
 
-// Beads threaded on the ring itself (node 154:3767). New in the design, and the
-// only thing that changed about the wheel: the arc used to be a bare hairline
-// with five circles floating clear of it, and a line that thin reads as a stray
-// stroke rather than as the track the wheel runs on. Eight solid dots strung
-// along it say what it is.
+// Ticks cut across the ring itself (node 154:3767 draws these as beads; they are
+// ticks here). New in the design, and the only thing that changed about the
+// wheel: the arc used to be a bare hairline with five circles floating clear of
+// it, and a line that thin reads as a stray stroke rather than as the track the
+// wheel runs on. Marks strung along it say what it is.
+//
+// A tick rather than a dot because everything else on this wheel that is round
+// is a thing that travels — five circles, and the blob one of them becomes. A
+// mark that is fixed to the track should not share their shape. Laid across the
+// line rather than along it, so it reads as a graduation on a dial: the eye can
+// see the track carry it sideways, which is the whole job the marks are here to
+// do.
 //
 // They sit *on* the line — measured at 643..653 from the ring's centre against
 // a radius of 646.5, so the design draws them centred on it — while the slots
-// stand a SPOKE clear of it. That difference is the whole reading: the beads are
+// stand a SPOKE clear of it. That difference is the whole reading: the ticks are
 // part of the track, the circles are what travels along it, and the stem is what
 // says which of the two a given mark is.
 //
@@ -192,13 +199,19 @@ const SLOT_ANGLES = [
 // not only across the visible arc.
 //
 // The whole ring turns as the wheel advances (see the dots' rotation in
-// applyRaw), so beads leave through one end of the arc and have to come up
+// applyRaw), so ticks leave through one end of the arc and have to come up
 // through the other. A band that only covered what is on screen at rest would
 // empty itself out the first time it moved. The ones off-canvas cost nothing:
 // they are 20px divs with no content.
 //
-// Derived from the step rather than listed, so the beads and the slots can
+// Derived from the step rather than listed, so the ticks and the slots can
 // never drift apart: change SLOT_STEP_DEG and both move.
+//
+// DOT_SIZE is the tick's *length* across the track — the same 20 the beads were
+// wide, so the marks keep the footprint the wheel was drawn with. Its thickness
+// is not here: it is the track's own 2 screen px, taken at the point of use
+// where the canvas scale is known (see the ring's borderWidth for why a stroke
+// on this canvas has to be set in screen pixels).
 const DOT_SIZE = 20;
 const DOT_ANGLES = Array.from(
   { length: 360 / SLOT_STEP_DEG },
@@ -206,12 +219,16 @@ const DOT_ANGLES = Array.from(
 ).filter((deg) => deg % SLOT_NEAR_DEG !== 0);
 const DOT_RADIUS = RING_RADIUS;
 
-/** Top-left corner of a DOT_SIZE bead sitting `deg` around the ring. */
+/** The point on the track the tick at `deg` is centred on.
+ *
+ *  A centre rather than a corner, unlike the bead this replaced: the tick is
+ *  2px one way and 20 the other and is then turned about this point, so a
+ *  corner would have to be undone before it could be used. */
 function dotAt(deg) {
   const rad = (deg * Math.PI) / 180;
   return {
-    x: RING_CENTER.x + DOT_RADIUS * Math.sin(rad) - DOT_SIZE / 2,
-    y: RING_CENTER.y - DOT_RADIUS * Math.cos(rad) - DOT_SIZE / 2,
+    x: RING_CENTER.x + DOT_RADIUS * Math.sin(rad),
+    y: RING_CENTER.y - DOT_RADIUS * Math.cos(rad),
   };
 }
 
@@ -341,7 +358,7 @@ const ROTATE_SPIN = -360;
 // It opens rather than downloads, so nothing lands in a stranger's downloads
 // folder uninvited — see the link itself for the rest of that.
 const RESUME_HREF =
-  "https://docs.google.com/document/d/1BD-tuQ1CIKCkFO7WHgnvyTyeyUlkUPOZ/edit?usp=sharing&ouid=106727088774758261640&rtpof=true&sd=true";
+  "https://docs.google.com/document/d/1_MKMUGDh-uK04oRP9Ie_QtJZHfkl_we7/edit?usp=sharing&ouid=106727088774758261640&rtpof=true&sd=true";
 
 const CHAPTER_TITLE_POS = { x: 118, y: 118 };
 const WORD_RIGHT = 1249;
@@ -1765,11 +1782,23 @@ export default function CareerSection() {
               >
                 {DOT_ANGLES.map((deg) => {
                   const { x, y } = dotAt(deg);
+                  // Drawn upright and turned to the angle it sits at, which is
+                  // what keeps it radial the whole way round: at the top of the
+                  // arc a vertical bar already crosses the track, and every
+                  // other position is that same bar rotated by the same amount
+                  // the track carried it.
+                  const thickness = 2 / scale;
                   return (
                     <div
                       key={deg}
-                      className="absolute rounded-full bg-white"
-                      style={{ left: x, top: y, width: DOT_SIZE, height: DOT_SIZE }}
+                      className="absolute bg-white"
+                      style={{
+                        left: x - thickness / 2,
+                        top: y - DOT_SIZE / 2,
+                        width: thickness,
+                        height: DOT_SIZE,
+                        transform: `rotate(${deg}deg)`,
+                      }}
                     />
                   );
                 })}
