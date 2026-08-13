@@ -2,21 +2,25 @@ import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { createAnalyzeHandler } from './server/analyze.js'
-import { createChatHandler } from './server/chat.js'
 
-// The two AI endpoints, in development.
+// Snapkeep's analysis endpoint, in development.
 //
-// The handlers themselves live in server/ and are mounted twice: here for
-// `npm run dev`, and by the files in api/ on the deployed site. That is the
-// whole reason they moved out of this file. They used to be written inline with
-// `apply: 'serve'`, which meant a static build had no /api/* at all — the fetch
-// 404'd and everything fell to the local fallbacks. That was deliberate and
-// documented, but it also meant the deployed site never once called the model,
-// so what a visitor saw was not what you had been testing.
+// The handler itself lives in server/analyze.js and is mounted twice: here for
+// `npm run dev`, and by api/analyze.js on the deployed site. That is the whole
+// reason it moved out of this file. It used to be written inline with
+// `apply: 'serve'`, which meant a static build had no /api/analyze at all — the
+// fetch failed and the client fell back to its local heuristic. That was
+// deliberate and documented, but it also meant the deployed site never once
+// called the model, so what a visitor saw was not what you had been testing.
 //
 // `apply: 'serve'` is still correct here, and now means what it says: in
-// production these paths are served by api/analyze.js and api/chat.js, so Vite
-// should not also claim them.
+// production this path is served by api/analyze.js, so Vite should not also
+// claim it.
+//
+// There is no chatbot endpoint, by choice — see the top of src/data/chatbot.js.
+// The panel answers from the keyword matcher alone, in development and in
+// production alike, so there is nothing here that behaves one way for you and
+// another way for a visitor.
 //
 // The key still never reaches the browser. It is read in this Node process and
 // handed to the handler; nothing about it is bundled.
@@ -41,7 +45,6 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       devEndpoint('snapkeep-analyze', '/api/analyze', createAnalyzeHandler(apiKey)),
-      devEndpoint('chatbot-answer', '/api/chat', createChatHandler(apiKey)),
     ],
   }
 })

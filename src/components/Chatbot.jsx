@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GREETING, QUICK } from "../data/chatbot";
-import { askChatbot } from "../lib/chatbotAsk";
+import { match } from "../lib/chatbotMatch";
 import { useIsMobile } from "../lib/viewport";
 
 // A launcher in the corner and a panel above it. Fixed, so it rides over every
@@ -8,7 +8,7 @@ import { useIsMobile } from "../lib/viewport";
 // page should ever have to know it is there.
 //
 // The answers are generated from her own written material — see ../data/
-// chatbot.js for what that material is and lib/chatbotAsk for how the panel
+// chatbot.js for what that material is and lib/chatbotMatch for how the panel
 // gets one, including what it does when there is no endpoint to ask.
 
 // A floor on how long "답변 중…" is up, not a delay added to the answer.
@@ -265,14 +265,15 @@ export default function Chatbot() {
     const text = question.trim();
     if (!text || pending) return;
     setDraft("");
-    // Captured before the question is appended: the model is given what was
-    // said *before* this, and the question itself goes in as its own turn.
-    const history = thread.map((m) => ({ from: m.from, text: m.text }));
     setThread((t) => [...t, { id: nextId(), from: "you", text }]);
     setPending(true);
 
+    // The matcher is instant, so what paces the reply is the timer below rather
+    // than the lookup. It is still awaited as a pair: if an endpoint is ever put
+    // back in front of this, the slower of the two wins and nothing else here
+    // has to change.
     const [answer] = await Promise.all([
-      askChatbot(text, history),
+      Promise.resolve(match(text).text),
       new Promise((resolve) => {
         clearTimeout(timerRef.current);
         timerRef.current = setTimeout(resolve, REPLY_MS);

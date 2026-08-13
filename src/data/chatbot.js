@@ -5,21 +5,22 @@
 // deciding whether to hire her, and an answer that is *nearly* right about her
 // career is worse than no answer at all.
 //
-// What changed is what reads it. There are two consumers now:
+// There is exactly one consumer: chatbotMatch picks one of these answers by
+// keyword and says it verbatim. No model is in the loop, here or in production —
+// what a visitor reads is what is written below, and nothing else.
 //
-//   - chatbotMatch picks one of these answers by keyword and says it verbatim.
-//   - the /api/chat endpoint (see chatbotAnswer in vite.config.js) hands the
-//     whole of ANSWERS to the model as its *only* permitted source and asks it
-//     to answer out of them. It is told not to add a fact that is not here.
+// That is a decision, not a limitation left unfixed. A grounded model answering
+// out of this same material was built and worked; it was taken back out because
+// the endpoint would be public and billed, and because a chatbot beside a
+// portfolio does not need to understand a question — it needs to not get her
+// career wrong. Snapkeep's image analysis is the one thing here that does call
+// a model (see server/analyze.js), and that is because its whole claim is that
+// AI reads the screenshot.
 //
-// So a model is in the loop, and the guard against it inventing her career is
-// that it is never asked to supply one. What it supplies is understanding the
-// question — which is the thing the matcher could not do: ask it something
-// phrased sideways and it dead-ends on FALLBACK.
-//
-// The matcher is still what answers when there is no endpoint to ask, which is
-// every statically deployed build. So both paths have to stay correct, and both
-// of them read this file.
+// The cost of that decision is real and worth knowing: the matcher only fires
+// when a visitor types a substring it has been given. Phrase a covered question
+// sideways — "일한 지 얼마나 되셨나요?" against keys like `몇년` — and it lands on
+// FALLBACK instead. The fix for that is another key, not another model.
 //
 // VOICE: third person, always. The bot is an assistant that speaks *about* her,
 // which is what the greeting, the fallback and OUT_OF_SCOPE all establish —
@@ -131,21 +132,21 @@ export const ANSWERS = [
   // — 이력 —
   {
     id: "career",
-    keys: ["경력몇", "몇년", "신입", "연차"],
+    keys: ["경력몇", "경력", "몇년", "연차", "신입", "일한지", "얼마나되"],
     text:
       "수정님은 디자인 직무로는 신입이에요. 대신 그 전에 정신건강사회복지사로 4년간 일하며 사람의 숨은 니즈를 읽는 훈련을 했고, " +
       "그 감각을 디자인에 그대로 쓰고 있어요. 팀·개인 프로젝트 4개로 기획부터 구현까지의 경험을 쌓았습니다.",
   },
   {
     id: "education",
-    keys: ["어디서배", "독학", "부트캠프", "학원", "배웠"],
+    keys: ["어디서배", "독학", "부트캠프", "학원", "배웠", "어떻게공부", "공부하셨"],
     text:
       "수정님은 비전공으로 시작해 학원 과정을 수료하고, 독학을 병행하며 배웠어요. " +
       "배운 것을 팀 프로젝트 2개와 개인 프로젝트 2개로 바로 검증했고, 지금 보고 계신 이 사이트도 그 과정의 결과물이에요.",
   },
   {
     id: "major",
-    keys: ["전공"],
+    keys: ["전공", "무슨과"],
     text:
       "수정님은 사회복지학을 전공했어요. 졸업 후 정신건강사회복지사로 4년간 일했고, 디자인은 학원 수료와 독학으로 익혀 프로젝트로 검증해왔어요. " +
       "전공은 다르지만, 사람을 이해하는 훈련은 그때 받은 셈이에요.",
@@ -155,7 +156,7 @@ export const ANSWERS = [
     // "어떤회사"/"회사다니" are here rather than on `team-fit`, where they were
     // first drafted: "어떤 회사 다니셨어요?" is asking where she worked, not
     // what kind of team she wants to join next.
-    keys: ["어디서일", "사회복지사로", "기관", "어떤회사", "회사다니", "어디다니"],
+    keys: ["어디서일", "사회복지사로", "기관", "어떤회사", "회사다니", "어디다니", "전직장", "직장"],
     text:
       "수정님은 생명의터와 경주정신건강상담센터에서 정신건강사회복지사로 4년간 근무했어요. " +
       "자세한 이력은 Contact에서 이력서로 확인하실 수 있어요.",
@@ -191,14 +192,14 @@ export const ANSWERS = [
     id: "non-major",
     // "비전공인데" as well as "비전공": the long one is what beats `major`'s
     // "전공", which is a substring of the very word the visitor typed.
-    keys: ["비전공", "비전공인데", "전공안했"],
+    keys: ["비전공", "비전공인데", "전공안했", "전공안하"],
     text:
       "수정님이 비전공인 건 맞지만, 다른 전공이 무기가 됐어요. 4년간 사람의 말하지 않는 니즈를 읽는 훈련을 한 디자이너는 흔치 않으니까요. " +
       "그 감각이 리서치와 화면 설계에 그대로 쓰여요. 부족한 부분은 프로젝트 4개를 완성하며 채워왔고, 지금도 채우는 중이에요.",
   },
   {
     id: "back-to-social",
-    keys: ["돌아갈생각", "다시사회복지"],
+    keys: ["돌아갈생각", "다시사회복지", "복귀할생각", "사회복지로복귀"],
     text:
       "확실히 없어요. 사회복지를 떠난 게 아니라 사람을 돕는 방식을 바꾼 거고, 무엇보다 디자인은 창조하는 일이라 수정님과 잘 맞아요. " +
       "오래, 최선을 다할 수 있는 직업을 만났다고 생각하고 있어요.",
@@ -225,7 +226,7 @@ export const ANSWERS = [
   },
   {
     id: "location",
-    keys: ["근무지역", "재택", "어디근무", "지역"],
+    keys: ["근무지역", "재택", "어디근무", "지역이어디", "근무", "출퇴근"],
     text:
       "수정님은 서울 전역 출퇴근 가능해요. 재택·하이브리드 환경도 잘 맞고요 — 혼자서도 끝까지 완성해본 사람이라, 원격에서도 스스로 굴러갑니다.",
   },
@@ -240,7 +241,7 @@ export const ANSWERS = [
   // — 이 사이트 —
   {
     id: "this-site",
-    keys: ["사이트직접", "직접만들", "사이트도만", "이사이트"],
+    keys: ["사이트직접", "직접만들", "직접만든", "직접만드", "사이트도만", "이사이트"],
     text:
       "네, 수정님이 기획부터 디자인, 코드까지 직접 만들었어요. AI로 코드를 생성하고 본인이 검토·수정하는 방식으로 작업했고, " +
       "인터랙션과 반응형도 직접 잡았어요. 사이트 자체가 수정님의 작업 방식을 보여주는 증거인 셈이에요.",
@@ -253,9 +254,14 @@ export const ANSWERS = [
   },
   {
     id: "this-chatbot",
-    keys: ["챗봇도", "챗봇직접", "너도직접", "너는누가"],
+    keys: ["챗봇도", "챗봇도직접", "챗봇직접", "챗봇직접만", "챗봇만든", "챗봇누가", "너도직접", "너는누가"],
     text:
-      "네, 이 챗봇도 수정님이 직접 만들었어요! Claude API를 연결하고, 제가 할 답변들을 직접 설계했어요. " +
+      // "Claude API를 연결하고" was here and had to go: the chatbot does not
+      // call a model, so it was telling visitors something untrue about the
+      // very thing they were asking about. It cannot notice that itself — it
+      // reads this text back whatever is running underneath — so the accuracy
+      // has to be maintained here by hand.
+      "네, 이 챗봇도 수정님이 직접 만들었어요! 제가 할 답변을 하나하나 직접 쓰고, 질문에 맞는 답을 찾아 꺼내는 방식까지 설계했어요. " +
       "저는 수정님이 정리해둔 내용 안에서만 답하도록 되어 있어요 — 모르는 건 지어내지 않고 이메일로 안내하는 것까지요.",
   },
   {
@@ -306,7 +312,7 @@ export const ANSWERS = [
   },
   {
     id: "ai-replace",
-    keys: ["필요없어", "대체", "디자이너없어"],
+    keys: ["필요없어", "대체", "대체할", "대체하", "디자이너없어"],
     text:
       "수정님은 오히려 반대라고 생각해요. AI가 생성을 빠르게 해줄수록, 무엇을 만들지 정의하고 결과가 맞는지 판단하는 사람이 더 중요해져요. " +
       "그 판단을 매 프로젝트에서 해왔고요 — AI 결과물이 의도와 다를 때 원인을 짚고 다시 잡는 것까지요. " +
@@ -368,7 +374,7 @@ export const ANSWERS = [
   },
   {
     id: "team-role",
-    keys: ["팀규모", "몇명", "역할은", "뭐맡"],
+    keys: ["팀규모", "몇명", "역할은", "역할", "에서역할", "맡은역할", "뭐맡"],
     text:
       "레이어는 6인 팀이었고, 수정님은 리서치 설문지 제작과 매거진·향수 상세페이지·챗봇 캐릭터 디자인, " +
       "그리고 향수 상세페이지·카테고리·챗봇 구현을 맡았어요. 아쿠아플라넷에서는 기획 문서 작성과 티켓 예매 페이지 UI·퍼블리싱을 담당했고요. " +
@@ -453,7 +459,7 @@ export const ANSWERS = [
     id: "projects",
     // Steps aside whenever a named project also matched — see match().
     general: true,
-    keys: ["프로젝트", "포트폴리오", "작업물", "어떤거만들"],
+    keys: ["프로젝트", "포트폴리오", "작업물", "어떤거만들", "어떤거만드"],
     text:
       "4개예요. 스냅킵(레퍼런스 아카이브), 레이어(향수 커뮤니티 앱), 아쿠아플라넷(아쿠아리움 리뉴얼), 리뷰(학습 앱). " +
       "궁금한 이름을 말씀해 주시면 자세히 알려드릴게요!",
