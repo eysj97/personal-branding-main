@@ -21,25 +21,39 @@
 // every statically deployed build. So both paths have to stay correct, and both
 // of them read this file.
 //
+// VOICE: third person, always. The bot is an assistant that speaks *about* her,
+// which is what the greeting, the fallback and OUT_OF_SCOPE all establish —
+// "저는 수정님에 대해서만 답할 수 있어요". So "저" in an answer is the bot, never
+// her, and an answer written in the first person makes the bot claim her degree
+// and her four years. Say 수정님 at least once per answer and let the following
+// sentences inherit the subject.
+//
 // Adding an answer: put it in ANSWERS with a few `keys` a visitor would
 // actually type. Keys are matched as substrings against the question with
 // spaces stripped, so short ones are dangerous — see match() for how they are
-// weighted. The model sees `text` and ignores `keys` entirely.
+// weighted, and read the ORDERING note above ANSWERS before choosing a place.
 
 export const EMAIL = "eysj1620@gmail.com";
 
 /** The buttons shown above the thread when the panel opens, in order.
  *
- * Wording and order are the design's (Figma 343:2429), not a paraphrase — these
- * are the four questions she chose to put in front of a visitor. Every one of
- * them has to land on a written answer, so changing one here means checking it
- * still matches in ANSWERS below. Two of these needed keys added when they were
- * first wired up; see the notes on `transition` and `strengths`. */
+ * The first three are the design's (Figma 343:2429) and stay as they were. The
+ * last two were added once there were answers behind them: the AI one puts the
+ * sharpest question a visitor could ask right on the surface rather than
+ * waiting to be caught out by it, and the site one points at the thing they are
+ * already looking at.
+ *
+ * Every one of these has to land on a written answer, and which one it lands on
+ * is not obvious — they run through the same scoring as anything typed. Two of
+ * the original three needed keys added when they were first wired up (see
+ * `transition`), and the AI button here needed `ai로만들`. Change the wording and
+ * you have to re-check it. The layout wraps, so a sixth would not break it. */
 export const QUICK = [
   "uxui디자이너가 된 이유?",
-  "AI활용방법",
-  "장단점",
   "진행한 프로젝트에 대한 설명",
+  "장단점",
+  "AI로 만들면 실력은?",
+  "이 사이트도 직접 만들었나요?",
 ];
 
 // Two lines, and the break is deliberate — it is the design's, and the second
@@ -62,12 +76,18 @@ export const OFF_TOPIC_KEYS = [
   "레시피", "맛집", "영화추천", "노래추천", "운세", "몇시",
 ];
 
+// ORDERING. match() breaks a tie by taking whichever answer comes first here,
+// so the order is load-bearing in one specific case: a question that names a
+// project *and* asks a sub-topic about it — "레이어에서 리서치는 어떻게
+// 했어요?" — scores the project and the sub-topic equally, and the sub-topic is
+// the actual question. So every sub-topic answer sits above the four project
+// answers. Moving one below them silently changes what that question returns.
 export const ANSWERS = [
   {
     id: "intro",
     keys: ["어떤디자이너", "소개", "누구", "어떤분", "본인", "자기소개", "어떤사람"],
     text:
-      "사용자도 의식하지 못한 불편을 발견해 설계하는 UX/UI 디자이너예요. " +
+      "수정님은 사용자도 의식하지 못한 불편을 발견해 설계하는 UX/UI 디자이너예요. " +
       "사회복지 현장에서 4년간 사람의 숨은 니즈를 읽던 감각을 디자인에 그대로 쓰고 있어요.",
   },
   {
@@ -79,45 +99,329 @@ export const ANSWERS = [
     // "uxui디자이너가 된 이유?", which matched nothing at all before them —
     // none of the words below appear in it. Both are specific enough to be
     // safe: becoming a designer is only ever this answer.
+    //
+    // "비전공" used to be here too and has moved to `non-major`, which is the
+    // answer that question actually wants. It tied at 9 against that one and
+    // won on being written first, so "비전공인데 괜찮을까요?" was answered with
+    // the career-change story instead of the reassurance it was asking for.
     keys: [
       "사회복지", "직무", "전환", "왜디자인", "바꿨", "바꾸",
-      "이직", "비전공", "디자이너가되", "된이유",
+      "이직", "디자이너가되", "된이유",
     ],
     text:
-      "사회복지사의 개입은 늘 문제가 생긴 뒤였어요. 문제가 생기기 전에 막을 수 없을까 고민한 끝에 디자인을 만났고요. " +
+      "수정님이 하던 사회복지사의 개입은 늘 문제가 생긴 뒤였어요. 문제가 생기기 전에 막을 수 없을까 고민한 끝에 디자인을 만났고요. " +
       "막아설 때보다 조금씩 나아지게 만들 때 힘을 얻는 사람이라, 도망친 게 아니라 개입의 시점을 사후에서 사전으로 재정의한 거예요.",
   },
   {
     id: "philosophy",
     keys: ["철학", "가치관", "중요하게", "신념", "디자인관", "어떻게디자인"],
     text:
-      "예쁜 것보다 사용성을 봐요. 정보를 다 보여주는 것과 잘 읽히는 것은 다르다고 생각하거든요. " +
+      "수정님은 예쁜 것보다 사용성을 봐요. 정보를 다 보여주는 것과 잘 읽히는 것은 다르다고 생각하거든요. " +
       "같은 정보도 상황에 따라 압박이 될 수 있어서, 사용자의 맥락을 먼저 읽습니다.",
   },
   {
     id: "strengths",
-    // NEEDS HER APPROVAL — the only answer here she did not write.
-    //
-    // The "장단점" quick button had nothing to land on, so this was assembled
-    // out of things she has already said elsewhere in this file rather than
-    // invented: the hidden-needs sense from `intro`, the Reviu decision from
-    // `reviu`, the feedback stance from `collab`, and the Photoshop gap she
-    // already states plainly in `photoshop`. Nothing new is claimed about her.
-    // It still speaks for her to people deciding whether to hire her, which is
-    // exactly the thing the top of this file says not to guess at — so it is
-    // hers to rewrite or cut.
     keys: ["장단점", "장점", "강점", "단점", "약점", "잘하는", "부족한"],
     text:
-      "강점은 사용자가 말하지 않은 불편을 읽어내는 거예요. 사회복지 현장에서 4년간 클라이언트의 숨은 니즈를 듣던 감각이고, " +
-      "리뷰 앱에서 밀린 복습량을 '보여주지 않기로' 한 판단도 거기서 나왔어요. 피드백을 방어하지 않고 근거로 다시 설득하는 것도 강점이라고 생각합니다. " +
-      "아직 부족한 건 그래픽 툴이에요. 주력은 Figma고 포토샵은 학습 중이라, 비주얼 표현의 폭을 넓히는 게 지금의 과제입니다.",
+      "수정님의 장점은 작은 변화를 빠르게 알아차리는 거예요. 4년간 사회복지 현장에서 사람들의 작은 변화와 맥락을 읽는 게 일상이었고, " +
+      "그 감각으로 사용자가 말하지 않는 불편을 찾아요. 반면 아쉬운 점이 눈에 잘 들어오는 만큼 세부를 다듬는 데 시간을 쓰는 편이라, " +
+      "작업 초반에 우선순위를 정해 완성도와 일정을 함께 관리하는 습관을 기르고 있어요.",
+  },
+
+  // — 이력 —
+  {
+    id: "career",
+    keys: ["경력몇", "몇년", "신입", "연차"],
+    text:
+      "수정님은 디자인 직무로는 신입이에요. 대신 그 전에 정신건강사회복지사로 4년간 일하며 사람의 숨은 니즈를 읽는 훈련을 했고, " +
+      "그 감각을 디자인에 그대로 쓰고 있어요. 팀·개인 프로젝트 4개로 기획부터 구현까지의 경험을 쌓았습니다.",
+  },
+  {
+    id: "education",
+    keys: ["어디서배", "독학", "부트캠프", "학원", "배웠"],
+    text:
+      "수정님은 비전공으로 시작해 학원 과정을 수료하고, 독학을 병행하며 배웠어요. " +
+      "배운 것을 팀 프로젝트 2개와 개인 프로젝트 2개로 바로 검증했고, 지금 보고 계신 이 사이트도 그 과정의 결과물이에요.",
+  },
+  {
+    id: "major",
+    keys: ["전공"],
+    text:
+      "수정님은 사회복지학을 전공했어요. 졸업 후 정신건강사회복지사로 4년간 일했고, 디자인은 학원 수료와 독학으로 익혀 프로젝트로 검증해왔어요. " +
+      "전공은 다르지만, 사람을 이해하는 훈련은 그때 받은 셈이에요.",
+  },
+  {
+    id: "previous-work",
+    // "어떤회사"/"회사다니" are here rather than on `team-fit`, where they were
+    // first drafted: "어떤 회사 다니셨어요?" is asking where she worked, not
+    // what kind of team she wants to join next.
+    keys: ["어디서일", "사회복지사로", "기관", "어떤회사", "회사다니", "어디다니"],
+    text:
+      "수정님은 생명의터와 경주정신건강상담센터에서 정신건강사회복지사로 4년간 근무했어요. " +
+      "자세한 이력은 Contact에서 이력서로 확인하실 수 있어요.",
+  },
+  {
+    id: "license",
+    keys: ["자격증"],
+    text:
+      "수정님은 정신건강사회복지사 2급과 사회복지사 1급을 보유하고 있어요. (운전면허 1종 보통도 있고요.) " +
+      "디자인 관련 자격증보다는 프로젝트 결과물로 실력을 보여드리는 쪽이에요.",
+  },
+  {
+    id: "work-experience",
+    keys: ["실무경험", "회사에서", "실무해"],
+    text:
+      "수정님은 회사 소속 디자이너로 일한 실무 경험은 아직 없어요. 대신 팀 프로젝트 2개에서 기획·디자인·구현과 협업을, " +
+      "개인 프로젝트 2개에서 전 과정을 혼자 완성하는 경험을 했어요. 실무의 검증은 이제 받으러 가는 중이고, 그래서 더 빠르게 흡수할 준비가 되어 있어요.",
+  },
+  {
+    id: "no-experience",
+    // "괜찮을까" was here and had to go. It is four characters, so it scored 16
+    // — above almost every three-character noun on the site — and it is a plain
+    // Korean ending rather than a subject, so it turned up in questions about
+    // everything. "포토샵 못 하시는데 괜찮을까요?" and "비전공인데 괜찮을까요?"
+    // both came back with this answer.
+    keys: ["실무경험이없", "경험없는데", "경력없는데", "신입인데괜찮"],
+    text:
+      "수정님은 실무 경험은 없지만, 실무와 가까운 경험을 만들려고 했어요. 팀 프로젝트에서 기획-디자인-구현-협업의 전체 흐름을 겪었고, " +
+      "개인 프로젝트는 혼자 끝까지 완성했어요. 이 사이트와 챗봇, 스냅킵 프로토타입까지 — 실제로 작동하는 것을 만들어온 사람이에요. " +
+      "빠르게 배우는 건 이미 증명했다고 생각해요.",
+  },
+  {
+    id: "non-major",
+    // "비전공인데" as well as "비전공": the long one is what beats `major`'s
+    // "전공", which is a substring of the very word the visitor typed.
+    keys: ["비전공", "비전공인데", "전공안했"],
+    text:
+      "수정님이 비전공인 건 맞지만, 다른 전공이 무기가 됐어요. 4년간 사람의 말하지 않는 니즈를 읽는 훈련을 한 디자이너는 흔치 않으니까요. " +
+      "그 감각이 리서치와 화면 설계에 그대로 쓰여요. 부족한 부분은 프로젝트 4개를 완성하며 채워왔고, 지금도 채우는 중이에요.",
+  },
+  {
+    id: "back-to-social",
+    keys: ["돌아갈생각", "다시사회복지"],
+    text:
+      "확실히 없어요. 사회복지를 떠난 게 아니라 사람을 돕는 방식을 바꾼 거고, 무엇보다 디자인은 창조하는 일이라 수정님과 잘 맞아요. " +
+      "오래, 최선을 다할 수 있는 직업을 만났다고 생각하고 있어요.",
+  },
+
+  // — 채용 조건 —
+  {
+    id: "availability",
+    keys: ["언제부터", "출근가능", "입사가능"],
+    text:
+      "수정님은 즉시 출근 가능해요. 구체적인 일정은 이메일로 문의해 주시면 조율할 수 있어요.",
+  },
+  {
+    id: "employment-type",
+    keys: ["정규직", "인턴", "계약직", "어떤형태"],
+    text:
+      "수정님은 정규직, 계약직, 인턴 모두 열어두고 있어요. 성장할 수 있는 팀이라면 형태보다 기회가 먼저라고 생각해요.",
+  },
+  {
+    id: "salary",
+    keys: ["연봉", "희망연봉"],
+    text:
+      "수정님은 연봉은 회사 내규를 따를 생각이에요. 지금은 금액보다 배우고 성장할 수 있는 환경이 우선이고요. 자세한 논의는 면접에서 나누고 싶어 해요.",
+  },
+  {
+    id: "location",
+    keys: ["근무지역", "재택", "어디근무", "지역"],
+    text:
+      "수정님은 서울 전역 출퇴근 가능해요. 재택·하이브리드 환경도 잘 맞고요 — 혼자서도 끝까지 완성해본 사람이라, 원격에서도 스스로 굴러갑니다.",
+  },
+  {
+    id: "ux-or-ui",
+    keys: ["ux와ui", "어느쪽", "유엑스", "유아이"],
+    text:
+      "수정님의 출발은 UX였어요. 사람들과 상호작용하며 의도하고 개선하는 일이 좋아서 사회복지를 했고, 같은 이유로 리서치와 기획에 먼저 끌렸어요. " +
+      "지금은 UI 디자인과 구현까지 다 훈련해서 둘을 이어서 일해요 — 문제를 정의하고, 화면으로 설계하고, 코드로 확인하는 것까지요.",
+  },
+
+  // — 이 사이트 —
+  {
+    id: "this-site",
+    keys: ["사이트직접", "직접만들", "사이트도만", "이사이트"],
+    text:
+      "네, 수정님이 기획부터 디자인, 코드까지 직접 만들었어요. AI로 코드를 생성하고 본인이 검토·수정하는 방식으로 작업했고, " +
+      "인터랙션과 반응형도 직접 잡았어요. 사이트 자체가 수정님의 작업 방식을 보여주는 증거인 셈이에요.",
+  },
+  {
+    id: "tech-stack",
+    keys: ["뭘로만들", "기술스택", "리액트", "react", "vite"],
+    text:
+      "React와 Vite로 만들었어요. AI(Claude)로 코드를 생성하고 수정님이 직접 검토·수정하며 구현했고, Vercel로 배포했어요.",
+  },
+  {
+    id: "this-chatbot",
+    keys: ["챗봇도", "챗봇직접", "너도직접", "너는누가"],
+    text:
+      "네, 이 챗봇도 수정님이 직접 만들었어요! Claude API를 연결하고, 제가 할 답변들을 직접 설계했어요. " +
+      "저는 수정님이 정리해둔 내용 안에서만 답하도록 되어 있어요 — 모르는 건 지어내지 않고 이메일로 안내하는 것까지요.",
+  },
+  {
+    id: "learn-section",
+    keys: [
+      "learn", "런섹션", "여섯개", "6개는",
+      "한화", "뮤자인", "대방", "크루어라", "와이스튜디오", "qude",
+    ],
+    text:
+      "LEARN의 6개는 수정님이 웹 기술과 인터랙션을 익히려고 직접 구현해본 학습 결과물이에요. " +
+      "실제 클라이언트 작업이 아니라, 기존 사이트를 교재 삼아 디자인을 코드로 옮기는 훈련을 한 거예요. " +
+      "이 과정에서 HTML/CSS와 반응형, 인터랙션 구현 감각을 쌓았어요.",
+  },
+  {
+    id: "clone-or-client",
+    keys: ["클론코딩", "클라이언트작업", "실제작업"],
+    text:
+      "클론코딩(학습용 구현)이 맞아요. 실제 클라이언트 작업으로 보이지 않게 정직하게 말씀드려요. " +
+      "대신 실제 서비스 수준의 화면을 코드로 재현하며 퍼블리싱 실력을 쌓는 것이 목적이었고, 그 결과는 프로젝트 4개에서 확인하실 수 있어요.",
+  },
+
+  // — AI —
+  {
+    id: "ai",
+    keys: ["ai", "인공지능", "claude", "클로드", "chatgpt", "gpt", "gemini", "제미나이"],
+    text:
+      "수정님은 용도를 나눠 써요. Claude는 코딩, ChatGPT는 아이디어 확장과 이미지, Gemini는 이미지·영상 생성이요. " +
+      "코드는 AI로 생성하되 직접 검토하고 수정해요. 화면 배치나 코드 구조처럼 AI가 못 잡는 부분은 직접 판단해 다시 잡습니다.",
+  },
+  {
+    id: "ai-skill",
+    // "ai로만들" is the fourth quick button's; without it that button scored
+    // only on the bare "ai" key and came back with the tool-list answer above,
+    // which is not what the button asks.
+    keys: ["본인실력", "네실력", "ai로다만들", "ai로만들", "실력은뭔", "그럼실력"],
+    text:
+      "좋은 질문이에요. AI는 생성을 하고, 판단은 수정님이 해요. 예를 들어 AI가 짠 코드가 화면에서 비눗방울을 규칙 없이 흩어놓았을 때 " +
+      "좌표를 직접 조정해 배치를 잡았고, 클래스명이 제각각이라 재사용이 안 되는 구조는 직접 다시 정립했어요. " +
+      "무엇이 잘못됐는지 알아보고 고칠 수 있는 것 — 그게 AI 시대 디자이너의 실력이라고 생각해요.",
+  },
+  {
+    id: "ai-fixed",
+    keys: ["직접잡", "ai가못", "직접고친", "직접수정한"],
+    text:
+      "세 가지가 있어요. 아쿠아플라넷에서 AI가 비눗방울을 화면에 맞게 배치하지 못해 수정님이 x·y 좌표를 직접 조정했고, " +
+      "작은 화면에서 빛 인터랙션이 디자인을 덮길래 덜어내는 판단을 했어요. 학습 앱에서는 AI 코드의 클래스명이 제각각이라 재사용 구조를 직접 다시 잡았고요. " +
+      "AI는 도구고 품질은 사람이 책임진다는 게 수정님의 생각이에요.",
+  },
+  {
+    id: "ai-replace",
+    keys: ["필요없어", "대체", "디자이너없어"],
+    text:
+      "수정님은 오히려 반대라고 생각해요. AI가 생성을 빠르게 해줄수록, 무엇을 만들지 정의하고 결과가 맞는지 판단하는 사람이 더 중요해져요. " +
+      "그 판단을 매 프로젝트에서 해왔고요 — AI 결과물이 의도와 다를 때 원인을 짚고 다시 잡는 것까지요. " +
+      "AI를 쓰는 능력은 결국 AI에게 정확히 요구하는 능력이라는 게 수정님의 결론이에요.",
+  },
+
+  // — 과정과 역량. 프로젝트 답변보다 위에 있어야 한다(맨 위 ORDERING 참고) —
+  {
+    id: "research",
+    keys: ["리서치", "설문", "조사"],
+    text:
+      "레이어에서 향수 사용자 50명에게 10가지를 묻는 설문을 진행했어요. 수정님은 AI로 만든 초안 문항을 다듬어 설문지를 제작했고, " +
+      "설문은 팀원 모두가 함께 진행했어요. 그 결과 절반 이상이 \"나에게 맞는 향을 찾기 어렵다\"고 답해, " +
+      "문제가 정보의 양이 아니라 취향 정의에 있다는 걸 확인했어요.",
+  },
+  {
+    id: "usability-test",
+    keys: ["사용성테스트", "usability", "유저테스트"],
+    text:
+      "수정님은 레이어에서 휴리스틱 평가로 사용성을 점검했어요 — 전체 평균 4.2점으로, 미니멀한 디자인과 사용자 통제 항목이 높았고 " +
+      "도움말·오류 방지가 보완점으로 나왔어요. 스냅킵의 버튼 배치는 실제 사용성 테스트로 검증하는 것을 다음 단계 과제로 정직하게 남겨뒀어요.",
+  },
+  {
+    id: "design-system",
+    keys: ["디자인시스템"],
+    text:
+      "레이어에서 팀과 함께 폰트 위계, 컬러, 컴포넌트를 표준화했어요. 시스템 정립은 팀이 함께했고, " +
+      "수정님은 \"실제로 쓰기 편한가\"의 관점에서 피드백과 의견을 보태는 역할이었어요. 정리된 시스템 안에서 담당 화면들을 일관되게 구현했고요.",
+  },
+  {
+    id: "responsive",
+    keys: ["반응형"],
+    text:
+      "수정님은 아쿠아플라넷에서 처음 반응형을 잡아봤어요. PC에서 자연스럽던 빛 인터랙션이 태블릿·모바일에서 디자인을 덮어버려서, " +
+      "작은 화면에서는 인터랙션을 덜어내는 판단을 했어요. 무리하게 유지하며 오류를 감수하기보다 간소화하는 게 낫다는 걸 그때 배웠고, " +
+      "이 사이트도 반응형으로 직접 잡았어요.",
+  },
+  {
+    id: "a11y",
+    keys: ["접근성", "a11y"],
+    text:
+      "웹 접근성 표준(스크린리더 대응 같은)을 전문적으로 다뤄본 건 아직 아니에요. " +
+      "다만 수정님이 사용성을 볼 때 가장 먼저 따지는 게 \"사용자가 접근할 수 있는가\"예요 — 접근할 수 있어야 사용할 수 있으니까요. " +
+      "그 관점의 연장에서, 접근성 표준은 실무에서 제대로 배워가고 싶은 영역이에요.",
+  },
+  {
+    id: "data-driven",
+    keys: ["지표", "데이터보고", "데이터기반"],
+    text:
+      "수정님은 휴리스틱 지표로 계속 평가하고 수정하는 방식으로 일해요. 레이어에서는 휴리스틱 평가(평균 4.2점)로 보완점을 짚었고, " +
+      "설문 데이터에서 서비스 방향을 잡았어요. 실사용 트래픽 같은 정량 지표 기반 개선은 실무에서 꼭 해보고 싶은 부분이에요.",
+  },
+  {
+    id: "duration",
+    keys: ["기간", "얼마나걸", "몇주", "몇개월"],
+    text:
+      "리뷰는 3월 말부터 6월 초까지 약 두 달, 아쿠아플라넷은 6월 한 달, 레이어는 7월부터 8월 초까지 약 한 달간 진행했어요. " +
+      "스냅킵은 약 2~3주간 혼자 집중해서 만들었고요.",
+  },
+  {
+    id: "team-role",
+    keys: ["팀규모", "몇명", "역할은", "뭐맡"],
+    text:
+      "레이어는 6인 팀이었고, 수정님은 리서치 설문지 제작과 매거진·향수 상세페이지·챗봇 캐릭터 디자인, " +
+      "그리고 향수 상세페이지·카테고리·챗봇 구현을 맡았어요. 아쿠아플라넷에서는 기획 문서 작성과 티켓 예매 페이지 UI·퍼블리싱을 담당했고요. " +
+      "스냅킵과 리뷰는 혼자 전 과정을 진행한 개인 프로젝트예요. 팀 프로젝트는 모두 6인 1조로 진행했어요.",
+  },
+  {
+    id: "hardest",
+    keys: ["어려웠", "힘들었", "실패", "좌절"],
+    text:
+      "수정님이 꼽는 순간은 둘이에요. 레이어에서 매거진을 맡았는데 참고할 모바일 매거진 레퍼런스가 아예 없어 막막했던 때 — " +
+      "결국 '작은 화면에서 긴 정보를 전달한다'는 본질만 남기니 카드뉴스에서 실마리가 보였고, 세 가지 구조를 직접 설계했어요. " +
+      "그리고 첫 팀 프로젝트에서 기획과 디자인이 거절당한 경험이요. 쉽지 않았지만 그 덕에 자기 수준을 객관적으로 보게 됐어요.",
+  },
+  {
+    id: "dev-collab",
+    keys: ["개발자와", "개발자랑", "개발협업"],
+    text:
+      "수정님은 개발자 직군과 함께 일해본 경험은 아직 없어요. 코딩 자체를 디자인 공부하며 처음 시작했고요. " +
+      "대신 디자인을 직접 코드로 구현해봤기 때문에, 개발자가 어떤 정보를 필요로 하는지 — 재사용 가능한 구조, 명확한 클래스 체계, 반응형 기준 — 를 몸으로 이해하고 있어요. " +
+      "협업할 때 개발자의 언어로 소통할 수 있는 디자이너라고 생각해요.",
+  },
+  {
+    id: "collab",
+    keys: ["협업", "팀워크", "팀프로젝트", "갈등", "피드백", "소통"],
+    text:
+      "수정님은 피드백을 방어하지 않고 발전의 재료로 써요. 레이어에서 입문자 중심 타깃을 제안했다가 팀에서 둘 다 보자는 의견이 나왔을 때, " +
+      "입문자는 중심 사용자, 애호가는 콘텐츠 기여자로 나눈 절충 기획서로 다시 써서 최종 채택됐어요. " +
+      "주장이 아니라 근거로 설득하려고 합니다.",
+  },
+
+  // — 프로젝트 —
+  {
+    id: "snapkeep-launch",
+    // The project's own name has to be in these keys. "출시" alone is two
+    // characters against "스냅킵"'s three, so on score the general Snapkeep
+    // answer below won every question that named the project — which is every
+    // question anyone would ask about whether it shipped.
+    keys: ["스냅킵출시", "스냅킵실제", "스냅킵쓰", "스냅킵배포", "출시", "실제로쓰", "쓰는사람", "배포했"],
+    text:
+      "아직 출시 전이에요. 지금은 실제 작동하는 프로토타입 단계로, Experience It 섹션에서 직접 써보실 수 있어요. " +
+      "스크린샷을 올리면 AI가 태깅하고 검색해 꺼내는 핵심 흐름은 실제로 작동해요.",
   },
   {
     id: "snapkeep",
-    keys: ["스냅킵", "snapkeep", "대표프로젝트", "대표작", "제일잘한", "가장자신"],
+    // Both halves of both phrasings — "제일 자신있는"/"가장 잘한" are as likely
+    // as the two that were here, and matched nothing.
+    keys: [
+      "스냅킵", "snapkeep", "대표프로젝트", "대표작",
+      "제일잘한", "가장잘한", "제일자신", "가장자신",
+    ],
     text:
-      "스크린샷을 넣으면 AI가 태깅하고, 필요할 때 내 언어로 검색해 꺼내는 레퍼런스 아카이브예요. " +
-      "모으기만 하고 못 찾는 문제를 직접 겪어서, 혼자 기획부터 프로토타입까지 만들었어요. " +
+      "스크린샷을 넣으면 AI가 태깅하고, 필요할 때 자기 말로 검색해 꺼내는 레퍼런스 아카이브예요. " +
+      "모으기만 하고 못 찾는 문제를 수정님이 직접 겪어서, 혼자 기획부터 프로토타입까지 만들었어요. " +
       "이 사이트 Experience It 섹션에서 직접 써보실 수 있어요!",
   },
   {
@@ -126,7 +430,7 @@ export const ANSWERS = [
     text:
       "6인 팀으로 만든 향수 커뮤니티 앱이에요. 리서치에서 사용자 50명 중 절반 이상이 " +
       "\"나에게 맞는 향 찾기가 어렵다\"고 했고 9할이 맞춤 추천을 원했는데, 추천은 취향이 정의된 다음에야 가능하잖아요. " +
-      "정작 '내 취향'을 다뤄주는 서비스가 없다는 게 저희가 찾은 빈자리였어요. " +
+      "정작 '내 취향'을 다뤄주는 서비스가 없다는 게 팀이 찾은 빈자리였어요. " +
       "수정님은 설문지 제작과 매거진·향수 상세페이지 디자인, 그리고 구현을 맡았어요.",
   },
   {
@@ -141,7 +445,7 @@ export const ANSWERS = [
     id: "reviu",
     keys: ["리뷰", "reviu", "학습앱", "코넬", "필기", "공부"],
     text:
-      "필기를 스캔하면 코넬 노트로 정리되고 AI가 문제를 만들어주는 학습 앱이에요. 혼자 기획부터 구현까지 했고요. " +
+      "필기를 스캔하면 코넬 노트로 정리되고 AI가 문제를 만들어주는 학습 앱이에요. 수정님이 혼자 기획부터 구현까지 했고요. " +
       "가장 신경 쓴 건 오히려 '보여주지 않는 것'이었어요. 밀린 복습량을 보여주면 압박이 되니까, " +
       "시스템이 오늘의 학습에 복습분을 알아서 섞어 부담 없이 따라가게 했습니다.",
   },
@@ -154,39 +458,47 @@ export const ANSWERS = [
       "4개예요. 스냅킵(레퍼런스 아카이브), 레이어(향수 커뮤니티 앱), 아쿠아플라넷(아쿠아리움 리뉴얼), 리뷰(학습 앱). " +
       "궁금한 이름을 말씀해 주시면 자세히 알려드릴게요!",
   },
+
+  // — 그 외 —
   {
     id: "skills",
     keys: ["스킬", "기술", "툴", "figma", "피그마", "html", "css", "퍼블리싱", "할줄"],
     text:
-      "UX 리서치, 기획, UI 디자인, 인터랙션 디자인을 하고요. 주력 툴은 Figma예요. " +
+      "수정님은 UX 리서치, 기획, UI 디자인, 인터랙션 디자인을 해요. 주력 툴은 Figma고요. " +
       "HTML/CSS로 반응형 퍼블리싱까지 직접 합니다.",
-  },
-  {
-    id: "ai",
-    keys: ["ai", "인공지능", "claude", "클로드", "chatgpt", "gpt", "gemini", "제미나이"],
-    text:
-      "용도를 나눠 씁니다. Claude는 코딩, ChatGPT는 아이디어 확장과 이미지, Gemini는 이미지·영상 생성이요. " +
-      "코드는 AI로 생성하되 직접 검토하고 수정해요. 화면 배치나 코드 구조처럼 AI가 못 잡는 부분은 본인이 판단해 다시 잡습니다.",
-  },
-  {
-    id: "collab",
-    keys: ["협업", "팀워크", "팀프로젝트", "갈등", "피드백", "소통"],
-    text:
-      "피드백을 방어하지 않고 발전의 재료로 씁니다. 레이어에서 입문자 중심 타깃을 제안했다가 팀에서 둘 다 보자는 의견이 나왔을 때, " +
-      "입문자는 중심 사용자, 애호가는 콘텐츠 기여자로 나눈 절충 기획서로 다시 써서 최종 채택됐어요. " +
-      "주장이 아니라 근거로 설득하려고 합니다.",
   },
   {
     id: "photoshop",
     keys: ["포토샵", "photoshop", "일러스트레이터", "illustrator"],
     text:
-      "포토샵은 현재 학습 중이에요. 주력 툴은 Figma고, HTML/CSS로 직접 퍼블리싱까지 합니다.",
+      "포토샵은 수정님이 현재 학습 중이에요. 주력 툴은 Figma고, HTML/CSS로 직접 퍼블리싱까지 합니다.",
+  },
+  {
+    id: "team-fit",
+    keys: ["어떤팀", "어떤사람과", "같이일하"],
+    text:
+      "솔직하게 피드백을 주고받는 팀이요. 수정님은 팀 프로젝트에서 거절당하는 경험을 통해 성장했고, " +
+      "듣기 좋은 말보다 더 나은 방향을 함께 고민해주는 동료가 결과물을 좋게 만든다는 걸 배웠어요. 본인도 그런 동료가 되고 싶어 해요.",
+  },
+  {
+    id: "inspiration",
+    keys: ["영감", "레퍼런스어디", "어디서얻"],
+    text:
+      "수정님은 북마크, 핀터레스트, 피그마 커뮤니티에 레퍼런스를 꾸준히 모아요. 사실 너무 많이 모아서 못 찾는 게 문제였고, " +
+      "그걸 풀려고 만든 게 스냅킵이에요. 그리고 딱 맞는 레퍼런스가 없을 땐 분야 밖에서 찾아요 — 모바일 매거진을 카드뉴스에서 착안했던 것처럼요.",
+  },
+  {
+    id: "future",
+    keys: ["5년뒤", "3년뒤", "어떤디자이너가되", "미래"],
+    text:
+      "사용자의 불편을 먼저 눈치채고 개선하는 디자이너요. 지금 이 사이트에서 계속 말씀드린 그 방향 그대로예요. " +
+      "사람들이 말하기 전에 알아차리는 것 — 그걸 3년 뒤에도 5년 뒤에도 더 잘하는 사람이 되고 싶어 해요.",
   },
   {
     id: "contact",
     keys: ["연락", "이메일", "메일", "contact", "이력서", "채용", "면접", "제안"],
     text:
       `이메일로 연락 주세요 — ${EMAIL} 입니다. 이력서는 이 사이트 맨 아래 Contact에서 바로 보실 수 있어요. ` +
-      "더 나은 사용자 경험을 함께 고민하겠습니다!",
+      "더 나은 사용자 경험을 함께 고민할 기회를 기다리고 있어요!",
   },
 ];
