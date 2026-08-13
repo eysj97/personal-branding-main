@@ -32,6 +32,7 @@ import activityLabelSelected from "../../assets/snapkeep/activity-label-selected
 import bookmarkIcon from "../../assets/bookmark.svg";
 import { REFERENCE_ASPECTS, REFERENCE_LAYOUTS } from "./snapkeepLayouts";
 import { REFERENCE_COMPONENTS } from "./snapkeepComponents";
+import { measureType, withMeasuredType } from "./measureType";
 
 // The whole screen is styled from index.css with structural selectors
 // (`div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > button`,
@@ -103,8 +104,15 @@ const OPTIONS_BY_GROUP = Object.fromEntries(
 const VIEWS = [["original", "원본"], ["structure", "구조"], ["component", "컴포넌트"]];
 const DETAIL_TABS = [["original", "원본"], ["structure", "구조"], ["component", "컴포넌트"]];
 
+// Bumping a key abandons whatever was stored under the old one — the browser
+// keeps it, the app stops reading it. `uploads` went to v3 to drop test
+// screenshots that had been scanned in during development and then sat in the
+// library looking like part of it: they live in localStorage, so no amount of
+// reloading the page removes them, and only the browser that made them ever saw
+// them. The others stay at v2 because saved marks and tag edits are worth
+// keeping.
 const STORAGE = {
-  uploads: "snapkeep-uploads-v2",
+  uploads: "snapkeep-uploads-v3",
   deleted: "snapkeep-deleted-v2",
   saved: "snapkeep-saved-v2",
   tags: "snapkeep-tags-v2",
@@ -279,9 +287,19 @@ function analyzeImage(dataUrl) {
         tone = { luma: 128, saturation: 0.3, accent: "#017c6e" };
       }
 
+      let pixels = null;
+      try {
+        pixels = context.getImageData(0, 0, canvas.width, canvas.height);
+      } catch {
+        pixels = null;
+      }
       resolve({
         image: canvas.toDataURL("image/jpeg", 0.82),
         ratio: image.width / image.height,
+        // Held for the type measuring, which needs the analysis's blocks and so
+        // cannot run until the model has answered. Dropped before the reference
+        // is stored — pixels do not belong in localStorage.
+        pixels,
         ...tone,
       });
     });
@@ -401,6 +419,50 @@ const WIRE_GREYS = ["#1c1c1c", "#4a4a4a", "#767676", "#a0a0a0", "#c8c8c8", "#e8e
 // ground that belongs to the same scale it does.
 const WIRE_PAPER = WIRE_GREYS[WIRE_GREYS.length - 1];
 
+// Pictures get their own six greys, offset half a step from the ramp above.
+//
+// Still greyscale — the drawing has no colour in it and should not start now —
+// but a picture never lands on exactly the grey of the thing it sits on, so it
+// separates by tone wherever it is put. That is what tells a picture from a
+// panel now that the cross through it is gone: the cross was the older, louder
+// way of saying it, and forty of them on a screen read as a page of deletions.
+const WIRE_IMAGE = ["#2b2b2b", "#5e5e5e", "#8b8b8b", "#b4b4b4", "#d8d8d8", "#f0f0f0"];
+
+/**
+ * Icon glyphs, drawn rather than stood in for.
+ *
+ * A chevron is a chevron — it says "back" to anyone who looks, and replacing it
+ * with a circle throws away something the reader already knew for free. Paths
+ * are authored on a 24x24 grid and scaled into whatever box the element has, so
+ * one definition serves every size.
+ */
+const WIRE_ICONS = {
+  "chevron-left": "M15 5 8 12l7 7",
+  "chevron-right": "M9 5l7 7-7 7",
+  "chevron-down": "M5 9l7 7 7-7",
+  "arrow-right": "M4 12h15M13 6l6 6-6 6",
+  "arrow-up-right": "M7 17 17 7M8 7h9v9",
+  close: "M6 6l12 12M18 6 6 18",
+  plus: "M12 5v14M5 12h14",
+  check: "M4 13l5 5L20 6",
+  search: "M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14M16.2 16.2 21 21",
+  more: "M12 6.2v.01M12 12v.01M12 17.8v.01",
+  settings: "M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7M12 2.5l1.4 2.2 2.6-.5.6 2.5 2.4 1.1-1.2 2.3 1.2 2.3-2.4 1.1-.6 2.5-2.6-.5L12 21.5l-1.4-2.2-2.6.5-.6-2.5-2.4-1.1 1.2-2.3-1.2-2.3 2.4-1.1.6-2.5 2.6.5z",
+  cart: "M3 5h2.2l2 10h9.6l2-7H6.4M9 19.5v.01M17 19.5v.01",
+  speaker: "M4 9.5h3.5L12 5.5v13L7.5 14.5H4zM16 9a4.5 4.5 0 0 1 0 6",
+  share: "M12 15V4M8 7.5 12 3.5l4 4M5 13v6.5h14V13",
+  bookmark: "M6 3.5h12v17l-6-4.5-6 4.5z",
+  flag: "M6 3.5v17M6 4.5h11l-2.5 4 2.5 4H6",
+  bolt: "M13.5 2.5 5.5 13.5h5l-.5 8 8.5-11.5h-5z",
+  target: "M12 4.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6",
+  clock: "M12 4.5a7.5 7.5 0 1 0 0 15 7.5 7.5 0 0 0 0-15M12 7.5V12l3 2",
+  sparkle: "M12 3.5 13.8 9 19 10.8 13.8 12.6 12 18l-1.8-5.4L5 10.8 10.2 9z",
+  wifi: "M3.5 9a13 13 0 0 1 17 0M6.5 12.5a8.5 8.5 0 0 1 11 0M9.5 16a4 4 0 0 1 5 0M12 19.5v.01",
+  signal: "M4 19.5v-3M9.3 19.5v-7M14.7 19.5v-11M20 19.5v-15",
+  battery: "M2.5 8.5h15v7h-15zM20 11v2",
+  dot: "M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5",
+};
+
 const clampUnit = (value) => Math.min(1, Math.max(0, Number(value) || 0));
 
 /** The step this element's real lightness lands on. `tone` is 0 = black,
@@ -431,6 +493,10 @@ const toneEdge = (tone) => {
 // In viewBox units, and the drawing is usually shown at about a third of that,
 // so a hairline here would disappear on screen.
 const WIRE_LINE = 4;
+// The drawing is shown at about a third of the viewBox, so three units is the
+// one screen pixel an annotation wants — present enough to follow, quiet
+// enough not to join the design.
+const WIRE_HAIRLINE = 3;
 
 // Every letterform in the drawing.
 //
@@ -444,17 +510,74 @@ const WIRE_LINE = 4;
 // filler suggests where one word ended and the next began — the run is a
 // measurement, and a measurement should not imply structure it did not take.
 const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
-const letterRun = (count) => {
+const letterRun = (count, upper = false) => {
   let run = "";
   for (let i = 0; i < Math.max(1, Math.min(200, Math.round(count) || 1)); i += 1) {
-    run += ALPHABET[i % ALPHABET.length];
+    run += upper ? ALPHABET[i % ALPHABET.length].toUpperCase() : ALPHABET[i % ALPHABET.length];
   }
   return run;
 };
 const GLYPH_FONT = "'JetBrains Mono', ui-monospace, monospace";
 // One monospaced glyph is 0.6em wide. This is what converts a character count
 // into a width, so it has to match the font actually used above.
-const GLYPH_ADVANCE = 0.6;
+const GLYPH_ADVANCE = 0.581;
+
+/**
+ * How much of its em the stand-in font actually inks, measured in the browser.
+ *
+ * The data carries each text's real *ink* height, read off the screenshot. Ink
+ * is what you see; `font-size` is an em, and how much of an em a font inks is
+ * a property of that font. Measuring it here rather than baking a number means
+ * the drawing is right whatever font ends up loading — a value measured on a
+ * build machine that has no JetBrains Mono installed describes a fallback font
+ * and not the one the page draws with.
+ */
+// How much of its em the stand-in font inks, measured in the browser — twice,
+// because it depends on what is in the run.
+//
+//   full — lowercase, ascender down through the tail of a g or j
+//   tall — uppercase, cap height down to the baseline
+//
+// The stand-in takes the case of the text it replaces, so these are the two
+// runs actually drawn and not two guesses about one. All-caps English and
+// Hangul both stop at the baseline; drawn in lowercase against the same ink
+// their own tails would eat a quarter of it and the body would come out half
+// the size. Drawn in uppercase the edges are the same edges, and the number
+// below only converts ink to an em.
+const GLYPH_INK_FALLBACK = { full: 0.965, tall: 0.72 };
+
+function useGlyphInk() {
+  const [ratio, setRatio] = useState(GLYPH_INK_FALLBACK);
+  useEffect(() => {
+    if (typeof document === "undefined") return undefined;
+    let cancelled = false;
+    const probe = () => {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("style", "position:absolute;width:0;height:0;overflow:hidden");
+      const measureOf = (run) => {
+        const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        text.setAttribute("font-family", GLYPH_FONT);
+        text.setAttribute("font-size", "100");
+        text.setAttribute("font-weight", "600");
+        text.textContent = run;
+        svg.appendChild(text);
+        return text;
+      };
+      const withTails = measureOf("abcdefghij");
+      const noTails = measureOf("ABCDEHIKLMN");
+      document.body.appendChild(svg);
+      const full = withTails.getBBox().height / 100;
+      const tall = noTails.getBBox().height / 100;
+      document.body.removeChild(svg);
+      const sane = (v) => v > 0.3 && v < 2;
+      if (!cancelled && sane(full) && sane(tall)) setRatio({ full, tall });
+    };
+    if (document.fonts?.ready) document.fonts.ready.then(() => !cancelled && probe());
+    else probe();
+    return () => { cancelled = true; };
+  }, []);
+  return ratio;
+}
 
 // The viewBox is the screenshot's own proportions, so a tall phone stays tall.
 const WIREFRAME_UNITS = 1000;
@@ -597,25 +720,99 @@ function cornerRadius(role, shape, w, h, radius, frameWidth) {
  *  Monospace makes that arithmetic hold: every letter is the same width, so
  *  `chars` letters really is `chars` times one advance and not a guess that
  *  drifts with which letters happen to be in the run. */
-function TextRun({ x, y, w, lineHeight, chars, fill, align, clipId }) {
+function TextRun({ x, y, w, lineHeight, chars, fill, align, clipId, ink, inkPerEm, descends, weight }) {
   const anchor = align === "가운데" ? "middle" : align === "오른쪽" ? "end" : "start";
   const anchorX = align === "가운데" ? x + w / 2 : align === "오른쪽" ? x + w : x;
   const count = Math.max(1, Math.round(chars) || 1);
-  const size = Math.min(lineHeight * 0.74, w / (count * GLYPH_ADVANCE));
+  // Measured ink wins; without it the old box-derived guess still stands in.
+  const per = descends ? inkPerEm.full : inkPerEm.tall;
+  const size = ink > 0 ? ink / per : Math.min(lineHeight * 0.74, w / (count * GLYPH_ADVANCE));
 
   return (
     <text
       x={anchorX}
-      y={y + size * 0.82}
+      // Centred in its line box, not hung from the top of it. The size is the
+      // smaller of what the height allows and what the width allows, so a run
+      // squeezed by its width comes out shorter than its box — measured from
+      // the top that leaves it sitting high, which on a button label reads as
+      // the label having slipped. Cap height is about 0.7 of the size, so half
+      // of it below the middle puts the middle of the letters on the middle of
+      // the box.
+      y={y + lineHeight / 2 + size * 0.35}
       textAnchor={anchor}
       fontFamily={GLYPH_FONT}
       fontSize={size}
-      fontWeight={600}
+      fontWeight={weight || 600}
       fill={fill}
+      data-ink={ink > 0 ? ink : undefined}
       clipPath={clipId ? `url(#${clipId})` : undefined}
     >
-      {letterRun(count)}
+      {letterRun(count, !descends)}
     </text>
+  );
+}
+
+/**
+ * How wide to draw one component state in the sheet.
+ *
+ * Given the panel's full width, a component taller than it is wide comes back
+ * that many times taller again — the grocery category rail is 34:142, so at
+ * full width it would run four panel widths down the page and the sheet would
+ * be one component long. Anything clearly upright is held to a third of the
+ * width and takes its height from its own proportions.
+ */
+const stateWidth = (aspect) => (Number(aspect) < 0.9 ? "33%" : "100%");
+
+/**
+ * One component card — Figma 211:3476.
+ *
+ * States stack down the card with their name above each drawing, and the card
+ * closes with the tags the component belongs to and its measurement. No title:
+ * the design leaves it out, and it is right to — a chip called 칩 twice over is
+ * the tag repeating the heading, while the size is the thing you cannot get by
+ * looking.
+ *
+ * Widths are worked back from a target drawing height so that a wide component
+ * and a tall one come out the same weight on the page, held between a third of
+ * the card and its full width. Left to fill the width, the grocery rail at
+ * 34:142 would be four cards tall on its own.
+ */
+function PieceCard({ piece, compact }) {
+  // A nav bar is 32:1. Held to a third of the row it comes back as a thread,
+  // so anything this wide takes the whole row instead and keeps a height you
+  // can read the spacing off.
+  const wide = Number(piece.aspect) > 6;
+  return (
+    <div
+      className="flex min-w-0 flex-col items-center overflow-hidden rounded-[12px] border border-solid border-[#e7e6e3] bg-[#f7f7f5]"
+      style={{ gap: compact ? 12 : 24, padding: compact ? 10 : 20, gridColumn: wide ? "1 / -1" : undefined }}
+    >
+      <div
+        className="flex w-full flex-1 flex-col items-center justify-center"
+        style={{ gap: compact ? 14 : 30 }}
+      >
+        {piece.states.map((state) => (
+          <div key={state.label} className="flex w-full flex-col items-center gap-[4px]">
+            <p className="snapkeep-piece-state">{state.label}</p>
+            <div style={{ width: stateWidth(piece.aspect) }}>
+              <LayoutWireframe layout={state.layout} aspect={piece.aspect} compact={false} paper={false} />
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="snapkeep-piece-foot">
+        <div className="flex flex-wrap gap-[6px]">
+          {(piece.tags ?? []).map((tag) => (
+            <span key={tag} className="snapkeep-piece-tag">
+              {tag}
+            </span>
+          ))}
+        </div>
+        {piece.spec && (
+          <p className="snapkeep-piece-spec">{piece.spec}</p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -623,9 +820,9 @@ function TextRun({ x, y, w, lineHeight, chars, fill, align, clipId }) {
  *  real darkness, and no colour or words. */
 function WireBlock({
   role, x, y, w, h, tone, shape, radius, border, taper, bend,
-  lines, chars, align, clipId, frameWidth,
+  lines, chars, align, icon, ink, descends, weight, inkPerEm, clipId, frameWidth,
 }) {
-  const fill = toneFill(tone);
+  const fill = role === "이미지" ? WIRE_IMAGE[toneIndex(tone)] : toneFill(tone);
   const edge = toneEdge(tone);
   const rx = cornerRadius(role, shape, w, h, radius, frameWidth);
 
@@ -664,6 +861,22 @@ function WireBlock({
     // Present only when the real screen was not on white — a dark site's white
     // headline is invisible on white paper, and losing it loses the loudest
     // thing on the page. No edge: paper has no border.
+    // Not part of the screen: a mark around one placed component, so the
+    // structure view can show which of its parts are a component repeated and
+    // which were put down one at a time. Unfilled, hairline, and shaped like
+    // the component it wraps.
+    case "컴포넌트": {
+      const marker = { fill: "none", stroke: WIRE_GREYS[2], strokeWidth: WIRE_HAIRLINE };
+      if (shape === "원") {
+        return <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} {...marker} />;
+      }
+      return warped ? (
+        <path d={blockPath(x, y, w, h, { taper, bend, radius: rx })} {...marker} />
+      ) : (
+        <rect x={x} y={y} width={w} height={h} rx={rx} {...marker} />
+      );
+    }
+
     case "배경":
       return <rect x={x} y={y} width={w} height={h} fill={fill} />;
 
@@ -678,18 +891,36 @@ function WireBlock({
     // even crossing the circle, spends detail on the one part of a screen whose
     // specifics this view is not deciding — and buys noise, because at icon size
     // any of it is a smudge.
-    case "아이콘":
+    case "아이콘": {
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const glyph = WIRE_ICONS[icon];
+      if (!glyph) {
+        return <ellipse cx={cx} cy={cy} rx={w / 2} ry={h / 2} fill={fill} {...(outline ?? {})} />;
+      }
+      // Drawn on a 24x24 grid and fitted to the shorter side, so the glyph
+      // keeps its proportions inside a box that may not be square.
+      const size = Math.min(w, h);
+      const scale = size / 24;
       return (
-        <ellipse
-          cx={x + w / 2}
-          cy={y + h / 2}
-          rx={w / 2}
-          ry={h / 2}
-          fill={fill}
-          stroke={edge}
-          strokeWidth={outline?.strokeWidth ?? WIRE_LINE}
-        />
+        <g transform={`translate(${cx - size / 2} ${cy - size / 2}) scale(${scale})`}>
+          <path
+            d={glyph}
+            fill="none"
+            stroke={fill}
+            // 1.6 of the 24 grid — about 7% of the icon, which is where drawn
+            // icon sets sit. Weight scales with the glyph rather than being
+            // fixed in the drawing's units: the structural line is the right
+            // weight for a line that crosses a screen and far too heavy inside
+            // something the size of a fingernail. The floor keeps the smallest
+            // icons from thinning out to nothing.
+            strokeWidth={Math.max(1.6, (WIRE_LINE * 0.5) / scale)}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </g>
       );
+    }
 
     // The crossed box, or a crossed ellipse where the picture is round.
     //
@@ -703,40 +934,20 @@ function WireBlock({
     // Which is also why the box stays even when the real picture has no frame
     // at all. Dropping it and leaving a bare X would say nothing about how far
     // the picture reaches, and reach is the whole subject here.
-    case "이미지": {
-      const round = shape === "원";
-      const cx = x + w / 2;
-      const cy = y + h / 2;
-      // The diagonals have to stop where the outline actually is, not where its
-      // bounding box is: inside a circle that is the inscribed square's corner,
-      // and inside a rounded rectangle it is short of the corner by roughly the
-      // radius. Run to the box corner instead and the X pokes out through the
-      // curve, which is the one thing that makes the notation look broken.
-      const armX = round ? (w / 2) * 0.7071 : w / 2 - (round ? 0 : rx) * 0.45;
-      const armY = round ? (h / 2) * 0.7071 : h / 2 - (round ? 0 : rx) * 0.45;
-      // The ⊗ carries its own outline whatever the element's border was — the
-      // notation is the outline, and a crossed box with no box is two lines.
-      return (
-        <g>
-          {round ? (
-            <ellipse cx={cx} cy={cy} rx={w / 2} ry={h / 2} fill={fill} stroke={edge} strokeWidth={WIRE_LINE} />
-          ) : (
-            <Box {...box} stroke={edge} strokeWidth={outline?.strokeWidth ?? WIRE_LINE} />
-          )}
-          <path
-            d={`M${cx - armX} ${cy - armY} L${cx + armX} ${cy + armY} M${cx + armX} ${cy - armY} L${cx - armX} ${cy + armY}`}
-            stroke={edge}
-            strokeWidth={WIRE_LINE}
-            fill="none"
-          />
-        </g>
+    case "이미지":
+      // No cross through it any more: the tint is what marks it as a picture,
+      // and the cross was the older, louder way of saying the same thing.
+      return shape === "원" ? (
+        <ellipse cx={x + w / 2} cy={y + h / 2} rx={w / 2} ry={h / 2} fill={fill} {...(outline ?? {})} />
+      ) : (
+        <Box {...box} />
       );
-    }
 
     // Text is the one thing with no box of its own — a paragraph is its letters
     // and the space they take, not a rectangle around them. `tone` here is the
     // ink, so pale grey captions stay pale next to black headings.
     case "텍스트": {
+      const glyphInk = (Number(ink) || 0) * WIREFRAME_UNITS;
       const count = Math.max(1, Math.min(12, Number(lines) || 1));
 
       // A label turned on its side, which is what a vertical category rail is.
@@ -760,6 +971,10 @@ function WireBlock({
               w={h}
               lineHeight={w}
               chars={chars}
+              ink={glyphInk}
+              inkPerEm={inkPerEm}
+              descends={descends}
+              weight={weight}
               fill={fill}
               align={align}
               clipId={null}
@@ -785,6 +1000,11 @@ function WireBlock({
                 w={w}
                 lineHeight={lineHeight}
                 chars={last ? Math.max(1, Math.round(chars * 0.62)) : chars}
+                ink={glyphInk}
+                inkPerEm={inkPerEm}
+              descends={descends}
+                descends={descends}
+                weight={weight}
                 fill={fill}
                 align={align}
                 clipId={clipId}
@@ -848,7 +1068,11 @@ function WireBlock({
     Drawn as SVG rather than positioned divs because `preserveAspectRatio`
     letterboxes the whole drawing to whatever box it is given. Percentage
     divs would stretch a 9:19.5 phone layout flat across a wide panel. */
-function LayoutWireframe({ layout, aspect, compact, frame = true }) {
+export function LayoutWireframe({ layout, aspect, compact, paper = true }) {
+  const inkPerEm = useGlyphInk();
+  const svgRef = useRef(null);
+
+
   const height = WIREFRAME_UNITS;
   const width = Math.round(height * (Number(aspect) > 0 ? Number(aspect) : 0.5));
 
@@ -884,15 +1108,47 @@ function LayoutWireframe({ layout, aspect, compact, frame = true }) {
   // the screenshot, so it has no window to cut.
   const clipped = blocks.filter(({ block }) => block.role === "텍스트");
 
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg || typeof document === "undefined") return undefined;
+    let cancelled = false;
+    const fit = () => {
+      if (cancelled) return;
+      const runs = svg.querySelectorAll("text[data-ink]");
+      for (const node of runs) {
+        const target = Number(node.dataset.ink);
+        if (!(target > 0)) continue;
+        node.setAttribute("font-size", "100");
+        let at100 = 0;
+        try {
+          at100 = node.getBBox().height;
+        } catch {
+          at100 = 0;
+        }
+        if (at100 > 0) {
+          const size = (100 * target) / at100;
+          node.setAttribute("font-size", String(size));
+        }
+      }
+    };
+    fit();
+    // Again once the webfont lands: its metrics are not the fallback's.
+    document.fonts?.ready?.then(fit);
+    return () => {
+      cancelled = true;
+    };
+  }, [layout, width, height, inkPerEm]);
+
   return (
     <svg
+      ref={svgRef}
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="xMidYMid meet"
       // On a card the well is a fixed 1.43:1 box, so the drawing letterboxes
       // itself into it. In the detail panel the well has no height of its own,
       // so `h-full` would resolve to nothing and the height comes from the
       // viewBox instead.
-      className={`block bg-[#eff1f0] ${compact ? "size-full" : "h-auto w-full"}`}
+      className={`block ${paper ? "bg-[#eff1f0]" : ""} ${compact ? "size-full" : "h-auto w-full"}`}
       role="img"
       aria-label="화면 구조 와이어프레임"
     >
@@ -903,7 +1159,7 @@ function LayoutWireframe({ layout, aspect, compact, frame = true }) {
           </clipPath>
         ))}
       </defs>
-      <rect width={width} height={height} fill={WIRE_PAPER} />
+      {paper && <rect width={width} height={height} fill={WIRE_PAPER} />}
       {blocks.map(({ block, index, x, y, w, h }) => {
         // Rotation is applied here rather than inside the block so that every
         // notation gets it for free — a label on a tilted card turns with the
@@ -927,6 +1183,11 @@ function LayoutWireframe({ layout, aspect, compact, frame = true }) {
             bend={block.bend}
             lines={block.lines}
             chars={block.chars}
+            ink={block.ink}
+            descends={block.descends}
+            weight={block.weight}
+            inkPerEm={inkPerEm}
+            icon={block.icon}
             align={block.align}
             clipId={`${scope}-${index}`}
             frameWidth={width}
@@ -939,23 +1200,6 @@ function LayoutWireframe({ layout, aspect, compact, frame = true }) {
           </g>
         );
       })}
-      {/* The device outline, drawn last so it sits over anything that runs to
-          the edge — a wireframe reads as a screen only if it has a screen.
-          Off when this is one component rather than a screen: there the frame
-          is not a device, and a box drawn round every chip and button is a box
-          the design does not have. */}
-      {frame && (
-        <rect
-          x={WIRE_LINE / 2}
-          y={WIRE_LINE / 2}
-          width={width - WIRE_LINE}
-          height={height - WIRE_LINE}
-          rx={14}
-          fill="none"
-          stroke={WIRE_GREYS[1]}
-          strokeWidth={WIRE_LINE}
-        />
-      )}
     </svg>
   );
 }
@@ -1017,30 +1261,9 @@ function ComponentSheet({ reference, compact }) {
   // there is nothing here that knows how to paint a chip.
   if (reference.pieces?.length) {
     return (
-      <div
-        className={`flex h-full flex-col justify-center bg-[#eff1f0] ${compact ? "gap-[8px] p-[12px]" : "gap-[12px] p-[18px]"}`}
-      >
-        {reference.pieces.slice(0, compact ? 3 : 6).map((piece) => (
-          <div key={piece.name} className="rounded-[10px] border border-[#e2e6e3] bg-white p-[10px]">
-            <p className={`${compact ? "text-[10px]" : "text-[12px]"} font-semibold`}>{piece.name}</p>
-            <div className="mt-[6px] flex items-end justify-around gap-[10px]">
-              {piece.states.map((state) => (
-                <div key={state.label} className="flex min-w-0 flex-1 flex-col items-center gap-[4px]">
-                  <div className="w-full">
-                    <LayoutWireframe layout={state.layout} aspect={piece.aspect} compact={false} frame={false} />
-                  </div>
-                  {/* The state's name is dropped when there is only one and it
-                      is the default — a lone "기본" caption under every drawing
-                      is a column of the same word. */}
-                  {piece.states.length > 1 && (
-                    <span className={`${compact ? "text-[8px]" : "text-[10px]"} text-[#7c847f]`}>
-                      {state.label}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
+      <div className={`grid h-full grid-cols-3 content-center gap-[8px] overflow-hidden bg-[#eff1f0] ${compact ? "p-[10px]" : "p-[14px]"}`}>
+        {reference.pieces.map((piece) => (
+          <PieceCard key={piece.name} piece={piece} compact={compact} />
         ))}
       </div>
     );
@@ -1060,7 +1283,65 @@ function ComponentSheet({ reference, compact }) {
   );
 }
 
+
+/**
+ * Measures a reference's type from its own screenshot, in the browser.
+ *
+ * The built-in references used to carry a table of sizes generated offline. It
+ * was measured on a machine with no JetBrains Mono installed and against a
+ * rasteriser that is not the one the page draws with, so the numbers described
+ * a font nobody sees — and worse, it meant the eight shipped screens were
+ * measured by one implementation and every uploaded screen by another.
+ *
+ * The image is already a bundled asset and the canvas is already how uploads
+ * are measured, so a reference can simply measure itself. One implementation,
+ * running where the pixels and the font both are.
+ */
+const typeCache = new Map();
+
+function useMeasuredLayout(reference) {
+  const [measured, setMeasured] = useState(() => typeCache.get(reference?.id) ?? null);
+
+  useEffect(() => {
+    const id = reference?.id;
+    const layout = reference?.layout;
+    if (!id || !layout?.length || !reference.image) return undefined;
+    if (typeCache.has(id)) {
+      setMeasured(typeCache.get(id));
+      return undefined;
+    }
+    if (typeof document === "undefined") return undefined;
+
+    let cancelled = false;
+    const image = new Image();
+    image.crossOrigin = "anonymous";
+    image.addEventListener("load", () => {
+      if (cancelled) return;
+      const canvas = document.createElement("canvas");
+      canvas.width = image.naturalWidth;
+      canvas.height = image.naturalHeight;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(image, 0, 0);
+      let next = layout;
+      try {
+        next = withMeasuredType(layout, measureType(context.getImageData(0, 0, canvas.width, canvas.height), layout));
+      } catch {
+        next = layout;
+      }
+      typeCache.set(id, next);
+      if (!cancelled) setMeasured(next);
+    });
+    image.src = reference.image;
+    return () => {
+      cancelled = true;
+    };
+  }, [reference?.id, reference?.image, reference?.layout]);
+
+  return measured ?? reference?.layout;
+}
+
 function ReferencePreview({ reference, view, compact }) {
+  const layout = useMeasuredLayout(reference);
   if (view === "structure") {
     // Hand-made artwork wins; then a wireframe drawn from this screenshot's
     // own analysed layout; then the generic stand-in, which is all a
@@ -1071,10 +1352,8 @@ function ReferencePreview({ reference, view, compact }) {
     if (reference.structure) {
       return <img src={reference.structure} alt="" className="h-full w-full object-cover object-top" />;
     }
-    if (reference.layout?.length) {
-      return (
-        <LayoutWireframe layout={reference.layout} aspect={reference.aspect} compact={compact} />
-      );
+    if (layout?.length) {
+      return <LayoutWireframe layout={layout} aspect={reference.aspect} compact={compact} />;
     }
     return <Wireframe accent={reference.accent} />;
   }
@@ -1164,8 +1443,10 @@ function AnalysisRecord({ analysis }) {
   );
 }
 
-function DetailPanel({ reference, groups, onAddTag, onRemoveTag, onClose, onDelete }) {
-  const [tab, setTab] = useState("original");
+function DetailPanel({ reference, groups, initialTab, onAddTag, onRemoveTag, onClose, onDelete }) {
+  // The grid's own toggle decides which tab opens: the panel is keyed by
+  // reference id, so it mounts fresh each time and picks this up on the way in.
+  const [tab, setTab] = useState(initialTab ?? "original");
   const [addingGroup, setAddingGroup] = useState(null);
   const [draftTag, setDraftTag] = useState("");
 
@@ -1304,26 +1585,13 @@ function DetailPanel({ reference, groups, onAddTag, onRemoveTag, onClose, onDele
                   </div>
                 ))
               : reference.pieces?.length
-                ? reference.pieces.map((piece) => (
-                    /* Drawn rather than cropped, in the structure tab's own
-                       notation — see snapkeepComponents.js for why a component
-                       sheet in this app carries no colour. */
-                    <div key={piece.name} className="rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
-                      <p className="text-[13px] font-semibold">{piece.name}</p>
-                      <div className="mt-[10px] flex items-end justify-around gap-[14px] rounded-[9px] bg-[#eff1f0] p-[12px]">
-                        {piece.states.map((state) => (
-                          <div key={state.label} className="flex min-w-0 flex-1 flex-col items-center gap-[6px]">
-                            <div className="w-full">
-                              <LayoutWireframe layout={state.layout} aspect={piece.aspect} compact={false} frame={false} />
-                            </div>
-                            {piece.states.length > 1 && (
-                              <span className="text-[11px] text-[#7c847f]">{state.label}</span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))
+                ? [
+                    <div key="pieces" className="grid grid-cols-3 gap-[12px]">
+                      {reference.pieces.map((piece) => (
+                        <PieceCard key={piece.name} piece={piece} compact={false} />
+                      ))}
+                    </div>,
+                  ]
                 : (
                     <p className="text-[12px] leading-[1.6] text-[#7c847f]">
                       이 레퍼런스는 아직 컴포넌트를 정리하지 않았어요.
@@ -1728,6 +1996,18 @@ export default function SnapkeepSpread() {
     const { measured, remote } = outcome;
     const { basis, ...described } = remote.ok ? remote.analysis : describeUpload(fileName, measured);
 
+    // The model said where the text is; the pixels say how big it is. Measured
+    // here rather than asked for, and measured by the same code that measured
+    // the references shipped with the app — otherwise the built-in eight would
+    // be the only screens whose type was ever right, and an uploaded one would
+    // be stuck with a guess for ever.
+    if (described.layout?.length && measured.pixels) {
+      described.layout = withMeasuredType(
+        described.layout,
+        measureType(measured.pixels, described.layout),
+      );
+    }
+
     const reference = {
       id: `upload-${Date.now()}`,
       title: fileName.replace(/\.[^/.]+$/, "") || "새 레퍼런스",
@@ -1963,6 +2243,7 @@ export default function SnapkeepSpread() {
             key={selectedReference.id}
             reference={selectedReference}
             groups={tagGroupsFor(selectedReference, tagOverrides)}
+            initialTab={view}
             onAddTag={(label, value) => updateTags(selectedReference, label, (tags) => (tags.includes(value) ? tags : [...tags, value]))}
             onRemoveTag={(label, value) => updateTags(selectedReference, label, (tags) => tags.filter((tag) => tag !== value))}
             onClose={() => setSelectedId(null)}

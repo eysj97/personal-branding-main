@@ -799,6 +799,58 @@ div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div[cla
   font-size: 17px;
 }
 
+/* The component sheet's cards (Figma 211:3476).
+   Sized here rather than in the JSX because the rule directly above reaches
+   every <p> in the panel, and the sheet's captions are not prose — a state
+   name and a measurement are labels, and at 17px they read as the loudest
+   thing on a card whose subject is the drawing. */
+div:has(> header .font-serif) .snapkeep-piece-state {
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.24px;
+  color: #000;
+}
+
+div:has(> header .font-serif) .snapkeep-piece-spec {
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.2px;
+  color: #1d1c1c;
+}
+
+/* A component's role is a tag, so it is drawn as the tag this app already
+   draws: the outlined white pill the filter drawer and the detail panel use,
+   not a filled one of its own. A second tag style would say the two were
+   different kinds of thing, and they are the same thing. */
+div:has(> header .font-serif) .snapkeep-piece-tag {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #dfe5e1;
+  border-radius: 50px;
+  background: #fff;
+  padding: 5px 10px;
+  color: #536059;
+  font-family: Pretendard, sans-serif;
+  font-size: 11px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+/* The tags and the measurement sit at the foot of the card, hard left. Pushed
+   down rather than merely placed last: the grid gives every card the height of
+   the tallest, so without this a short component's tags float in the middle of
+   its box and the row stops having a baseline to read along. */
+div:has(> header .font-serif) .snapkeep-piece-foot {
+  margin-top: auto;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
 div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div[class*="space-y"] p + p {
   font-size: 15px;
 }
