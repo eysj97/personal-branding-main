@@ -1,0 +1,21 @@
+<svg width="512.91" height="498.00" viewBox="0 0 512.91 498.00" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!-- The glasses, as the line drawing the design now uses (Figma 1306:1469 /
+     1306:1493, where the frame and the eyes are one white stroke).
+
+     Drawn in hero-eyes' 512.91 x 498 box rather than its own 461 x 185, because
+     the two files are laid over each other at the same size and a viewBox that
+     did not match would have to be squashed to fit. The group below is what
+     puts it there: scaled and shifted so the design's pupils land exactly on
+     the ones hero-eyes already has, which is the one feature both drawings
+     agree on the meaning of. Everything else follows from that.
+
+     Black, and not filtered to it. It was a bitmap painted #0492bd and turned
+     white at every point of use; a stroke can simply be the colour it is. The
+     career section wanted it black anyway, so its filter there is now doing
+     nothing and has been dropped — and the mask it also uses this for is
+     unaffected either way, since a mask reads alpha and the alpha of a stroked
+     path is the frame and nothing else. -->
+<g transform="translate(27.8543 153.0251) scale(0.964824)">
+<path id="frame" d="M261.872 64.2928C254.349 55.9128 228.365 47.5328 202.968 64.2928M261.872 64.2928C261.234 92.3528 277.171 147.331 307.388 163.33C324.218 174.376 385.416 190.983 417.546 158.377C441.567 134 453.5 100.864 453.5 66.9635C453.248 56.1058 453.388 44.604 447.763 34.5823C440.495 21.6353 403.394 9.82254 371.264 9.82254C331.103 9.82254 310.448 15.5362 292.089 24.6787C277.401 31.9927 263.912 53.1196 261.872 64.2928ZM202.968 64.2928C200.036 95.1464 186.138 153.807 150.567 166.758C141.769 170.569 75.5857 191.65 43.0866 155.715C24.6931 135.378 8.2199 112.316 7.51495 68.4871C7.21386 49.7679 11.5292 39.1903 14.0172 34.9671C17.4596 24.3034 56.4738 11.7295 69.4785 9.82254C92.428 6.45926 139.245 4.26126 165.866 21.6307C192.488 39.0002 200.163 58.7061 202.968 64.2928Z" stroke="black" stroke-width="15"/>
+</g>
+</svg>

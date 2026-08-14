@@ -149,7 +149,7 @@ export default function MobileSkills() {
   return (
     <section
       ref={sectionRef}
-      className="section-mobile-skills flex min-h-[100svh] flex-col bg-[#06252e]"
+      className="section-mobile-skills flex min-h-[100svh] flex-col bg-[#336bec]"
     >
       {/* Clear of the fixed header — see MobileHeader. */}
       <div className="shrink-0" style={{ height: HEADER_H }} />
@@ -197,7 +197,7 @@ export default function MobileSkills() {
         {/* The same pair every mobile section ends on — the name of the section
             and the one line that says what it is — at the same sizes, so they
             read as one page. */}
-        <div className="flex flex-col items-center gap-[12px] text-white">
+        <div className="flex flex-col items-center gap-[18px] text-white">
           <p
             className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px]"
             style={{ fontSize: vw(60) }}

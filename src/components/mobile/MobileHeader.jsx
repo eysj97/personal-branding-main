@@ -8,8 +8,8 @@ import { MenuButton } from "./MobileNav";
 // fixed bar instead: the name stays put while the sections move under it, and
 // there is only ever one menu button, in one place.
 //
-// Transparent on purpose. Every section behind it is the same #06252e, and the
-// hero's black wash fading to teal is meant to happen *behind* the name — a
+// Transparent on purpose. Every section behind it is the same #336bec, and the
+// hero's black wash fading into it is meant to happen *behind* the name — a
 // solid bar here would cut a rectangle out of that.
 export const DESIGN_W = 430;
 export const vw = (px) => `${((px / DESIGN_W) * 100).toFixed(3)}vw`;
@@ -24,18 +24,26 @@ export const HEADER_H = `calc(80px + ${vw(48)})`;
 // which fades it in on its own timeline — see MenuButton. The name is not on
 // that timeline: it is on the screen from the first frame, because the black
 // wash the hero opens on is meant to have her name on it.
-export default function MobileHeader({ onMenu, menuRef }) {
+export default function MobileHeader({ onMenu, menuRef, menuOpen }) {
   return (
-    <header className="fixed inset-x-0 top-0 z-50 flex items-start justify-between">
+    // z-75 so it outranks the menu's own stacking (z-70). The hamburger *is* the
+    // menu's close button — the panel fills a phone, so there is no outside to
+    // tap — and a header that the sheet covers is a menu with no way out.
+    <header className="fixed inset-x-0 top-0 z-[75] flex items-start justify-between">
+      {/* Black while the menu is up, for the same reason the hamburger is: this
+          bar sits above a white panel and the name would otherwise vanish into
+          it. */}
       <div
-        className="flex items-center whitespace-nowrap px-[5px] py-[40px] font-['Plus_Jakarta_Sans'] font-semibold leading-none text-white"
+        className={`flex items-center whitespace-nowrap px-[5px] py-[40px] font-['Plus_Jakarta_Sans'] font-semibold leading-none transition-colors ${
+          menuOpen ? "text-black" : "text-white"
+        }`}
         style={{ fontSize: vw(48), letterSpacing: vw(-4.8), gap: vw(10) }}
       >
         <p>YUN</p>
         <p>SU</p>
         <p>JEONG</p>
       </div>
-      <MenuButton onClick={onMenu} buttonRef={menuRef} />
+      <MenuButton onClick={onMenu} buttonRef={menuRef} open={menuOpen} />
     </header>
   );
 }

@@ -32,7 +32,9 @@ import MobileHeader from "./mobile/MobileHeader";
 // arrives the note goes entirely.
 export default function MobileNotice() {
   const [navOpen, setNavOpen] = useState(false);
-  const openNav = useCallback(() => setNavOpen(true), []);
+  // One button, both directions. It is the only control the sheet has — the
+  // panel is the full width of a phone, so there is nothing beside it to tap.
+  const toggleNav = useCallback(() => setNavOpen((v) => !v), []);
   const closeNav = useCallback(() => setNavOpen(false), []);
   // The hamburger belongs to the header but is timed by the hero — it fades in
   // with the eyes. The page owns the ref because it is the only thing that can
@@ -40,8 +42,8 @@ export default function MobileNotice() {
   const menuRef = useRef(null);
 
   return (
-    <main className="bg-[#06252e]">
-      <MobileHeader onMenu={openNav} menuRef={menuRef} />
+    <main className="bg-[#336bec]">
+      <MobileHeader onMenu={toggleNav} menuRef={menuRef} menuOpen={navOpen} />
 
       <MobileHero menuRef={menuRef} />
       {/* The desktop strip, at phone size, and deliberately not a mobile layout
@@ -70,7 +72,7 @@ export default function MobileNotice() {
 
         <a
           href={`mailto:${EMAIL}`}
-          className="rounded-full border border-[#c9e529] px-5 py-2 font-['Pretendard'] text-[14px] text-[#c9e529] transition-colors hover:bg-[#c9e529] hover:text-[#06252e]"
+          className="rounded-full border border-[#ffd527] px-5 py-2 font-['Pretendard'] text-[14px] text-[#ffd527] transition-colors hover:bg-[#ffd527] hover:text-[#06252e]"
         >
           {EMAIL}
         </a>

@@ -64,9 +64,15 @@ const corner = () => ({
 // hers, bottom-right for yours — so which way a message is pointing is legible
 // without reading it.
 //
-// Hers is white with a #0492bd outline and runs the full column width; yours is
-// filled #0492bd and shrinks to its text. 12px both, and `leading-[14px]` is
-// the design's own measurement (its greeting is a 28px box over two lines).
+// Hers is plain white and runs the full column width; yours is filled #28c9a0
+// and shrinks to its text. Both set their text black.
+//
+// No outline on hers. It had a 2px #0492bd one, from when that blue was the
+// site's accent — node 1303:46466 draws the bubble as white and nothing else,
+// and on this ground a white shape does not need to be drawn round to be seen.
+//
+// 12px both, and `leading-[14px]` is the design's own measurement (its greeting
+// is a 28px box over two lines).
 //
 // pre-line so a written answer can break its own lines. The greeting does.
 // `snap-start` is what makes the log scroll a bubble at a time — see the log's
@@ -83,9 +89,9 @@ const corner = () => ({
 // of them fits on one. But that is a fact about this one string; the rule above
 // is what keeps every other answer readable when it does not fit.
 const BOT_BUBBLE =
-  "w-full snap-start whitespace-pre-line [word-break:keep-all] rounded-bl-none border-2 border-[#0492bd] bg-white font-['Pretendard'] text-black";
+  "w-full snap-start whitespace-pre-line [word-break:keep-all] rounded-bl-none bg-white font-['Pretendard'] text-black";
 const YOU_BUBBLE =
-  "max-w-[85%] snap-start self-end whitespace-pre-line [word-break:keep-all] rounded-br-none bg-[#0492bd] font-['Pretendard'] font-medium text-white";
+  "max-w-[85%] snap-start self-end whitespace-pre-line [word-break:keep-all] rounded-br-none bg-[#28c9a0] font-['Pretendard'] font-medium text-black";
 // The part of a bubble that is a number, scaled. `leading-[14px]` on 12px type
 // is the design's own measurement — its greeting is a 28px box over two lines —
 // so it rides the same factor rather than becoming a ratio.
@@ -315,6 +321,15 @@ export default function Chatbot() {
           // in step.
           width: CHAR_SIZE,
           height: CHAR_SIZE,
+          // `filter` is here for the hover, which is a brightness. It was a
+          // colour swap for a while, for a black circle: brightness is the one
+          // thing that cannot lift black, since every channel is already at zero
+          // and 110% of it is still black. The circle has a colour again, so a
+          // brightness lifts it and the swap is not needed.
+          //
+          // Listed in this string rather than left to a `transition-*` class,
+          // because this inline style is the whole `transition` property and
+          // would overwrite one.
           transition:
             "left 340ms ease-out, top 340ms ease-out, opacity 300ms ease-out, filter 200ms ease-out",
         }}
@@ -323,7 +338,7 @@ export default function Chatbot() {
         // wherever it walks; the phone's panel is an opaque page, and at z-58
         // the character would be behind it — the one element that must stay
         // visible while the chat is open, since it is the chat.
-        className={`fixed ${isMobile ? "z-[62]" : "z-[58]"} rounded-full bg-[#ff60b8] shadow-lg hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#c9e529] ${
+        className={`fixed ${isMobile ? "z-[62]" : "z-[58]"} rounded-full bg-[#f460c0] shadow-lg hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ffd527] ${
           docked ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
@@ -355,7 +370,7 @@ export default function Chatbot() {
              on a full-width panel the bubbles would otherwise be underneath it. */
           className={
             isMobile
-              ? "fixed inset-0 z-[60] flex flex-col bg-[#06252e] px-5 pb-6 pl-[112px] pt-16"
+              ? "fixed inset-0 z-[60] flex flex-col bg-[#336bec] px-5 pb-6 pl-[112px] pt-16"
               : "fixed bottom-24 right-11 z-[60] flex w-[min(440px,calc(100vw-5.5rem))] flex-col"
           }
         >
@@ -367,7 +382,7 @@ export default function Chatbot() {
             type="button"
             onClick={close}
             aria-label="챗봇 닫기"
-            className="mb-1 grid size-7 shrink-0 place-items-center self-end rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#c9e529]"
+            className="mb-1 grid size-7 shrink-0 place-items-center self-end rounded-full text-white/50 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ffd527]"
           >
             <svg viewBox="0 0 24 24" className="size-4" aria-hidden="true">
               <path
@@ -398,7 +413,7 @@ export default function Chatbot() {
                 type="button"
                 onClick={() => ask(q)}
                 disabled={pending}
-                className="bg-[#c9e529] font-['Pretendard'] text-black transition-[filter,opacity] hover:brightness-95 disabled:opacity-50"
+                className="bg-[#ffd527] font-['Pretendard'] text-black transition-[filter,opacity] hover:brightness-95 disabled:opacity-50"
                 style={{
                   borderRadius: px(15),
                   paddingLeft: px(10),
@@ -493,7 +508,7 @@ export default function Chatbot() {
               onBlur={() => setInputFocused(false)}
               placeholder="궁금한 걸 입력해 주세요"
               aria-label="질문 입력"
-              className="w-full border-2 border-[#0492bd] bg-white font-['Pretendard'] text-[#06252e] placeholder:text-black/35 focus:outline-none"
+              className="w-full bg-white font-['Pretendard'] text-black placeholder:text-black/35 focus:outline-none"
               style={{
                 height: px(30),
                 borderRadius: px(15),
@@ -506,7 +521,7 @@ export default function Chatbot() {
               type="submit"
               disabled={pending || !draft.trim()}
               aria-label="보내기"
-              className="absolute grid place-items-center rounded-full bg-[#0492bd] text-white transition-opacity"
+              className="absolute grid place-items-center rounded-full bg-[#28c9a0] text-black transition-opacity"
               // Full strength the moment the field is yours, not only once you
               // have typed something. Clicking into an input is the point at
               // which the control you are about to use should look available;

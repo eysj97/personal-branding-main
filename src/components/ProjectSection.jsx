@@ -53,6 +53,7 @@ import reviuSurvey4 from "../assets/project/folder6/cl-reviu-survey-4.avif";
 import ProjectMockup from "./ProjectMockup";
 import ProjectHoverComposition from "./ProjectHoverComposition";
 import ProjectDetailOverlay from "./ProjectDetailOverlay";
+import SectionSeam from "./SectionSeam";
 import ProjectAppWindow from "./ProjectAppWindow";
 import AquaplanetSpread from "./detail/AquaplanetSpread";
 import ReviuSpread from "./detail/ReviuSpread";
@@ -255,7 +256,7 @@ const CARDS = [
     angle: 0,
     image: faceReviuApp,
     tabColor: "#78db44",
-    pageColor: "#c9e529",
+    pageColor: "#ffd527",
     detail: ReviuSpread,
     hover: {
       origin: "50% 50%",
@@ -335,7 +336,7 @@ const CARDS = [
     angle: 180,
     image: faceReviuSurvey,
     tabColor: "#78db44",
-    pageColor: "#c9e529",
+    pageColor: "#ffd527",
     detail: ReviuSpread,
     hover: {
       origin: "50% 50%",
@@ -691,8 +692,27 @@ export default function ProjectSection() {
   return (
     <section
       ref={sectionRef}
-      className="section-project relative h-[280vh] bg-[#06252e]"
+      // The one section on a white ground. Everything below it that carries
+      // type therefore states its own colour: <body> is `text-white`, which is
+      // the right default on the five blue sections and invisible here, so
+      // anything left to inherit would simply not be on the page.
+      className="section-project relative h-[280vh] bg-white"
     >
+      {/* The join with EXPERIENCE above, which is the page's blue against this
+          section's white. Mounted here rather than at the foot of that section
+          because this one is what has to paint over it — later in the markup and
+          `relative`, so the half of the seam that hangs upward lands on top of
+          the strip instead of under it.
+
+          z-40 clears this section's own layers (the drum's canvas at 10, its
+          plates at 20) so the sheet is never drawn behind a folder that has
+          scrolled up to the boundary. */}
+      <SectionSeam
+        height={220}
+        fillAbove="#336bec"
+        fillBelow="#ffffff"
+        className="z-40"
+      />
       {/* Plain, non-sticky — keeps a constant gap below the landing section
           and scrolls away with the page like ordinary content, which is
           what makes it read as "rising up" past the folder. */}
@@ -702,7 +722,7 @@ export default function ProjectSection() {
       >
         {/* 120 at 1920, like every other section heading — 120/1920 = 6.25vw,
             and the tracking follows it at the same -0.1em the design uses. */}
-        <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none whitespace-nowrap text-[clamp(40px,6.25vw,120px)] tracking-[clamp(-4px,-0.625vw,-12px)] text-white">
+        <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none whitespace-nowrap text-[clamp(40px,6.25vw,120px)] tracking-[clamp(-4px,-0.625vw,-12px)] text-[#336bec]">
           PROJECT
         </p>
         {/* text-center, not just the parent's items-center — that only
@@ -711,7 +731,7 @@ export default function ProjectSection() {
         {/* 16px at the 1920 design width, and the vw term is scaled by the same
             22->16 ratio so it keeps shrinking with the heading rather than
             standing still while everything around it gets smaller. */}
-        <p className="font-['Pretendard'] leading-[1.2] whitespace-nowrap text-center text-[clamp(11px,0.833vw,16px)] tracking-[-0.44px] text-white">
+        <p className="font-['Pretendard'] leading-[1.2] whitespace-nowrap text-center text-[clamp(11px,0.833vw,16px)] tracking-[-0.44px] text-black">
           경험해 보신 것 처럼, 저는 이런 방식으로 만들어 갑니다
           <br />
           다른 프로젝트들도 보여드릴게요

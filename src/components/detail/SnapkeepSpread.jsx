@@ -1764,7 +1764,7 @@ function FilterDrawer({ activeGroup, onActiveGroupChange, selectedFilters, onTog
 
   return (
     <>
-      <button type="button" className="absolute inset-0 z-30 cursor-default bg-[#06252e]/10" onClick={onClose} aria-label="필터 닫기" />
+      <button type="button" className="absolute inset-0 z-30 cursor-default bg-[#336bec]/10" onClick={onClose} aria-label="필터 닫기" />
       {/* The `snapkeep-filter-in` class is how index.css tells this drawer apart
           from the detail panel — both are <aside> siblings. */}
       <aside className="absolute bottom-0 right-0 top-0 z-40 flex w-[650px] flex-col border-l border-[#e0e4e1] bg-white animate-[snapkeep-filter-in_240ms_ease-out]">

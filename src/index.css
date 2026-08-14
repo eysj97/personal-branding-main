@@ -27,6 +27,35 @@
   display: none;
 }
 
+/* The ground under every section, and the reason there is no hairline where one
+   hands over to the next.
+
+   The sections are siblings, each painting the page colour itself, and their
+   heights are viewport multiples — 300vh, 280vh, 240vh. A viewport that is not
+   a whole number of device pixels tall, which is most of them once the browser
+   is zoomed or the window is dragged to an odd size, makes those multiples
+   fractional too: one section ends at x.6 and the next begins there, and the
+   browser antialiases both edges against whatever is behind them rather than
+   painting the boundary pixel solid. Behind them is <body>, which is black.
+   That is the line — a row of pixels showing the ground through the seam
+   between two sections that are, as far as the design is concerned, the same
+   colour continuing.
+
+   Painting #root removes it without anything having to line up: the seam is
+   still there, but what shows through it is the page colour, so there is
+   nothing to see. Sub-pixel geometry is not something layout can be made to
+   avoid, and chasing it with rounded heights would only move the problem to the
+   next screen size.
+
+   On #root rather than on <body> on purpose. Body stays black because that is
+   what the page is before React has mounted anything, and the hero opens on a
+   black wash — the first paint and the first frame are meant to be the same
+   colour. #root has no height until the sections exist, so it cannot be seen
+   until there is something to sit behind. */
+#root {
+  background-color: #336bec;
+}
+
 /* The three stars in the Experience section's sparkle cluster
    (archive-sparkles.svg — each one a <g data-twinkle>). They go out and come
    back rather than merely brightening: these are thin line drawings on a dark

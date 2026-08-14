@@ -5,7 +5,7 @@ import { driveWithScroll } from "../lib/scrollDriver";
 // fills its lenses is the same shape at the same 50% the hero opens on. Doing
 // it with a second, flatter drawing would be a different pair of glasses that
 // happened to look similar.
-import glassesImg from "../assets/hero/glasses.avif";
+import glassesImg from "../assets/hero/glasses.svg";
 import heroEyes from "../assets/hero/hero-eyes.svg?raw";
 import role1Img from "../assets/role/1.avif";
 import role2Img from "../assets/role/2.avif";
@@ -13,7 +13,7 @@ import role3Img from "../assets/role/3.avif";
 import role4Img from "../assets/role/4.avif";
 import role5Img from "../assets/role/5.avif";
 
-// The hero's overlay file is a face: three eye states, two pupils, and the lens
+// The hero's overlay file is a face: two eye states, two pupils, and the lens
 // tint that goes over them. Only the tint belongs here — what lands on the
 // handoff blob is a pair of glasses, not somebody's eyes looking out of it.
 //
@@ -130,6 +130,29 @@ const RING_CENTER = {
   y: RING.y + RING.size / 2,
 };
 const RING_RADIUS = RING.size / 2;
+// The weight the *track* is drawn at — the arc itself, and the stems that hang
+// the circles off it. One number for the two, because the moment they disagree
+// the wheel stops reading as one drawing: a stem thinner than the line it joins
+// is a hair, not a bar.
+//
+// A hairline now, and deliberately. It was 2 back when the arc was bare and had
+// to be heavy enough to be read as a track on its own. It carries 376 marks
+// today (see TICK_LENGTH), and they say what it is far better than its own
+// weight ever did, so the line can step back and let them.
+//
+// Screen px, not canvas px — that is what the `/ scale` at the ring and the
+// stems' own unscaled height are for. A track that thins out with the window
+// stops being a line at all.
+const STROKE = 1;
+// The circles do not follow the track down to a hairline. They are not the
+// track: they are what travels along it, they are what the eye is actually
+// following, and at 40-80px across an outline any thinner starts to disappear
+// into the role photographs sitting behind them. Holding them at 2 against a
+// 1px track is also what keeps the two readable as different things.
+//
+// Canvas px, unlike STROKE, and scaled by hand where it is set — the circles
+// are laid out in real screen px rather than on the scaled canvas.
+const CIRCLE_STROKE = 2;
 // Every circle hangs off the track on a stem of its own: a 40px line running
 // straight out from the ring to the circle's edge (nodes 355:258..262). So what
 // is held constant across the five is the *clearance* — the length of that
@@ -195,42 +218,66 @@ const SLOT_ANGLES = [
 // part of the track, the circles are what travels along it, and the stem is what
 // says which of the two a given mark is.
 //
-// Every position on the wheel that a slot does not take — all the way round,
-// not only across the visible arc.
+// All the way round, not only across the visible arc. The whole ring turns as
+// the wheel advances (see the dots' rotation in applyRaw), so ticks leave
+// through one end of the arc and have to come up through the other. A band that
+// only covered what is on screen at rest would empty itself out the first time
+// it moved.
 //
-// The whole ring turns as the wheel advances (see the dots' rotation in
-// applyRaw), so ticks leave through one end of the arc and have to come up
-// through the other. A band that only covered what is on screen at rest would
-// empty itself out the first time it moved. The ones off-canvas cost nothing:
-// they are 20px divs with no content.
+// Struck by arc length rather than by angle, and struck everywhere. They used
+// to take the slots' own 8deg step, which on a ring this size puts them 90px
+// apart — that is a handful of stray dashes at the top of a curve, not a
+// graduation — and they skipped every position a slot took, so the one rhythm
+// the eye is meant to follow had holes cut in it at the very places it was
+// looking. A dial is regular or it is not a dial: same length, same pitch, the
+// whole way round, slots included. The circles stand a SPOKE clear of the track
+// and so never had anything to collide with.
 //
-// Derived from the step rather than listed, so the ticks and the slots can
-// never drift apart: change SLOT_STEP_DEG and both move.
+// TICK_LENGTH is the mark's reach *across* the track, and the design's own:
+// measured at 643..653 against a radius of 646.5, centred on the line. The 20
+// this was is the width the beads had been, carried over from a shape that is
+// no longer being drawn.
 //
-// DOT_SIZE is the tick's *length* across the track — the same 20 the beads were
-// wide, so the marks keep the footprint the wheel was drawn with. Its thickness
-// is not here: it is the track's own 2 screen px, taken at the point of use
-// where the canvas scale is known (see the ring's borderWidth for why a stroke
-// on this canvas has to be set in screen pixels).
-const DOT_SIZE = 20;
-const DOT_ANGLES = Array.from(
-  { length: 360 / SLOT_STEP_DEG },
-  (_, n) => n * SLOT_STEP_DEG,
-).filter((deg) => deg % SLOT_NEAR_DEG !== 0);
-const DOT_RADIUS = RING_RADIUS;
-
-/** The point on the track the tick at `deg` is centred on.
- *
- *  A centre rather than a corner, unlike the bead this replaced: the tick is
- *  2px one way and 20 the other and is then turned about this point, so a
- *  corner would have to be undone before it could be used. */
-function dotAt(deg) {
-  const rad = (deg * Math.PI) / 180;
-  return {
-    x: RING_CENTER.x + DOT_RADIUS * Math.sin(rad),
-    y: RING_CENTER.y - DOT_RADIUS * Math.cos(rad),
-  };
-}
+// Two lengths, because a graduation with one length is a texture rather than a
+// scale: there is nothing in it to count. A long mark every sixteenth position
+// and fifteen short ones between gives the eye something to count *by*, which is
+// what a dial is for.
+//
+// All canvas units, thickness included. That last one is a departure: the ring's
+// own stroke is set in *screen* px (see its borderWidth) because a track that
+// thins out with the window stops reading as a line at all. A mark is not under
+// that obligation — there are hundreds of them and the rhythm carries the
+// reading, not any one dash — so it is simply the weight it is drawn at, and it
+// thins with everything else around it.
+const TICK_LENGTH = 10;
+// Nearly three times the short one, and it has to be: both are centred on the
+// track, so the *visible* difference is only half of it at each end. At 18 that
+// was four canvas pixels of overhang — two on screen once the canvas is scaled —
+// and a graduation whose long marks are two pixels longer than its short ones
+// has no long marks. It has 15 short ones between each of these, so if they do
+// not read as different there is nothing to count and the whole run collapses
+// into one texture.
+const MAJOR_TICK_LENGTH = 28;
+const TICK_THICKNESS = 1;
+// Fifteen short marks between one long one and the next, so a major step is
+// sixteen positions wide.
+const MINORS_PER_MAJOR = 15;
+const TICKS_PER_MAJOR = MINORS_PER_MAJOR + 1;
+// How many long marks go round. This is the only number chosen by eye, and
+// everything else is measured off it: 24 puts the minors at a 10.58 pitch, which
+// is within a quarter pixel of the single pitch they used to have, so the
+// texture is the one the wheel already had with a long mark added to it.
+const MAJOR_COUNT = 24;
+// The total, and it has to be whole in a way the old count did not: the pattern
+// now has to close on a *major*, not merely on a mark, or the ring would meet
+// itself mid-step. Deriving the count from the majors makes that true by
+// construction, and the pitch takes whatever rounding is left — the circle is
+// simply divided into 24 steps of 16.
+const TICK_COUNT = MAJOR_COUNT * TICKS_PER_MAJOR;
+const TICK_PITCH_EXACT = (2 * Math.PI * RING_RADIUS) / TICK_COUNT;
+// As a fraction of one pitch, which is the unit the dasharray works in once
+// pathLength has been set to the count.
+const TICK_INK = TICK_THICKNESS / TICK_PITCH_EXACT;
 
 /** Where the stem for the slot at `deg` meets the track. */
 function spokeFoot(deg) {
@@ -372,9 +419,16 @@ const CHAPTERS = [
     anchorStart: 7,
     anchorEnd: 7,
     word: "SOCIALWORKER",
+    // On the white ground, beside the gold blob: the word is the black one here
+    // and the line under it takes the page blue. That is the reverse of UXUI
+    // DESIGNER below, which is why all three levels are stated per chapter
+    // rather than derived from one "is this ground dark" flag — the answer is
+    // not the same for the word as it is for the copy.
+    wordTone: "text-black",
+    titleTone: "text-[#336bec]",
+    bodyTone: "text-black",
     title: "니즈를 찾고 충족시키는 일을 했습니다",
     box: { x: 774, y: 467, width: 621 },
-    dark: true,
     paragraph: [
       "4년간 정신건강사회복지사로 일하며,",
       "사람들의 말해지지 않은 니즈를 읽고 채우는 일을 했습니다.",
@@ -387,15 +441,29 @@ const CHAPTERS = [
     anchorEnd: 8,
     word: "CHANGE",
     // This chapter's copy is not laid out on the shared design canvas at
-    // all. It's rendered twice — once white, once black — inside the two
-    // layers that ride the wipe (see ChangeCopy below), so word, title
-    // and paragraph are all bolted to the wipe's own edge and travel with
-    // it. Nothing here animates its own color: the black/white split
-    // simply is wherever that edge currently falls.
+    // all. It's rendered twice — once for each side of the wipe's edge —
+    // inside the two layers that ride it (see ChangeCopy below), so word,
+    // title and paragraph are all bolted to that edge and travel with it.
+    // Nothing here animates its own color: the split simply is wherever
+    // that edge currently falls.
     ridesWipe: true,
     title: "개입의 시점을 고민하게 됩니다",
     box: { x: 740, y: 465, width: 722 },
-    dark: false,
+    // The words here are this chapter's own, and deliberately not the design
+    // frame's. Node 1303:47329 is where its colours and layout come from — the
+    // blue sheet, the split on its edge, this box — but it still carries the
+    // longer copy the chapter was written with: a sixteen-line paragraph under
+    // the heading "개입시점의 고민", in a box cut to about six lines with the
+    // rest paged to.
+    //
+    // That box is why the paragraph is five lines. The paging was a second step
+    // CHANGE owned and no longer has, so on one step a window the copy overflows
+    // is simply ten lines nobody can reach; condensed to what fits whole
+    // instead — see CHANGE_PARA_WINDOW_HEIGHT, measured off this count so the
+    // box is always exactly the copy's size. The heading is a sentence to match,
+    // rather than the frame's noun phrase.
+    //
+    // If the long version is ever wanted back, it needs the step back too.
     paragraph: [
       "개입은 늘 문제가 발생한 이후였습니다.",
       "문제가 생기기 전에 막을 수는 없을까",
@@ -408,9 +476,19 @@ const CHAPTERS = [
     anchorStart: 9,
     anchorEnd: 9,
     word: "UXUI DESIGNER",
+    // The far side of CHANGE. The sheet has swept the ground to the page's blue
+    // by the frame this starts fading up (step 8.51 against its 8.5 — see the
+    // ground in applyRaw) and it stays blue, so the copy on it is light.
+    //
+    // The word is not, and that is not an oversight: it sits on the blob rather
+    // than on the ground, and the blob inverts along with everything else —
+    // gold before the sweep, white after — so the page blue is what reads on it
+    // either way. Node 1303:47365 draws exactly this.
+    wordTone: "text-[#336bec]",
+    titleTone: "text-white",
+    bodyTone: "text-white",
     title: "스스로 답을 찾습니다",
     box: { x: 753, y: 447, width: 770 },
-    dark: false,
     paragraph: [
       "방향이 필요하면 스스로 답을 찾는 것이 익숙합니다.",
       "막히면 방법을 찾아 풀고,",
@@ -550,11 +628,18 @@ function applyTyping(charsRef, typedRef, reveal, total) {
 // the one clipped to the covered side. Neither copy ever changes color;
 // each is simply cut off at the wipe's edge, and the two cuts are the
 // same line, so the two halves always meet exactly.
-function ChangeCopy({ tone, paraRef, subtitleRef, charsRef }) {
+// Two tones, not one. The board is printed twice and each print is clipped to
+// one side of the wipe's edge (see the layers in the return), so a tone is "what
+// this element looks like on that side" — and the word does not answer that the
+// same way the copy does. Node 1303:47329 has the word black above the edge and
+// the page's blue below it, which on a blue ground is the word sinking into it
+// rather than crossing onto it; the copy is black above and white below, because
+// it is meant to be read on both sides.
+function ChangeCopy({ wordTone, titleTone, copyTone, paraRef, subtitleRef, charsRef }) {
   return (
     <>
       <p
-        className={`absolute font-['Plus_Jakarta_Sans'] font-bold text-[70px] tracking-[-0.02em] leading-[1.2] text-right whitespace-nowrap ${tone}`}
+        className={`absolute font-['Plus_Jakarta_Sans'] font-bold text-[70px] tracking-[-0.02em] leading-[1.2] text-right whitespace-nowrap ${wordTone}`}
         style={{ right: WORD_RIGHT, top: WORD_TOP }}
       >
         {CHANGE_CHAPTER.word}
@@ -569,7 +654,7 @@ function ChangeCopy({ tone, paraRef, subtitleRef, charsRef }) {
       >
         <p
           ref={subtitleRef}
-          className={`font-['Pretendard'] font-bold text-[50px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${tone}`}
+          className={`font-['Pretendard'] font-bold text-[50px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${titleTone}`}
           style={SUBTITLE_MASK_STYLE}
         >
           {CHANGE_CHAPTER.title}
@@ -582,7 +667,7 @@ function ChangeCopy({ tone, paraRef, subtitleRef, charsRef }) {
             text={CHANGE_CHAPTER.paragraph}
             pRef={paraRef}
             charsRef={charsRef}
-            className={`font-['Pretendard'] text-[24px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${tone}`}
+            className={`font-['Pretendard'] text-[24px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${copyTone}`}
           />
         </div>
       </div>
@@ -590,7 +675,16 @@ function ChangeCopy({ tone, paraRef, subtitleRef, charsRef }) {
   );
 }
 
-const CONTACT_BOX = { x: 1066, y: 740 };
+// The closing card's top-left, from node 1303:47383. It sits low and well to
+// the right, clear of the white blob the outro parks in the middle of the
+// canvas — the card is what you read and the circle is what it is read against,
+// so they do not overlap.
+const CONTACT_BOX = { x: 1188, y: 820 };
+// Both label rows are the design's same width, which is the whole reason they
+// are rows rather than lines: the labels are different lengths, so it is the
+// shared width plus justify-between that ranges the values against one edge and
+// makes the two read as a pair rather than as two sentences.
+const CONTACT_ROW_WIDTH = 295;
 
 // The full half-step to the next one, so a role hands over to its neighbour by
 // crossfading exactly at the midpoint between them and the stage is never
@@ -790,7 +884,7 @@ export default function CareerSection() {
   // The stem each circle hangs off the track on — one per circle, travelling
   // with it.
   const spokeRefs = useRef([]);
-  // [outline, lime, blue] per circle — see the crossfade in applyRaw.
+  // [outline, gold, blue] per circle — see the crossfade in applyRaw.
   const coatRefs = useRef([]);
   const ringRef = useRef(null);
   const dotsRef = useRef(null);
@@ -801,12 +895,14 @@ export default function CareerSection() {
   const glassesShineRef = useRef(null);
   const glassesRimRef = useRef(null);
   const changeWipeRef = useRef(null);
-  const changeWhiteLayerRef = useRef(null);
-  const changeWhiteCanvasRef = useRef(null);
-  const changeBlackLayerRef = useRef(null);
-  const changeBlackCanvasRef = useRef(null);
-  const changeWhiteParaRef = useRef(null);
-  const changeBlackParaRef = useRef(null);
+  // The blob's own half of the wipe, clipped to the circle — see the markup.
+  const blobWipeRef = useRef(null);
+  const changeUpperLayerRef = useRef(null);
+  const changeUpperCanvasRef = useRef(null);
+  const changeLowerLayerRef = useRef(null);
+  const changeLowerCanvasRef = useRef(null);
+  const changeUpperParaRef = useRef(null);
+  const changeLowerParaRef = useRef(null);
   const chapterTitleRef = useRef(null);
   const chapterRefs = useRef([]);
   // Subtitle (masked sweep) and paragraph characters (typing) per canvas
@@ -816,12 +912,12 @@ export default function CareerSection() {
   const subtitleRefs = useRef([]);
   const paraCharRefs = useRef(CHAPTERS.map(() => ({ current: [] })));
   const paraTypedRefs = useRef(CHAPTERS.map(() => ({ current: 0 })));
-  const changeWhiteSubtitleRef = useRef(null);
-  const changeBlackSubtitleRef = useRef(null);
-  const changeWhiteCharsRef = useRef([]);
-  const changeBlackCharsRef = useRef([]);
-  const changeWhiteTypedRef = useRef(0);
-  const changeBlackTypedRef = useRef(0);
+  const changeUpperSubtitleRef = useRef(null);
+  const changeLowerSubtitleRef = useRef(null);
+  const changeUpperCharsRef = useRef([]);
+  const changeLowerCharsRef = useRef([]);
+  const changeUpperTypedRef = useRef(0);
+  const changeLowerTypedRef = useRef(0);
   const contactRef = useRef(null);
   const [scale, setScale] = useState(1);
   const scaleRef = useRef(1);
@@ -916,7 +1012,7 @@ export default function CareerSection() {
     function titleElementsFor(i) {
       if (i < 0) return [];
       return CHAPTERS[i].ridesWipe
-        ? [changeWhiteSubtitleRef.current, changeBlackSubtitleRef.current]
+        ? [changeUpperSubtitleRef.current, changeLowerSubtitleRef.current]
         : [subtitleRefs.current[i]];
     }
 
@@ -933,8 +1029,8 @@ export default function CareerSection() {
       if (i < 0) return [];
       return CHAPTERS[i].ridesWipe
         ? [
-            [changeWhiteCharsRef, changeWhiteTypedRef],
-            [changeBlackCharsRef, changeBlackTypedRef],
+            [changeUpperCharsRef, changeUpperTypedRef],
+            [changeLowerCharsRef, changeLowerTypedRef],
           ]
         : [[paraCharRefs.current[i], paraTypedRefs.current[i]]];
     }
@@ -1126,7 +1222,6 @@ export default function CareerSection() {
       const convergeT = smoothstep(clamp01(collapsePos / 0.6));
       const growT = smoothstep(clamp01((collapsePos - 0.3) / 0.7));
       const circleScale = lerp(1, GROWN_SIZE / CIRCLE_SIZE, growT);
-      const circleOpacity = lerp(1, 0.5, growT);
 
       const s = scaleRef.current;
       const canvasOffsetX = (window.innerWidth - DESIGN_WIDTH * s) / 2;
@@ -1187,32 +1282,41 @@ export default function CareerSection() {
         const survivorFade = isSurvivor
           ? 1
           : 1 - smoothstep(clamp01((collapsePos - 0.5) / 0.2));
+        // No half-fade on the way out to the blob. The circles used to be
+        // taken to 0.5 as they grew, which is how a saturated fill sits under
+        // type without fighting it — but the blob is the page's yellow on a
+        // white ground now, and half of that is a wash rather than a colour.
+        // Nothing reads through it, so there is nothing for it to make way for.
         el.style.opacity = String(
-          circleOpacity * (isSurvivor ? startT : 1) * survivorFade * base.visible,
+          (isSurvivor ? startT : 1) * survivorFade * base.visible,
         );
 
-        // Three coats, one circle. On the ring a circle is a white outline
-        // until it reaches CENTER, where it fills lime; once the wheel is over
-        // and the survivor is swelling into the background blob it turns blue.
+        // Three coats, one circle. On the ring a circle is a black outline
+        // until it reaches CENTER, where it fills gold; once the wheel is over
+        // and the survivor is swelling into the background blob it stays that
+        // gold — the blob is the same yellow the focused circle fills with, so
+        // the third coat is a crossfade that no longer changes colour. It is
+        // kept because it is the coat the *blob* is, and what it is filled with
+        // is a thing the design gets to change.
         // Crossfades rather than swapped classes, so a circle on its way to
         // CENTER is genuinely halfway between the two states.
-        const [ringEl, limeEl, blueEl] = coatRefs.current[r - 1] ?? [];
+        const [ringEl, goldEl, blobEl] = coatRefs.current[r - 1] ?? [];
         if (ringEl) {
           ringEl.style.opacity = String((1 - base.focus) * (1 - growT));
           // The circles live in real screen px rather than on the scaled
           // canvas, so the outline has to be scaled by hand or it would sit at
-          // a flat 2px however far the canvas has been shrunk.
-          ringEl.style.borderWidth = `${2 * s}px`;
+          // a flat CIRCLE_STROKE however far the canvas has been shrunk.
+          ringEl.style.borderWidth = `${CIRCLE_STROKE * s}px`;
         }
         // The fill goes as the five gather, not as the blob grows. The focused
-        // circle is the big lime one, and it should be gone by the time they
-        // meet — what swells out of that meeting is the blue blob, and a lime
+        // circle is the big gold one, and it should be gone by the time they
+        // meet — what swells out of that meeting is the blob, and a gold
         // disc still sitting inside it while it grows reads as the big circle
         // *becoming* the blob rather than as five circles making one.
-        if (limeEl) limeEl.style.opacity = String(base.focus * (1 - convergeT));
-        // Only the survivor takes the blue. The other four are still white
+        if (goldEl) goldEl.style.opacity = String(base.focus * (1 - convergeT));
+        // Only the survivor becomes the blob. The other four are still black
         // outlines when they go, so nothing stacks up under the blob.
-        if (blueEl) blueEl.style.opacity = String(isSurvivor ? growT : 0);
+        if (blobEl) blobEl.style.opacity = String(isSurvivor ? growT : 0);
 
         // The stem, laid along the very angle the circle was placed on: from
         // the track outwards, ending where the circle's edge begins.
@@ -1225,10 +1329,10 @@ export default function CareerSection() {
         if (spoke) {
           const foot = spokeFoot(base.deg);
           spoke.style.left = `${canvasOffsetX + foot.x * s}px`;
-          // The bar is 2 screen px tall and turns about its left edge, so it
-          // has to be lifted its own half-height to put its *middle* on the
+          // The bar is STROKE screen px tall and turns about its left edge, so
+          // it has to be lifted its own half-height to put its *middle* on the
           // track rather than its top.
-          spoke.style.top = `${canvasOffsetY + foot.y * s - 1}px`;
+          spoke.style.top = `${canvasOffsetY + foot.y * s - STROKE / 2}px`;
           spoke.style.width = `${SPOKE * s}px`;
           // A bar with no rotation points along +x; `deg` is measured from
           // straight up, so pointing it outwards is a quarter turn back.
@@ -1252,6 +1356,12 @@ export default function CareerSection() {
       const titleIn = TITLE_STEP - REVEAL_WINDOW;
       circlesLayerRef.current.style.zIndex = stepPos < titleIn ? "2" : "0";
       canvasLayerRef.current.style.zIndex = "1";
+
+      // Where the blob's box sits on screen, for the clipped half of the wipe.
+      // Only meaningful once act 2 has placed it; the wipe is off-screen for
+      // every frame before that, so a zero here is never read.
+      let blobLeft = 0;
+      let blobTop = 0;
 
       // Act 2: past step 6, role 5's circle (still the very same element)
       // keeps moving through the chapter/outro blob positions instead of
@@ -1278,16 +1388,15 @@ export default function CareerSection() {
           survivor.style.top = `${canvasOffsetY + by * s}px`;
           survivor.style.width = `${bsize * s}px`;
           survivor.style.height = `${bsize * s}px`;
-          survivor.style.opacity = "0.5";
+          survivor.style.opacity = "1";
         }
+        // Kept for the wipe below, which has to place a copy of itself inside
+        // this box and therefore needs the box's own origin. Read from here
+        // rather than off the element, which would mean asking layout for a
+        // position this same frame just set.
+        blobLeft = canvasOffsetX + bx * s;
+        blobTop = canvasOffsetY + by * s;
       }
-
-      // The section only flips fully white once the wipe has actually
-      // finished covering everything, on its way OUT to UXUI DESIGNER
-      // (step 10) — not partway through CHANGE. During CHANGE itself the
-      // background stays this dark navy as the base color, with the wipe
-      // rectangle painting white on top of whatever it currently covers.
-      section.style.backgroundColor = stepPos >= 10 ? "#ffffff" : "#06252e";
 
       // CHANGE is a rectangle three times the viewport's size (300vw x
       // 300vh), pinned by the midpoint of its own long (top) edge to a
@@ -1307,9 +1416,50 @@ export default function CareerSection() {
       // the whole of the second one; on a single step the hold has to be a
       // band around it instead, or the wipe would arrive and start leaving on
       // the same frame and the copy riding it would never be still to read.
+      //
+      // One full turn, and always the same way round. The poses it passes
+      // through, for reading the numbers below:
+      //
+      //   +90  off the left of the screen      0  covering below the edge
+      //   -90  covering everything          -180  covering above the edge
+      //  -270  off the left again — +90's pose, one revolution on
+      //
+      // So a quarter turn in (+90 -> 0), the hold, then three quarters out
+      // (0 -> -270): 360 in total, which is the same full revolution every other
+      // chapter's block makes as it arrives and leaves (see ROTATE_SPIN). The
+      // board riding the sheet turns with it, so CHANGE comes in, stands still
+      // to be read, and carries on round rather than stopping and reversing.
+      //
+      // Both halves of that are load-bearing. Stopping at -90 was right while
+      // the sheet was white — covering everything was how the section handed a
+      // white ground to UXUI DESIGNER — but a blue sheet parked there hands it a
+      // blue screen with black type on it. Backing out to +90 instead keeps the
+      // ground white and was worse to watch: reversing reads as the move being
+      // undone, not finished. Going round finishes it and still ends off-screen.
       const entryT = smoothstep(clamp01((stepPos - 7) / 0.8));
       const exitT = smoothstep(clamp01((stepPos - 8.2) / 0.8));
-      const wipeAngle = 90 * (1 - entryT) - 90 * exitT;
+      const wipeAngle = 90 * (1 - entryT) - 270 * exitT;
+
+      // The ground CHANGE leaves behind, and the reason the sheet is worth
+      // swinging at all: white on the way in, the page's blue from the moment
+      // the sheet has been over the whole screen. The colour the chapter changes
+      // is the colour the rest of the section keeps — it does not change back.
+      //
+      // -90 is the one pose that covers the viewport completely (the sheet's edge
+      // always runs through the middle of the left edge, so only vertical clears
+      // every corner). That makes it the only frame where the swap is invisible,
+      // and it is exact rather than lucky: a hair before, the uncovered sliver at
+      // the left edge is ground the sheet has not reached and should still be
+      // white; a hair after, it is ground the sheet has passed and should be
+      // blue. Flipping anywhere else shows one or the other as a flash.
+      //
+      // The rest of the turn then reveals nothing, which is the point: -90 to
+      // -270 lifts a blue sheet off a blue ground, so what the reader sees is the
+      // board turning away and the new colour staying.
+      //
+      // Written every frame rather than left to the section's `bg-white` class,
+      // which is only the value before this effect has run once.
+      section.style.backgroundColor = wipeAngle <= -90 ? "#336bec" : "#ffffff";
       const wipeLeft = -wipeW / 2;
       const wipeTop = window.innerHeight / 2;
       const wipeOriginX = wipeW / 2;
@@ -1320,6 +1470,43 @@ export default function CareerSection() {
       changeWipeRef.current.style.top = `${wipeTop}px`;
       changeWipeRef.current.style.transformOrigin = `${wipeOriginX}px ${wipeOriginY}px`;
       changeWipeRef.current.style.transform = `rotate(${wipeAngle}deg)`;
+
+      // The same sheet again, inside the blob and clipped to it, painting the
+      // part of the circle below the edge white. Same size, same pivot, same
+      // angle — only the offset differs, because this one is positioned inside
+      // the blob's box rather than the stage, so every coordinate is shifted by
+      // where that box currently is. Being the same rectangle by construction is
+      // what keeps the circle's own edge on the sheet's edge exactly, at any
+      // angle, while both are still moving.
+      //
+      // Faded with the sheet rather than left standing: outside CHANGE the blob
+      // is a whole gold circle, and a white half-disc parked in it through the
+      // chapters either side would read as the circle being broken.
+      if (blobWipeRef.current) {
+        const b = blobWipeRef.current.style;
+        b.width = `${wipeW}px`;
+        b.height = `${wipeH}px`;
+        b.left = `${wipeLeft - blobLeft}px`;
+        b.top = `${wipeTop - blobTop}px`;
+        b.transformOrigin = `${wipeOriginX}px ${wipeOriginY}px`;
+        // Held at -90 once the sheet has passed it, rather than turning away
+        // with it. This is the blob's half of the same idea as the ground: the
+        // sheet does not merely cross the composition, it leaves it inverted —
+        // white ground and gold circle before, blue ground and white circle
+        // after (node 1303:47365). Following the sheet all the way round would
+        // take the white back off again and hand UXUI DESIGNER a gold circle to
+        // set blue type on.
+        //
+        // -90 covers every x >= 0, so it covers all of the blob that is ever on
+        // screen; the part further left is outside the stage, which is clipped.
+        b.transform = `rotate(${Math.max(wipeAngle, -90)}deg)`;
+        // Nothing gates this on the step. At +90 — every frame outside
+        // CHANGE — the sheet lies entirely at negative screen x, and the
+        // stage above it is overflow-hidden, so it is off the canvas for
+        // the same reason the blue one is. Fading it as well would be a
+        // second answer to a question already settled.
+        b.opacity = "1";
+      }
 
       // CHANGE's whole text block is bolted to the wipe and travels with
       // it, so its black/white split is never animated — the split simply
@@ -1342,25 +1529,25 @@ export default function CareerSection() {
       // again on the way out.
       const rideX = wipeOriginX + canvasOffsetX;
       const rideY = canvasOffsetY - wipeTop;
-      changeBlackLayerRef.current.style.width = `${wipeW}px`;
-      changeBlackLayerRef.current.style.height = `${wipeH}px`;
-      changeBlackLayerRef.current.style.left = `${wipeLeft}px`;
-      changeBlackLayerRef.current.style.top = `${wipeTop}px`;
-      changeBlackLayerRef.current.style.transformOrigin = `${wipeOriginX}px ${wipeOriginY}px`;
-      changeBlackLayerRef.current.style.transform = `rotate(${wipeAngle}deg)`;
-      changeBlackCanvasRef.current.style.left = `${rideX}px`;
-      changeBlackCanvasRef.current.style.top = `${rideY}px`;
-      changeBlackCanvasRef.current.style.transform = `scale(${s})`;
+      changeLowerLayerRef.current.style.width = `${wipeW}px`;
+      changeLowerLayerRef.current.style.height = `${wipeH}px`;
+      changeLowerLayerRef.current.style.left = `${wipeLeft}px`;
+      changeLowerLayerRef.current.style.top = `${wipeTop}px`;
+      changeLowerLayerRef.current.style.transformOrigin = `${wipeOriginX}px ${wipeOriginY}px`;
+      changeLowerLayerRef.current.style.transform = `rotate(${wipeAngle}deg)`;
+      changeLowerCanvasRef.current.style.left = `${rideX}px`;
+      changeLowerCanvasRef.current.style.top = `${rideY}px`;
+      changeLowerCanvasRef.current.style.transform = `scale(${s})`;
 
-      changeWhiteLayerRef.current.style.width = `${wipeW}px`;
-      changeWhiteLayerRef.current.style.height = `${wipeH}px`;
-      changeWhiteLayerRef.current.style.left = `${wipeLeft}px`;
-      changeWhiteLayerRef.current.style.top = `${wipeTop - wipeH}px`;
-      changeWhiteLayerRef.current.style.transformOrigin = `${wipeOriginX}px ${wipeH}px`;
-      changeWhiteLayerRef.current.style.transform = `rotate(${wipeAngle}deg)`;
-      changeWhiteCanvasRef.current.style.left = `${rideX}px`;
-      changeWhiteCanvasRef.current.style.top = `${rideY + wipeH}px`;
-      changeWhiteCanvasRef.current.style.transform = `scale(${s})`;
+      changeUpperLayerRef.current.style.width = `${wipeW}px`;
+      changeUpperLayerRef.current.style.height = `${wipeH}px`;
+      changeUpperLayerRef.current.style.left = `${wipeLeft}px`;
+      changeUpperLayerRef.current.style.top = `${wipeTop - wipeH}px`;
+      changeUpperLayerRef.current.style.transformOrigin = `${wipeOriginX}px ${wipeH}px`;
+      changeUpperLayerRef.current.style.transform = `rotate(${wipeAngle}deg)`;
+      changeUpperCanvasRef.current.style.left = `${rideX}px`;
+      changeUpperCanvasRef.current.style.top = `${rideY + wipeH}px`;
+      changeUpperCanvasRef.current.style.transform = `scale(${s})`;
 
       // At the extreme angles the board is swung almost entirely off
       // screen, but a sliver of the word can still clip the pivot corner —
@@ -1370,8 +1557,8 @@ export default function CareerSection() {
       const rideOpacity =
         smoothstep(clamp01((stepPos - 7) / 0.35)) *
         (1 - smoothstep(clamp01((stepPos - 8.65) / 0.35)));
-      changeBlackLayerRef.current.style.opacity = String(rideOpacity);
-      changeWhiteLayerRef.current.style.opacity = String(rideOpacity);
+      changeLowerLayerRef.current.style.opacity = String(rideOpacity);
+      changeUpperLayerRef.current.style.opacity = String(rideOpacity);
 
       // CHANGE used to own a second step whose only job was to page the
       // paragraph down to the rest of itself. The copy fits the window whole
@@ -1379,10 +1566,10 @@ export default function CareerSection() {
       // gone, and with it the paging. Both copies are simply pinned at the top
       // of their window; the offset is still written to both together so the
       // black/white split cannot drift apart if this ever moves again.
-      if (changeWhiteParaRef.current)
-        changeWhiteParaRef.current.style.transform = "translateY(0px)";
-      if (changeBlackParaRef.current)
-        changeBlackParaRef.current.style.transform = "translateY(0px)";
+      if (changeUpperParaRef.current)
+        changeUpperParaRef.current.style.transform = "translateY(0px)";
+      if (changeLowerParaRef.current)
+        changeLowerParaRef.current.style.transform = "translateY(0px)";
 
       roleRefs.current.forEach((el, i) => {
         if (!el) return;
@@ -1483,8 +1670,8 @@ export default function CareerSection() {
       // the settled chapter, then title and paragraph run off that clock.
       const changeIndex = CHAPTERS.indexOf(CHANGE_CHAPTER);
       if (changeIndex !== settledChapter) {
-        applySubtitleReveal(changeWhiteSubtitleRef.current, 0);
-        applySubtitleReveal(changeBlackSubtitleRef.current, 0);
+        applySubtitleReveal(changeUpperSubtitleRef.current, 0);
+        applySubtitleReveal(changeLowerSubtitleRef.current, 0);
         applyChapterTyping(changeIndex, 0);
       }
 
@@ -1531,7 +1718,7 @@ export default function CareerSection() {
     // dead distance to be crossed.
     <section
       ref={sectionRef}
-      className="section-career relative bg-[#06252e]"
+      className="section-career relative bg-white"
       style={{ height: `${TRACK_VH}vh` }}
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden">
@@ -1545,28 +1732,50 @@ export default function CareerSection() {
           // left edge — so wherever it is in its swing it is covering a great
           // deal of screen. It is a block of colour and nothing more, and
           // leaving it hittable puts a huge invisible sheet over the stage.
-          className="absolute bg-white pointer-events-none"
+          //
+          // The page's blue, painting *over* a white ground. It used to be the
+          // other way round and it had to change with the ground: a white sheet
+          // has nothing to reveal on a white page. Node 1303:47329 draws this as
+          // a blue half-plane below the screen's middle, which is what the sheet
+          // held flat already is.
+          //
+          // Under the circles, not over them — no z-index of its own, and first
+          // in the markup, so the blob paints on top of it. That is deliberate
+          // and it is the whole left side of the design: the field below the
+          // edge is blue *except* inside the circle, which punches gold through
+          // it, and the circle's own half below the edge is repainted white by a
+          // clipped copy of this sheet (see the blob's own wipe in the circles).
+          // Putting this over the circles instead floods the lower half flat
+          // blue, and the word CHANGE loses the ground its lower half is read
+          // against.
+          className="absolute bg-[#336bec] pointer-events-none"
           style={{ width: 0, height: 0 }}
         />
 
         {/* CHANGE's copy, riding the wipe. Two layers, both moving and
             turning exactly like the wipe above (all kept identical in
-            applyRaw), each holding its own full-color copy of the same
-            design canvas and each clipped by its own overflow:hidden.
+            applyRaw), each holding its own copy of the same design canvas and
+            each clipped by its own overflow:hidden. The upper one's box sits
+            directly above the wipe's edge, the lower one's box IS the wipe, so
+            between them they cut the copy along that one edge and nothing else
+            — the halves can't drift apart, because there is only ever one line.
 
-            The white one's box sits directly above the wipe's edge, the
-            black one's box IS the wipe, so between them they cut the copy
-            along that one edge and nothing else — the halves can't drift
-            apart, because there is only ever one line. Neither copy ever
-            recolors or fades on its own; the board just swings in, stops,
-            and swings out, and the edge decides what's what. */}
+            They used to be a light copy and a dark one, and that edge was the
+            only thing deciding which of the two you were reading: the wipe
+            painted white over the page's blue, so the half it had covered
+            wanted dark type and the half it had not wanted light. The ground is
+            white throughout now, both halves are the same colours, and the
+            split is invisible — the board simply swings in, holds and swings
+            out as one piece. The two layers stay because the swing, the
+            clipping and the typing are all wired through them, and because one
+            edge cutting one board is still what keeps the copy from tearing. */}
         <div
-          ref={changeWhiteLayerRef}
+          ref={changeUpperLayerRef}
           className="absolute overflow-hidden pointer-events-none"
           style={{ width: 0, height: 0, opacity: 0, zIndex: 3 }}
         >
           <div
-            ref={changeWhiteCanvasRef}
+            ref={changeUpperCanvasRef}
             className="absolute"
             style={{
               width: DESIGN_WIDTH,
@@ -1575,20 +1784,25 @@ export default function CareerSection() {
             }}
           >
             <ChangeCopy
-              tone="text-white"
-              paraRef={changeWhiteParaRef}
-              subtitleRef={changeWhiteSubtitleRef}
-              charsRef={changeWhiteCharsRef}
+              wordTone="text-black"
+              // The page blue, like every other chapter's title. It is the one
+              // level here that is neither the word nor the body, and it was
+              // taking the body's colour only because the two shared a prop.
+              titleTone="text-[#336bec]"
+              copyTone="text-black"
+              paraRef={changeUpperParaRef}
+              subtitleRef={changeUpperSubtitleRef}
+              charsRef={changeUpperCharsRef}
             />
           </div>
         </div>
         <div
-          ref={changeBlackLayerRef}
+          ref={changeLowerLayerRef}
           className="absolute overflow-hidden pointer-events-none"
           style={{ width: 0, height: 0, opacity: 0, zIndex: 4 }}
         >
           <div
-            ref={changeBlackCanvasRef}
+            ref={changeLowerCanvasRef}
             className="absolute"
             style={{
               width: DESIGN_WIDTH,
@@ -1597,10 +1811,12 @@ export default function CareerSection() {
             }}
           >
             <ChangeCopy
-              tone="text-black"
-              paraRef={changeBlackParaRef}
-              subtitleRef={changeBlackSubtitleRef}
-              charsRef={changeBlackCharsRef}
+              wordTone="text-[#336bec]"
+              titleTone="text-white"
+              copyTone="text-white"
+              paraRef={changeLowerParaRef}
+              subtitleRef={changeLowerSubtitleRef}
+              charsRef={changeLowerCharsRef}
             />
           </div>
         </div>
@@ -1633,7 +1849,7 @@ export default function CareerSection() {
               move, which is exactly the reading the beads exist to prevent.
 
               Sized in screen px per frame like everything else in this layer,
-              which is also why the 2px is not scaled here — the track's own
+              which is also why STROKE is not scaled here — the track's own
               stroke is set in screen px too, and a stem thinner than the line
               it joins reads as a hair rather than a bar. */}
           {[1, 2, 3, 4, 5].map((r) => (
@@ -1642,14 +1858,19 @@ export default function CareerSection() {
               ref={(el) => {
                 spokeRefs.current[r - 1] = el;
               }}
-              className="absolute bg-white"
-              style={{ left: 0, top: 0, height: 2, transformOrigin: "0 50%" }}
+              className="absolute bg-black"
+              style={{
+                left: 0,
+                top: 0,
+                height: STROKE,
+                transformOrigin: "0 50%",
+              }}
             />
           ))}
 
           <div
             ref={startCircleRef}
-            className="absolute bg-[#c9e529] rounded-full flex items-center justify-center"
+            className="absolute bg-[#ffd527] rounded-full flex items-center justify-center"
             style={{
               left: 0,
               top: 0,
@@ -1676,7 +1897,10 @@ export default function CareerSection() {
               ref={(el) => {
                 circleRefs.current[r - 1] = el;
               }}
-              className="absolute rounded-full"
+              // overflow-hidden for the blob's own half of the wipe below —
+              // rounded-full plus a clipped overflow is what turns a rectangle
+              // laid across this box into a half-disc.
+              className="absolute overflow-hidden rounded-full"
               style={{
                 left: 0,
                 top: 0,
@@ -1685,9 +1909,9 @@ export default function CareerSection() {
               }}
             >
               {[
-                "absolute inset-0 rounded-full border-solid border-white",
-                "absolute inset-0 rounded-full bg-[#c9e529]",
-                "absolute inset-0 rounded-full bg-[#0492bd]",
+                "absolute inset-0 rounded-full border-solid border-black",
+                "absolute inset-0 rounded-full bg-[#ffd527]",
+                "absolute inset-0 rounded-full bg-[#ffd527]",
               ].map((className, coat) => (
                 <div
                   key={coat}
@@ -1696,9 +1920,39 @@ export default function CareerSection() {
                     coatRefs.current[r - 1][coat] = el;
                   }}
                   className={className}
-                  style={{ opacity: 0, borderWidth: coat === 0 ? 2 : 0 }}
+                  style={{
+                    opacity: 0,
+                    borderWidth: coat === 0 ? CIRCLE_STROKE : 0,
+                  }}
                 />
               ))}
+              {/* The blob's share of the wipe — the one thing that makes the
+                  design's left side work.
+
+                  Node 1303:47329 has the circle in two colours: gold above the
+                  wipe's edge and white below it, standing in a blue field that
+                  is only blue *outside* the circle. So the sheet does not simply
+                  pass over the blob. It passes behind it, the blob punching gold
+                  through the blue; and then this rectangle — the same sheet, the
+                  same pivot, the same angle, clipped to the circle by the
+                  overflow above — repaints the part below the edge white.
+
+                  White and not the page's white by accident: it is what the word
+                  CHANGE's lower half is read against. That half is the page blue,
+                  so on a blue ground it would be invisible and the word would
+                  read as sawn off at the edge. Against this, both halves of it
+                  are there.
+
+                  Only on role 5. It is the only circle that ever becomes the
+                  blob, and the wheel's other four are gone long before the sheet
+                  arrives. */}
+              {r === 5 && (
+                <div
+                  ref={blobWipeRef}
+                  className="absolute bg-white"
+                  style={{ width: 0, height: 0, opacity: 0 }}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -1739,18 +1993,21 @@ export default function CareerSection() {
                   where the curve is nearly horizontal and the antialiasing
                   spreads over two rows, it disappears entirely.
 
-                  Two screen px rather than one for the same reason a hairline
-                  is the wrong weight here at all: this is the track five
-                  circles run on, and it has to be visible enough to be read as
-                  one. */}
+                  One screen px, which is as thin as this can go and still be a
+                  line rather than a wash. It was two, on the reasoning that the
+                  track five circles run on has to be read as one thing — but
+                  that was written when the arc was bare. It carries 376 marks
+                  now, and they say what it is far better than its own weight
+                  ever did, so the line can step back to a hairline and let them
+                  do it. */}
               <div
-                className="absolute rounded-full border-solid border-white"
+                className="absolute rounded-full border-solid border-black"
                 style={{
                   left: RING.x,
                   top: RING.y,
                   width: RING.size,
                   height: RING.size,
-                  borderWidth: 2 / scale,
+                  borderWidth: STROKE / scale,
                 }}
               />
               {/* The beads on the line, in a layer of their own so the whole
@@ -1769,40 +2026,66 @@ export default function CareerSection() {
                   they are the track, and a track that half-disappears as the
                   wheel converges would leave a string of dots hanging in an
                   empty canvas. */}
-              <div
+              {/* One dashed circle rather than a div per mark. At this pitch
+                  there are 812 of them, and 812 absolutely positioned boxes is
+                  a lot of DOM to make a hairline look regular — while a stroke
+                  is radial for free: it grows out from the radius in both
+                  directions, so every dash already crosses the track square on,
+                  wherever it sits, with nothing to rotate into place. The dash
+                  pattern is what makes it a graduation rather than a ring.
+
+                  Box padded by half a tick all round: the stroke straddles the
+                  radius, and an svg clips to its own viewport, so a box cut to
+                  the ring exactly would shave the outer half off every mark. */}
+              <svg
                 ref={dotsRef}
                 className="absolute"
+                width={RING.size + MAJOR_TICK_LENGTH}
+                height={RING.size + MAJOR_TICK_LENGTH}
                 style={{
-                  left: 0,
-                  top: 0,
-                  width: "100%",
-                  height: "100%",
-                  transformOrigin: `${RING_CENTER.x}px ${RING_CENTER.y}px`,
+                  left: RING.x - MAJOR_TICK_LENGTH / 2,
+                  top: RING.y - MAJOR_TICK_LENGTH / 2,
+                  // The ring's own centre, which is what the box is now built
+                  // around — so the turn applied in applyRaw is about the axle
+                  // rather than about a corner.
+                  transformOrigin: "50% 50%",
                 }}
               >
-                {DOT_ANGLES.map((deg) => {
-                  const { x, y } = dotAt(deg);
-                  // Drawn upright and turned to the angle it sits at, which is
-                  // what keeps it radial the whole way round: at the top of the
-                  // arc a vertical bar already crosses the track, and every
-                  // other position is that same bar rotated by the same amount
-                  // the track carried it.
-                  const thickness = 2 / scale;
-                  return (
-                    <div
-                      key={deg}
-                      className="absolute bg-white"
-                      style={{
-                        left: x - thickness / 2,
-                        top: y - DOT_SIZE / 2,
-                        width: thickness,
-                        height: DOT_SIZE,
-                        transform: `rotate(${deg}deg)`,
-                      }}
-                    />
-                  );
-                })}
-              </div>
+                {/* The short marks. Every position gets one, the major ones
+                    included — a minor sitting under a major is the same line at
+                    half the length and is simply not visible, and skipping them
+                    would mean a second dash pattern that has to stay in step
+                    with this one rather than being the same pattern. */}
+                <circle
+                  cx={(RING.size + MAJOR_TICK_LENGTH) / 2}
+                  cy={(RING.size + MAJOR_TICK_LENGTH) / 2}
+                  r={RING_RADIUS}
+                  fill="none"
+                  stroke="#000"
+                  strokeWidth={TICK_LENGTH}
+                  // One unit of dash = one pitch, so the ink is simply the
+                  // fraction of a pitch the mark takes and the gap is the rest.
+                  // Through pathLength rather than raw px because a px
+                  // dasharray is measured against the browser's own idea of the
+                  // circumference, and half a pixel left over where the pattern
+                  // closes is one mark that is not like the others.
+                  pathLength={TICK_COUNT}
+                  strokeDasharray={`${TICK_INK} ${1 - TICK_INK}`}
+                />
+                {/* The long ones, on the same circle and the same pathLength, so
+                    "every sixteenth" is literally one dash in sixteen units and
+                    the two patterns cannot drift apart. */}
+                <circle
+                  cx={(RING.size + MAJOR_TICK_LENGTH) / 2}
+                  cy={(RING.size + MAJOR_TICK_LENGTH) / 2}
+                  r={RING_RADIUS}
+                  fill="none"
+                  stroke="#000"
+                  strokeWidth={MAJOR_TICK_LENGTH}
+                  pathLength={TICK_COUNT}
+                  strokeDasharray={`${TICK_INK} ${TICKS_PER_MAJOR - TICK_INK}`}
+                />
+              </svg>
             </div>
 
             <div
@@ -1814,11 +2097,11 @@ export default function CareerSection() {
                 width: START_TITLE_BOX.width,
               }}
             >
-              <div className="flex items-start gap-[20px] font-['Plus_Jakarta_Sans'] font-bold text-[#0492bd] text-[84px] whitespace-nowrap">
+              <div className="flex items-start gap-[20px] font-['Plus_Jakarta_Sans'] font-bold text-[#336bec] text-[84px] whitespace-nowrap">
                 <p>EVERY</p>
                 <p className="text-right">ROLE</p>
               </div>
-              <p className="font-['Pretendard'] font-medium text-white text-[24px] text-center">
+              <p className="font-['Pretendard'] font-medium text-black text-[24px] text-center">
                 제가 맡고 있는 역할로 저를 소개합니다
               </p>
             </div>
@@ -1879,17 +2162,17 @@ export default function CareerSection() {
                     is read in, so it has the ring's width to work with rather
                     than the canvas's. */}
                 <div
-                  className="absolute flex flex-col items-center gap-[12px] leading-none"
+                  className="absolute flex flex-col items-center gap-[18px] leading-none"
                   style={{
                     left: TEXT_BOX.x,
                     top: TEXT_BOX.y,
                     width: TEXT_BOX.width,
                   }}
                 >
-                  <p className="font-['Plus_Jakarta_Sans'] font-bold text-[#0492bd] text-[42px] whitespace-nowrap">
+                  <p className="font-['Plus_Jakarta_Sans'] font-bold text-[#336bec] text-[42px] whitespace-nowrap">
                     {role.title}
                   </p>
-                  <p className="font-['Pretendard'] font-medium text-white text-[16px] text-center whitespace-pre-line">
+                  <p className="font-['Pretendard'] font-medium text-black text-[16px] text-center whitespace-pre-line">
                     {role.desc}
                   </p>
                 </div>
@@ -1898,7 +2181,7 @@ export default function CareerSection() {
 
             <div
               ref={chapterTitleRef}
-              className="absolute flex flex-col font-['Plus_Jakarta_Sans'] font-bold text-white text-[120px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap"
+              className="absolute flex flex-col font-['Plus_Jakarta_Sans'] font-bold text-[#336bec] text-[120px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap"
               style={{
                 left: CHAPTER_TITLE_POS.x,
                 top: CHAPTER_TITLE_POS.y,
@@ -1911,7 +2194,7 @@ export default function CareerSection() {
               {/* Every text property here is restated rather than inherited —
                   the wrapper carries the 120px bold heading style, which this
                   caption would otherwise pick up wholesale. */}
-              <p className="mt-[24px] font-['Pretendard'] font-medium text-[16px] tracking-[-0.02em] leading-[1.2]">
+              <p className="mt-[24px] font-['Pretendard'] font-medium text-black text-[16px] tracking-[-0.02em] leading-[1.2]">
                 개입의 시점을 재정의합니다
               </p>
             </div>
@@ -1972,10 +2255,9 @@ export default function CareerSection() {
                 src={glassesImg}
                 alt=""
                 className="absolute inset-0 h-full w-full"
-                // The hero's blue knocked out to the black the design draws
-                // here. One flat colour through an alpha mask, so this is the
-                // same shape and nothing is re-exported to keep in step.
-                style={{ filter: "brightness(0)" }}
+                // No filter. This used to knock a white frame down to the
+                // black the design draws here; the file is black now, so the
+                // filter had nothing left to do but cost a compositing layer.
               />
               {/* The light running round the rim. Masked by the glasses
                   artwork, so the two travelling points below are only ever
@@ -2026,7 +2308,13 @@ export default function CareerSection() {
                   }}
                 >
                   <p
-                    className={`absolute font-['Plus_Jakarta_Sans'] font-bold text-[70px] tracking-[-0.02em] leading-[1.2] text-right whitespace-nowrap ${chapter.dark ? "text-white" : "text-black"}`}
+                    // The page blue, on every chapter. Unlike the title and the
+                    // paragraph below it, this word is not on the ground at all —
+                    // WORD_RIGHT puts it inside the blob, which is gold before the
+                    // sweep and white after, and blue reads on both. It was briefly
+                    // switched to white with the rest of the chapter, which put white
+                    // type on a white circle.
+                    className={`absolute font-['Plus_Jakarta_Sans'] font-bold text-[70px] tracking-[-0.02em] leading-[1.2] text-right whitespace-nowrap ${chapter.wordTone}`}
                     style={{ right: WORD_RIGHT, top: WORD_TOP }}
                   >
                     {chapter.word}
@@ -2043,7 +2331,7 @@ export default function CareerSection() {
                       ref={(el) => {
                         subtitleRefs.current[i] = el;
                       }}
-                      className={`font-['Pretendard'] font-bold text-[50px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${chapter.dark ? "text-white" : "text-black"}`}
+                      className={`font-['Pretendard'] font-bold text-[50px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${chapter.titleTone}`}
                       style={SUBTITLE_MASK_STYLE}
                     >
                       {chapter.title}
@@ -2051,7 +2339,7 @@ export default function CareerSection() {
                     <TypedParagraph
                       text={chapter.paragraph}
                       charsRef={paraCharRefs.current[i]}
-                      className={`font-['Pretendard'] text-[24px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${chapter.dark ? "text-white" : "text-black"}`}
+                      className={`font-['Pretendard'] text-[24px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${chapter.bodyTone}`}
                     />
                   </div>
                 </div>
@@ -2060,14 +2348,21 @@ export default function CareerSection() {
 
             <div
               ref={contactRef}
-              className="absolute flex flex-col gap-[42px] items-start text-black"
+              // Always light: this card comes up at step 10, and the ground has been
+              // the page's blue since CHANGE swept it there at 8.51. Not
+              // conditional like the chapters above, because there is no step at
+              // which it is on white.
+              className="absolute flex flex-col gap-[42px] items-start text-white"
               style={{ left: CONTACT_BOX.x, top: CONTACT_BOX.y, opacity: 0 }}
             >
-              <p className="font-['Pretendard'] font-semibold text-[48px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap">
+              <p className="font-['Pretendard'] font-semibold text-[42px] tracking-[-0.02em] leading-none whitespace-nowrap">
                 더 나은 사용자 경험, 함께 고민하겠습니다
               </p>
-              <div className="flex flex-col gap-[10px] items-start font-['Pretendard'] font-medium text-[28px] tracking-[-0.02em] leading-[1.2]">
-                <div className="flex items-center justify-between w-[379px]">
+              <div className="flex flex-col gap-[10px] items-start font-['Pretendard'] font-medium text-[22px] tracking-[-0.02em] leading-none whitespace-nowrap">
+                <div
+                  className="flex items-center justify-between"
+                  style={{ width: CONTACT_ROW_WIDTH }}
+                >
                   <p>email</p>
                   <p>| eysj1620@gmail.com</p>
                 </div>
@@ -2076,7 +2371,10 @@ export default function CareerSection() {
                     navigating away from it loses that place. `noreferrer` for
                     the usual reason — a new tab opened this way otherwise gets a
                     handle back to the page that opened it. */}
-                <div className="flex items-center justify-between w-[215px]">
+                <div
+                  className="flex items-center justify-between"
+                  style={{ width: CONTACT_ROW_WIDTH }}
+                >
                   <p>이력서</p>
                   <a
                     href={RESUME_HREF}

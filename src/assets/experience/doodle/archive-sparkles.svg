@@ -1,17 +1,17 @@
 <svg width="186" height="157" viewBox="0 0 186 157" overflow="visible" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g id="20">
 <g data-twinkle data-cx="126.621" data-cy="64.3576">
-<path id="Vector" fill-rule="evenodd" clip-rule="evenodd" d="M126.621 42.0003C126.621 61.8735 123.885 64.3576 102 64.3576C123.885 64.3576 126.621 66.8417 126.621 86.7148C126.621 66.8417 129.356 64.3576 151.241 64.3576C129.356 64.3576 126.621 61.8735 126.621 42.0003Z" stroke="#C9E529" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector" fill-rule="evenodd" clip-rule="evenodd" d="M126.621 42.0003C126.621 61.8735 123.885 64.3576 102 64.3576C123.885 64.3576 126.621 66.8417 126.621 86.7148C126.621 66.8417 129.356 64.3576 151.241 64.3576C129.356 64.3576 126.621 61.8735 126.621 42.0003Z" stroke="#FFD527" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <g data-twinkle data-cx="39.28" data-cy="51.34">
-<path id="Vector_2" d="M9.53516 51.3359H69.0223" stroke="#FF60B8" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path id="Vector_3" d="M39.2783 86.4512V16.2209" stroke="#FF60B8" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path id="Vector_4" d="M24.124 64.127L54.4286 38.5456" stroke="#FF60B8" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path id="Vector_5" d="M24.124 38.5456L54.4286 64.127" stroke="#FF60B8" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_2" d="M9.53516 51.3359H69.0223" stroke="#28C9A0" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_3" d="M39.2783 86.4512V16.2209" stroke="#28C9A0" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_4" d="M24.124 64.127L54.4286 38.5456" stroke="#28C9A0" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_5" d="M24.124 38.5456L54.4286 64.127" stroke="#28C9A0" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <g data-twinkle data-cx="106.86" data-cy="147.64">
-<path id="Vector_6" d="M99 147.635H114.723" stroke="#C9E529" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
-<path id="Vector_7" d="M106.859 154.271V140.9999" stroke="#C9E529" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_6" d="M99 147.635H114.723" stroke="#FFD527" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path id="Vector_7" d="M106.859 154.271V140.9999" stroke="#FFD527" stroke-width="5" stroke-miterlimit="2" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 </g>
 </svg>

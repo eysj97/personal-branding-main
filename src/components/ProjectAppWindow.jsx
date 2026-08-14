@@ -100,7 +100,7 @@ export default function ProjectAppWindow({ card, onClose }) {
       // Reviu's header is black type that sits directly on the page rather than
       // in a panel, so on the dark default it disappears. Anything without a
       // page of its own (the Snapkeep app) keeps the dark ground.
-      style={{ backgroundColor: card.pageColor ?? "#06252e" }}
+      style={{ backgroundColor: card.pageColor ?? "#336bec" }}
     >
       {/* The outer box takes the scaled footprint so the app stays centred;
           the inner one is the app at its own size, scaled from its top-left. */}

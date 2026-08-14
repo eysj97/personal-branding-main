@@ -52,9 +52,14 @@ import searchBubble from "../assets/experience/doodle/search-bubble.svg";
 // these files are for: the cluster is three colours now, and a flat-filled SVG
 // carries its colour inside itself. One file per colour, each straight from the
 // design; the sizes are still CSS.
-import folderIconLime from "../assets/experience/doodle/folder.svg";
+// One file per colour, because an svg cannot be recoloured from the outside
+// once it is in an <img>. Between them these are the section's whole palette
+// bar the black and the white, which belong to the type — so the scatter reads
+// as the section's own colours piled up rather than as one tinted glyph
+// repeated. (`folder-teal` was `folder-blue`: the blue left the palette.)
+import folderIconGold from "../assets/experience/doodle/folder.svg";
 import folderIconPink from "../assets/experience/doodle/folder-pink.svg";
-import folderIconBlue from "../assets/experience/doodle/folder-blue.svg";
+import folderIconTeal from "../assets/experience/doodle/folder-teal.svg";
 
 // The archive capture is a screen recording. Figma will only hand out still
 // frames of a video fill, so the file has to be dropped in by hand — put it at
@@ -318,6 +323,55 @@ function InlineMark({ raw, className, stop, delay, float }) {
 // from the sweep's own length so retiming the text retimes the marker with it.
 const HIGHLIGHT_AFTER = DURATIONS.sweep + 60;
 
+// And the words standing *on* a marker come after the marker itself. They are
+// black, on a page that is blue until the white block arrives under them — so
+// written in with the rest of the line they are a dark smudge on the blue for
+// as long as the highlighter takes to catch up. Held back to the far side of
+// that wipe instead, the order reads the way the drawing was made: the line,
+// then the marker struck through it, then the words the marker leaves standing.
+const MARKED_AFTER = HIGHLIGHT_AFTER + DURATIONS.wipe;
+
+// And when the marker is at the *left* end, the same rule runs the other way:
+// the highlighter is the leftmost thing on the line, so it goes first, the words
+// standing on it follow it, and the rest of the sentence is written after them.
+// The marker's own delay is 0 on those lines — there is nothing for it to wait
+// behind.
+const LEAD_MARK = DURATIONS.wipe;
+const LEAD_REST = DURATIONS.wipe + DURATIONS.sweep;
+
+/** One half of a split headline, swept on its own clock.
+ *
+ *  A headline reads left to right, so it is written left to right: whichever
+ *  half is on the left goes first, and a marker goes before the words standing
+ *  on it. Two arrangements come out of that, and which one a line uses depends
+ *  only on which end its marker is at —
+ *
+ *    marker on the right   line, then marker, then the black words
+ *                          (MARKED_AFTER — the line sweeps as one <p>)
+ *    marker on the left    marker, then the black words, then the rest
+ *                          (LEAD_MARK / LEAD_REST — the <p> does not sweep at
+ *                          all; each half carries its own)
+ *
+ *  `inline-block` because a mask on a plain inline box is not reliably applied;
+ *  the padding pair is SWEEP_BOX's, for the same reason it is on the headline
+ *  (a mask clips to the box, and `leading-none` puts descenders outside it).
+ *  Any space beside these words belongs to the line, not to the span: a leading
+ *  space inside an inline-block is collapsed away, which closed the gap between
+ *  the two halves. */
+function Half({ children, stop, after, tone = "text-black" }) {
+  return (
+    <span
+      className={`inline-block ${tone} ${SWEEP_BOX}`}
+      data-anim="sweep"
+      data-stop={stop}
+      data-delay={after}
+      style={sweepStyle}
+    >
+      {children}
+    </span>
+  );
+}
+
 // Left-to-right sharpen for headlines. The mask is three times the text's own
 // width — solid on the left, clear on the right — so sliding it from `100%` to
 // `0%` walks the boundary across the line.
@@ -497,7 +551,7 @@ function applyAnim(el, kind, t, typedCounts) {
 /** Panel 1 — the title card that hands off from the hero. */
 function IntroPanel() {
   return (
-    <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
+    <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#336bec]">
       {/* No left padding: it would be inside the box being centred, which
           pushes the type half of it off to the right. */}
       <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-[24px] leading-[1.2] text-white">
@@ -540,21 +594,23 @@ function IntroPanel() {
  *  top, so its height is whatever the three blocks come to. */
 function ArchivePanel() {
   return (
-    <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
+    <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#336bec]">
       {/* Marker-pen highlight behind the last word of the headline. First in
-          the panel, so the white type sits on top of it — which is the whole
-          effect. `wipe` because a highlighter is drawn across, not popped in. */}
+          the panel, so the type sits on top of it — which is the whole effect.
+          `wipe` because a highlighter is drawn across, not popped in.
+          It was a thin blue bar struck through the line, and tilted a few
+          degrees. The design makes it white and the height of the type itself,
+          so it stops being a strike and becomes a block the word is printed on
+          — which is why "Needed" is set black: on white, at this size, the word
+          is the marker's whole reason for being there. Upright too; a highlight
+          that covers the line has no slant to read as a hand gesture. */}
       <div
-        className="absolute left-[1144px] top-[269px] flex h-[32.604px] w-[177.246px] items-center justify-center"
+        className="absolute left-[1144px] top-[257px] h-[47px] w-[176px] bg-white"
         data-anim="wipe"
         data-stop={STOP.archive}
         data-delay={260 + HIGHLIGHT_AFTER}
         style={{ clipPath: "inset(0 100% 0 0)" }}
-      >
-        <div className="rotate-[-3.01deg]">
-          <div className="h-[23.369px] w-[176.261px] bg-[#0492bd]" />
-        </div>
-      </div>
+      />
 
       <div className="absolute left-1/2 top-[calc(50%+0.22px)] flex w-[710px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[32px]">
         <div className="flex w-full flex-col items-center gap-[24px]">
@@ -567,7 +623,7 @@ function ArchivePanel() {
             delay={0}
           />
 
-          <div className="relative flex w-full flex-col items-center gap-[12px] leading-none text-white">
+          <div className="relative flex w-full flex-col items-center gap-[18px] leading-none text-white">
             {/* Scribbled over the front of the headline, hanging above the
                 block's own top — hence the negative offset.
 
@@ -598,7 +654,10 @@ function ArchivePanel() {
               data-delay={260}
               style={sweepStyle}
             >
-              {"The Archive You've Always Needed"}
+              {"The Archive You've Always "}
+              <Half stop={STOP.archive} after={260 + MARKED_AFTER}>
+                Needed
+              </Half>
             </p>
             <TypedText
               lines={["모은 레퍼런스를 제때 꺼내 쓸 수 있는 경험"]}
@@ -824,7 +883,7 @@ function StackedWindow({ index, children }) {
  *  not any single screen. */
 function SavedPanel() {
   return (
-    <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
+    <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#336bec]">
       {/* The design lays this panel out as one centred row: a 466-wide column,
           58, then the 738 monitor. That comes to 1262, so the row starts at
           315 and the column's right edge — which the headline hangs off —
@@ -887,7 +946,7 @@ function SavedPanel() {
         style={{ opacity: 0 }}
       >
         <div className="rotate-[11.41deg]">
-          <div className="flex items-center justify-center rounded-[10px] bg-[#0492bd] px-[10px] py-[5px]">
+          <div className="flex items-center justify-center rounded-[10px] bg-black px-[10px] py-[5px]">
             <p className="font-['Plus_Jakarta_Sans'] text-[28px] font-bold leading-none text-white whitespace-nowrap">
               But
             </p>
@@ -989,16 +1048,18 @@ function SavedPanel() {
 /** Panel 3 — the problem statement, the widest panel in the strip. */
 function ProblemPanel() {
   return (
-    <div className="relative h-full w-[3031px] shrink-0 overflow-hidden bg-[#06252e]">
+    <div className="relative h-full w-[3031px] shrink-0 overflow-hidden bg-[#336bec]">
       {/* What used to be a drawn wave under the first headline is now a plain
-          block of colour struck through it. Ahead of the headline in the panel
-          so the type sits on top, and wiped open left to right the way the
-          wave was. */}
+          block struck through it. Ahead of the headline in the panel so the
+          type sits on top, and wiped open left to right the way the wave was.
+          White and the full height of the 80px line, so "The problem" reads as
+          printed on it rather than crossed out by it — hence the black span on
+          those two words and only those. */}
       <div
-        className="absolute left-[285px] top-[457px] h-[36px] w-[505px] bg-[#ff60b8]"
+        className="absolute left-[301px] top-[407px] h-[83px] w-[486px] bg-white"
         data-anim="wipe"
         data-stop={STOP.problemA}
-        data-delay={HIGHLIGHT_AFTER}
+        data-delay={0}
         style={{ clipPath: "inset(0 100% 0 0)" }}
       />
 
@@ -1010,13 +1071,15 @@ function ProblemPanel() {
           something a fixed left offset can reproduce, since it depends on how
           wide the headline actually renders. */}
       <div className="absolute left-[307px] top-[401px] flex flex-col items-end gap-[12px]">
-        <p
-          className={`text-right font-['Pretendard'] text-[80px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
-          data-anim="sweep"
-          data-stop={STOP.problemA}
-          style={sweepStyle}
-        >
-          The problem wasn&rsquo;t saving
+        {/* No sweep on the <p>: each half carries its own, because they do not
+            arrive together. */}
+        <p className="text-right font-['Pretendard'] text-[80px] font-bold leading-none whitespace-nowrap">
+          <Half stop={STOP.problemA} after={LEAD_MARK}>
+            The problem
+          </Half>{" "}
+          <Half stop={STOP.problemA} after={LEAD_REST} tone="text-white">
+            wasn&rsquo;t saving
+          </Half>
         </p>
 
         <div className="flex items-center justify-center pr-[10px]">
@@ -1150,11 +1213,16 @@ const rowSubClass =
  *  slanted ends, exported one per row; the design has replaced all three with
  *  straight rectangles, the same move the problem panel's headline already
  *  made. Nothing is left to stretch out of shape, so the box is the whole of
- *  it and the size just comes in on the class. */
+ *  it and the size just comes in on the class.
+ *
+ *  White, and tall enough to cover the 70px line rather than underscore it —
+ *  the same change every other marker in this section made. Each row sets the
+ *  words standing on it in black; which words those are is per row, so it is
+ *  said at each headline rather than here. */
 function Swash({ className, stop, delay }) {
   return (
     <div
-      className={`pointer-events-none absolute bg-[#0492bd] ${className}`}
+      className={`pointer-events-none absolute bg-white ${className}`}
       data-anim="wipe"
       data-stop={stop}
       data-delay={delay}
@@ -1166,7 +1234,7 @@ function Swash({ className, stop, delay }) {
 /** One of the folder icons scattered over the end of the first row. The design
  *  exports this glyph once per size; it is the same drawing every time, so the
  *  box carries the size and the inset is the design's own padding inside it.
- *  `src` picks which of the three colours this one is. */
+ *  `src` is now always the same file — see the import. */
 function FolderIcon({ src, size, left, top, stop, delay }) {
   return (
     <div
@@ -1186,7 +1254,7 @@ function FolderIcon({ src, size, left, top, stop, delay }) {
 
 function SolutionPanel() {
   return (
-    <div className="relative h-full w-[4477px] shrink-0 overflow-hidden bg-[#06252e]">
+    <div className="relative h-full w-[4477px] shrink-0 overflow-hidden bg-[#336bec]">
       {/* Anchored by its left edge at the design's own 372, with the line under
           it centred on the headline rather than hung off either end. */}
       <div className="absolute left-[372px] top-[442px] flex flex-col items-center gap-[16px]">
@@ -1200,7 +1268,7 @@ function SolutionPanel() {
           data-delay={SETTLE_DELAY}
           style={sweepStyleGhosted}
         >
-          Produce <span className="text-[#ff60b8]">3 </span>solution
+          Produce <span className="text-black">3</span> solution
         </p>
         <TypedText
           lines={["사용자의 행동 패턴에서 도출한 3가지 핵심 기능"]}
@@ -1227,18 +1295,17 @@ function SolutionPanel() {
       <div className="absolute left-[2011px] top-[227px] flex items-center">
         <div className="relative flex flex-col items-center gap-[16px]">
           <Swash
-            className="left-[-26px] top-[56px] h-[26px] w-[368px]"
+            className="left-[-6px] top-[7px] h-[75px] w-[348px]"
             stop={STOP.solutionTag}
-            delay={HIGHLIGHT_AFTER}
+            delay={0}
           />
-          <p
-            className={`${rowLineClass} ${SWEEP_BOX}`}
-            data-anim="sweep"
-            data-stop={STOP.solutionTag}
-            data-delay={0}
-            style={sweepStyle}
-          >
-            AI tagging instead of folders
+          <p className={rowLineClass}>
+            <Half stop={STOP.solutionTag} after={LEAD_MARK}>
+              AI tagging
+            </Half>{" "}
+            <Half stop={STOP.solutionTag} after={LEAD_REST} tone="text-white">
+              instead of folders
+            </Half>
           </p>
           <TypedText
             lines={["폴더 체계 대신 AI 기반 태그로 자동 분류"]}
@@ -1277,8 +1344,8 @@ function SolutionPanel() {
       />
       {/* Piled at the tail of the line, over the word "folders". */}
       <FolderIcon src={folderIconPink} size={18} left={2830} top={196} stop={STOP.solutionTag} delay={ROW_LEAD + 60} />
-      <FolderIcon src={folderIconLime} size={33} left={2852} top={209} stop={STOP.solutionTag} delay={ROW_LEAD + 120} />
-      <FolderIcon src={folderIconBlue} size={24} left={2868} top={183} stop={STOP.solutionTag} delay={ROW_LEAD + 180} />
+      <FolderIcon src={folderIconGold} size={33} left={2852} top={209} stop={STOP.solutionTag} delay={ROW_LEAD + 120} />
+      <FolderIcon src={folderIconTeal} size={24} left={2868} top={183} stop={STOP.solutionTag} delay={ROW_LEAD + 180} />
       <FolderIcon src={folderIconPink} size={24} left={2896} top={205} stop={STOP.solutionTag} delay={ROW_LEAD + 240} />
 
       {/* Row 2 — search in design language */}
@@ -1287,7 +1354,7 @@ function SolutionPanel() {
           {/* Struck through from a third of the way into the headline, not
               from its start — this bar is the one the design offsets. */}
           <Swash
-            className="left-[293px] top-[54px] h-[26px] w-[560px]"
+            className="left-[309px] top-[8px] h-[74px] w-[544px]"
             stop={STOP.solutionSearch}
             delay={HIGHLIGHT_AFTER}
           />
@@ -1298,7 +1365,10 @@ function SolutionPanel() {
             data-delay={0}
             style={sweepStyle}
           >
-            Search in design language
+            Search in{" "}
+            <Half stop={STOP.solutionSearch} after={MARKED_AFTER}>
+              design language
+            </Half>
           </p>
           <TypedText
             lines={["디자인언어를 사용한 태깅 및 검색 제공"]}
@@ -1348,20 +1418,18 @@ function SolutionPanel() {
           inside the row, so it is placed in panel coordinates like the blocks
           below it, and comes before the row so it paints behind the type. */}
       <Swash
-        className="left-[3045px] top-[731px] h-[26px] w-[560px]"
+        className="left-[3054px] top-[683px] h-[76px] w-[545px]"
         stop={STOP.solutionLayout}
-        delay={HIGHLIGHT_AFTER}
+        delay={0}
       />
       <div className="absolute left-[3054px] top-[677px] flex items-center">
         <div className="flex flex-col items-center gap-[16px]">
-          <p
-            className={`${rowLineClass} ${SWEEP_BOX}`}
-            data-anim="sweep"
-            data-stop={STOP.solutionLayout}
-            data-delay={0}
-            style={sweepStyle}
-          >
-            Layout structure
+          {/* Every word of this one stands on the marker, so there is no
+              second half to follow it. */}
+          <p className={rowLineClass}>
+            <Half stop={STOP.solutionLayout} after={LEAD_MARK}>
+              Layout structure
+            </Half>
           </p>
           <TypedText
             lines={["원본뿐만 아니라 구조 분석 후 구조도 및 컴포넌트 제공"]}
@@ -1374,7 +1442,7 @@ function SolutionPanel() {
       {/* Three loose blocks standing in for a layout, in place of the drawn
           card the row used to carry. */}
       <div
-        className="absolute left-[2989px] top-[726px] size-[29px] bg-white"
+        className="absolute left-[2989px] top-[726px] size-[29px] bg-[#28c9a0]"
         data-anim="pop"
         data-stop={STOP.solutionLayout}
         data-delay={ROW_LEAD + 60}
@@ -1382,7 +1450,7 @@ function SolutionPanel() {
         style={{ opacity: 0 }}
       />
       <div
-        className="absolute left-[3001px] top-[692px] size-[29px] bg-[#c9e529]"
+        className="absolute left-[3001px] top-[692px] size-[29px] bg-[#f460c0]"
         data-anim="pop"
         data-stop={STOP.solutionLayout}
         data-delay={ROW_LEAD + 120}
@@ -1398,7 +1466,7 @@ function SolutionPanel() {
         style={{ opacity: 0 }}
       >
         <div className="rotate-[-6.11deg]">
-          <div className="h-[59px] w-[29px] bg-[#ff60b8]" />
+          <div className="h-[59px] w-[29px] bg-[#ffd527]" />
         </div>
       </div>
     </div>
@@ -1417,13 +1485,13 @@ const GRID_BOX = { width: 710, height: 443.4 };
 
 function SnapkeepPanel({ onOpen }) {
   return (
-    <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#06252e]">
+    <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#336bec]">
       {/* The design gives this panel real copy now: a 42px title over one
           Korean line, 12 apart, then the capture 32 below — the same block the
           archive panel opens with, which is what makes the two read as the
           bookends they are. */}
       <div className="absolute left-1/2 top-[calc(50%+0.5px)] flex w-[710px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[32px]">
-        <div className="relative flex w-full flex-col items-center justify-center gap-[12px] leading-none text-white">
+        <div className="relative flex w-full flex-col items-center justify-center gap-[18px] leading-none text-white">
           {/* The leading space is the design's own, and it is load-bearing:
               the word is pushed right so the "Try" chip pinned above its left
               shoulder sits beside it rather than over the S. Needs
@@ -1458,7 +1526,7 @@ function SnapkeepPanel({ onOpen }) {
             style={{ opacity: 0 }}
           >
             <div className="rotate-[11.41deg]">
-              <div className="flex items-center justify-center rounded-[10px] bg-[#0492bd] px-[10px] py-[5px]">
+              <div className="flex items-center justify-center rounded-[10px] bg-black px-[10px] py-[5px]">
                 <p className="font-['Plus_Jakarta_Sans'] text-[28px] font-bold leading-none text-white whitespace-nowrap">
                   Try
                 </p>
@@ -1511,7 +1579,7 @@ function SnapkeepPanel({ onOpen }) {
                 Rises a little as it arrives rather than simply appearing, so it
                 reads as a thing being offered rather than as a flash. The lime
                 and the black on it are the chips this section already uses. */}
-            <span className="translate-y-[10px] rounded-full bg-[#c9e529] px-[20px] py-[16px] font-['Plus_Jakarta_Sans'] text-[22px] font-bold leading-none tracking-[0.06em] text-black opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
+            <span className="translate-y-[10px] rounded-full bg-[#ffd527] px-[20px] py-[16px] font-['Plus_Jakarta_Sans'] text-[22px] font-bold leading-none tracking-[0.06em] text-black opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
               CLICK
             </span>
           </span>
@@ -1924,7 +1992,7 @@ export default function ExperienceSection() {
   return (
     <section
       ref={sectionRef}
-      className="section-experience relative bg-[#06252e]"
+      className="section-experience relative bg-[#336bec]"
       style={{ height: `${TRACK_VH}vh` }}
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden">

@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { releaseScrollHold } from "../../lib/scrollHold";
+import StaggeredMenu from "./StaggeredMenu";
 
 // The mobile menu: the button that opens it, and the sheet it opens.
 //
@@ -31,19 +31,30 @@ const ITEMS = [
  *  not clickable while hidden: an invisible button over the glasses is worse
  *  than no button.
  */
-export function MenuButton({ onClick, buttonRef }) {
+export function MenuButton({ onClick, buttonRef, open }) {
   return (
     <button
       ref={buttonRef}
       type="button"
       onClick={onClick}
-      aria-label="메뉴 열기"
-      className="flex items-center px-[20px] py-[40px] text-white"
+      aria-label={open ? "메뉴 닫기" : "메뉴 열기"}
+      aria-expanded={open}
+      aria-controls="mobile-menu-panel"
+      // Black once the sheet is up. The sheet is white and this button stays
+      // above it (the header outranks the menu's own stacking, see
+      // MobileHeader) — a white icon there is a button you cannot see on a
+      // panel whose only way out it is.
+      className={`flex items-center px-[20px] py-[40px] transition-colors ${
+        open ? "text-black" : "text-white"
+      }`}
       style={{ opacity: 0, pointerEvents: "none" }}
     >
       <svg viewBox="0 0 24 24" className="size-6" fill="none" aria-hidden="true">
+        {/* Two paths rather than one that morphs: the hamburger and the cross
+            are not the same drawing, and a crossfade between three lines and
+            two reads as a smudge at this size. */}
         <path
-          d="M4 6h16M4 12h16M4 18h16"
+          d={open ? "M6 6l12 12M18 6L6 18" : "M4 6h16M4 12h16M4 18h16"}
           stroke="currentColor"
           strokeWidth="2"
           strokeLinecap="round"
@@ -54,79 +65,36 @@ export function MenuButton({ onClick, buttonRef }) {
 }
 
 export default function MobileNav({ open, onClose }) {
-  // Escape closes it, and the page underneath stops scrolling while it is up —
-  // a full-screen sheet you can scroll the page behind reads as broken.
-  useEffect(() => {
-    if (!open) return undefined;
-    function onKey(e) {
-      if (e.key === "Escape") onClose();
-    }
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKey);
-    return () => {
-      document.body.style.overflow = previous;
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open, onClose]);
-
-  function go(target) {
+  function go(item) {
     // The hero pins the page until its intro has played (see scrollHold). A
     // menu item asks for a section by name, which is not the same thing as
     // scrolling past the hero, so it lets go rather than being clamped.
     releaseScrollHold();
     onClose();
-    // After the sheet is down, so the scroll lands on a page that is actually
-    // showing. Without this the jump happens under an overlay that is still up
-    // and the movement is invisible.
+    // After the sheet has started leaving, so the scroll lands on a page that
+    // is actually showing. Without this the jump happens under a panel still
+    // covering the screen and the movement is invisible.
     requestAnimationFrame(() => {
-      if (!target) {
+      if (!item.target) {
         window.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
-      document.querySelector(target)?.scrollIntoView({ behavior: "smooth" });
+      document.querySelector(item.target)?.scrollIntoView({ behavior: "smooth" });
     });
   }
 
-  if (!open) return null;
-
+  // Gold then pink — the page's two accents — sweeping in ahead of the white
+  // panel, with the page blue left for the numbering and the pressed state. The
+  // sheet this replaced was a flat blue rectangle that simply appeared.
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="메뉴"
-      className="fixed inset-0 z-[70] flex flex-col bg-[#06252e]"
-    >
-      <div className="flex shrink-0 justify-end">
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="메뉴 닫기"
-          className="flex items-center px-[20px] py-[40px] text-white"
-        >
-          <svg viewBox="0 0 24 24" className="size-6" fill="none" aria-hidden="true">
-            <path
-              d="M6 6l12 12M18 6L6 18"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            />
-          </svg>
-        </button>
-      </div>
-
-      <nav className="flex flex-1 flex-col justify-center gap-8 px-[30px]">
-        {ITEMS.map(({ label, target }) => (
-          <button
-            key={label}
-            type="button"
-            onClick={() => go(target)}
-            className="text-left font-['Plus_Jakarta_Sans'] text-[40px] font-semibold leading-none tracking-[-2px] text-white transition-colors active:text-[#c9e529]"
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-    </div>
+    <StaggeredMenu
+      open={open}
+      onClose={onClose}
+      items={ITEMS}
+      onSelect={go}
+      colors={["#ffd527", "#f460c0"]}
+      accentColor="#336bec"
+      position="right"
+    />
   );
 }

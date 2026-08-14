@@ -18,7 +18,7 @@ import { HEADER_H, vw } from "./MobileHeader";
 //
 // The cards are drawn rather than imported. On the desktop each folder face is
 // an exported image with its old colour baked in; these carry the case study
-// palette (#018cfc / #f26a30 / #c9e529), so an image would have to be
+// palette (#018cfc / #f26a30 / #ffd527), so an image would have to be
 // re-exported every time a colour moved. Text and a rounded rectangle cost
 // nothing and stay in step with the rest of the site.
 // The fan's own box, off the design (349:3201). The cards are allowed to hang
@@ -93,13 +93,13 @@ const SPREAD_STAGGER_MS = 90;
 const CARDS = [
   {
     id: "reviu",
-    fill: "#c9e529",
+    fill: "#ffd527",
     ink: "#000000",
     label: "개인 프로젝트",
     logo: { src: logoReviu, width: 100, height: 29.988, alt: "reviu" },
     lines: ["일정 | 3월26일 ~ 6월 1일", "제작 | 윤수정"],
     detail: ReviuSpread,
-    pageColor: "#c9e529",
+    pageColor: "#ffd527",
   },
   {
     id: "layer",
@@ -293,7 +293,7 @@ export default function MobileProject() {
     // scroll container between the page and a sticky element is what stops the
     // sticky working. Nothing here is sticky today; the hero next door is, and
     // this is the kind of thing that is fixed once and broken again later.
-    <section className="section-mobile-project flex min-h-[100svh] flex-col overflow-x-clip bg-[#06252e]">
+    <section className="section-mobile-project flex min-h-[100svh] flex-col overflow-x-clip bg-[#336bec]">
       {/* Clear of the fixed header — see MobileHeader. */}
       <div className="shrink-0" style={{ height: HEADER_H }} />
 
@@ -328,7 +328,7 @@ export default function MobileProject() {
           // above gains a stacking context. The front card is turned and hangs
           // past the bottom of its own box; where it reaches the title, the card
           // is the thing in front.
-          className="relative z-10 touch-pan-y outline-none focus-visible:ring-2 focus-visible:ring-[#c9e529]"
+          className="relative z-10 touch-pan-y outline-none focus-visible:ring-2 focus-visible:ring-[#ffd527]"
           style={{ width: vw(FAN.w), aspectRatio: `${FAN.w} / ${FAN.h}` }}
         >
           {CARDS.map((card, i) => {
@@ -365,7 +365,7 @@ export default function MobileProject() {
             rather than left to the painting rules: a static block happens to
             paint below a positioned one today, and that stops being true the
             moment anything in the chain above gains a stacking context. */}
-        <div className="relative z-0 flex flex-col items-center gap-[12px] text-white">
+        <div className="relative z-0 flex flex-col items-center gap-[18px] text-white">
           <p
             className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px]"
             style={{ fontSize: vw(60) }}

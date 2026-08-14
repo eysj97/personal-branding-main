@@ -35,51 +35,72 @@ const DESIGN_HEIGHT = 1156;
 // (COL_X[c], ROW_Y[r]).
 const CARD_WIDTH = 290;
 const CARD_HEIGHT = 252.303;
-const COL_PITCH = 370;
-const ROW_PITCH = 352.303;
+// The design lays the rows and columns out as flex gaps, so the gaps are what is
+// stated here and the pitch is derived. Same numbers either way — 290 + 80 is
+// the 370 this used to hard-code, and 252.303 + 100 the 352.303 — but a gap is
+// the thing the design actually says, and a pitch written out beside a card
+// width is two places for the same fact to be wrong in.
+const COL_GAP = 80;
+const ROW_GAP = 100;
+const COL_PITCH = CARD_WIDTH + COL_GAP;
+const ROW_PITCH = CARD_HEIGHT + ROW_GAP;
 // Where the grid's first cell sits on the canvas. The design nests this two
 // frames deep (154:3510 > 352:3605 > the row); both offsets are folded in here
 // rather than reproduced as wrappers, since nothing else hangs off either.
-const GRID_LEFT = 408.786 + 72.428;
-const GRID_TOP = 99.547;
+// The heading's own box, beside the grid rather than inside it. Node
+// 1303:46631 sets the two of them as one flex row — heading, an 80 gap, then the
+// grid — centred in the canvas with 40 of padding either side, and top-aligned
+// with each other.
+const HEADING_WIDTH = 362.428;
+const HEADING_HEIGHT = 173.471;
+const HEADING_GAP = COL_GAP;
+const CANVAS_PAD = 40;
+
+// Everything below is that row measured out, rather than the two absolute
+// offsets this used to carry. The design centres the whole board, so the moment
+// any part of it changes width the old numbers are wrong in a way nothing
+// catches; derived, the board re-centres itself.
+const GRID_WIDTH = CARD_WIDTH * 3 + COL_GAP * 2;
+const GRID_HEIGHT = CARD_HEIGHT * 3 + ROW_GAP * 2;
+const BOARD_WIDTH = HEADING_WIDTH + HEADING_GAP + GRID_WIDTH;
+const BOARD_LEFT =
+  CANVAS_PAD + (DESIGN_WIDTH - CANVAS_PAD * 2 - BOARD_WIDTH) / 2;
+const HEADING_LEFT = BOARD_LEFT;
+const GRID_LEFT = BOARD_LEFT + HEADING_WIDTH + HEADING_GAP;
+// Centred in the frame's own height, which comes out at the 99.547 that was
+// written here before.
+const GRID_TOP = (DESIGN_HEIGHT - GRID_HEIGHT) / 2;
+const HEADING_TOP = GRID_TOP;
 const COL_X = [0, 1, 2].map((c) => GRID_LEFT + c * COL_PITCH);
 const ROW_Y = [0, 1, 2].map((r) => GRID_TOP + r * ROW_PITCH);
 
 
-// The heading's cell. SKILLS is set at 120 and comes out wider than a card, so
-// the block is 338 across and hangs past its cell's left edge — the design lets
-// it, and the canvas has the room there. Both numbers are offsets from the cell
-// rather than absolute canvas coordinates, so moving the grid carries the
-// heading with it.
-const HEADING_WIDTH = 338;
-const HEADING_OVERHANG = 60.214;
-const HEADING_DROP = 42.152;
 
 
-
-
-// Which cell each card sits in, as [row, col] on the 3x3 grid above. The
-// heading takes [1, 0] and is the only cell without a folder in it.
+// Which cell each card sits in, as [row, col] on the 3x3 grid above.
 //
 // Written per card rather than as three rows sliced out of SKILLS, because the
 // grid order and the deal order are no longer the same list: the design reads
 // left-to-right, top-to-bottom, and the SKILLS array is grouped by colour.
-// Ordered so the three colours band across the rows — blue, lime, pink — with
-// the heading taking the one cell the top-left of the pink row would have used.
-// It is the design's own arrangement and worth stating: the grid is not sorted
-// by discipline, it is sorted by colour, and the colours are what carry the
-// reading order down the board.
+// Ordered so the three colours band across the rows — gold, teal, pink — which
+// is the design's own arrangement and worth stating: the grid is not sorted by
+// discipline, it is sorted by colour, and the colours are what carry the reading
+// order down the board.
+//
+// The heading used to take [1, 0] and be a ninth cell like the rest. It stands
+// beside the grid now (node 1303:46631), so all eight cards are in the grid and
+// the empty cell is [2, 2] — the bottom-right, where the pink row simply runs
+// out rather than a hole being left in the middle of the board.
 const CELLS = {
-  "UX Research": [0, 0],
-  Planning: [0, 1],
-  "UI Design": [0, 2],
-  FIGMA: [1, 1],
+  AI: [0, 0],
+  CSS: [0, 1],
+  HTML: [0, 2],
+  FIGMA: [1, 0],
+  "UI Design": [1, 1],
   "Interaction Design": [1, 2],
-  AI: [2, 0],
-  CSS: [2, 1],
-  HTML: [2, 2],
+  "UX Research": [2, 0],
+  Planning: [2, 1],
 };
-const HEADING_CELL = [1, 0];
 
 // The cards are dealt in reading order — row by row, left to right — which is
 // not the order SKILLS is written in (that list is grouped by colour). Sorted
@@ -308,7 +329,7 @@ export default function SkillsSection() {
     >
       <div
         ref={stageRef}
-        className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center bg-[#06252e]"
+        className="sticky top-0 h-screen w-full overflow-hidden flex items-center justify-center bg-white"
         style={{ opacity: 0, pointerEvents: "none" }}
       >
         <div
@@ -355,32 +376,36 @@ export default function SkillsSection() {
             );
           })}
 
-          {/* The heading, standing in the grid's empty middle-left cell. It is
-              a cell like the other eight now rather than a label parked in
-              leftover space, so it is centred in that cell instead of ranged
-              left against the canvas: the design gives SKILLS 338px and centres
-              the two-line caption under it.
+          {/* The heading, beside the grid and top-aligned with its first row.
+              It used to stand *in* the grid, in an empty middle-left cell, which
+              made SKILLS read as a ninth item on the board. Out here it is what
+              the board is called, and the eight cards are the board.
+              Its box is the design's own 362.428 x 173.471 with the two lines
+              centred in it, rather than a top-left corner plus offsets — the
+              caption is shorter than the heading and the heading shorter than
+              the box, so centring is what actually holds them together.
               Placed in canvas px like everything else here — the whole
               composition is scaled as one piece, so viewport units would get
               scaled a second time and drift off the design. */}
           <div
             ref={headingRef}
-            className="absolute flex flex-col items-center gap-[10px]"
+            className="absolute flex flex-col items-center justify-center gap-[10px]"
             style={{
-              left: COL_X[HEADING_CELL[1]] - HEADING_OVERHANG,
-              top: ROW_Y[HEADING_CELL[0]] + HEADING_DROP,
+              left: HEADING_LEFT,
+              top: HEADING_TOP,
               width: HEADING_WIDTH,
+              height: HEADING_HEIGHT,
               opacity: 0,
             }}
           >
             <p
-              className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-white whitespace-nowrap tracking-[-0.1em]"
+              className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-[#336bec] whitespace-nowrap tracking-[-0.1em]"
               style={{ fontSize: 120 }}
             >
               SKILLS
             </p>
             <p
-              className="font-['Pretendard'] text-center leading-[1.2] text-white tracking-[-0.05em]"
+              className="font-['Pretendard'] text-center leading-[1.2] text-black tracking-[-0.05em]"
               style={{ fontSize: 16 }}
             >
               기획부터 화면 구현까지,

@@ -1,16 +1,21 @@
 // The skills board's content and the folder shape it is drawn on. Shared,
 // because there are two layouts now: the desktop's 3x3 grid with the heading
-// standing in it (SkillsSection) and the phone's 4x2 (mobile/MobileSkills).
+// standing beside it (SkillsSection) and the phone's 4x2 (mobile/MobileSkills).
 // Only the sizes and the arrangement differ; the folders and what is on them
 // are the same board.
 
-// Three folder colours, used straight from the design. They are not a scale —
-// nothing about a card's colour says anything about its level, which every card
-// states in words anyway. The design bands them by row, so the colour is what
-// carries the reading order down the board.
-export const BLUE = "#0492bd";
-export const LIME = "#c9e529";
-export const PINK = "#ff60b8";
+// Three folder colours, used straight from the design (node 1303:46631, where
+// they are the `per/sub`, `per/point` and `per/point2` tokens). They are not a
+// scale — nothing about a card's colour says anything about its level, which
+// every card states in words anyway. The design bands them by row, so the colour
+// is what carries the reading order down the board.
+//
+// Banded gold / teal / pink, top to bottom. It was blue / gold / pink with the
+// bands in the other order; the blue went because the page's own ground is blue
+// now and a blue folder on it stops being a folder.
+export const GOLD = "#ffd527";
+export const TEAL = "#28c9a0";
+export const PINK = "#f460c0";
 
 // The card is a manila folder seen face-on, and it is two shapes rather than
 // one: a tab that runs the full width behind the card, stepping down partway
@@ -48,19 +53,19 @@ export const SKILLS = [
     title: "UX Research",
     desc: "사용자 조사와 경쟁 분석으로 문제를 정의",
     level: "Proficient",
-    color: BLUE,
+    color: PINK,
   },
   {
     title: "Planning",
     desc: "서비스 구조와 화면 흐름 설계",
     level: "Proficient",
-    color: BLUE,
+    color: PINK,
   },
   {
     title: "UI Design",
     desc: "화면 설계와 비주얼 디자인",
     level: "Proficient",
-    color: LIME,
+    color: TEAL,
   },
   {
     // One line. It used to carry a hard break, because at 400 wide and 28px the
@@ -70,13 +75,13 @@ export const SKILLS = [
     title: "Interaction Design",
     desc: "화면의 움직임과 전환 설계",
     level: "Proficient",
-    color: LIME,
+    color: TEAL,
   },
   {
     title: "FIGMA",
     desc: "디자인 시스템과 프로토타입 제작",
     level: "Proficient",
-    color: LIME,
+    color: TEAL,
   },
   {
     title: "AI",
@@ -87,18 +92,18 @@ export const SKILLS = [
     ],
     short: ["CLAUDE - 코딩·기획", "CHAT GPT - 기획·이미지", "JEMINI - 이미지·영상"],
     level: "Proficient",
-    color: PINK,
+    color: GOLD,
   },
   {
     title: "HTML",
     desc: "구조에 맞게 마크업",
     level: "Proficient",
-    color: PINK,
+    color: GOLD,
   },
   {
     title: "CSS",
     desc: "디자인을 반응형 화면으로 구현",
     level: "Proficient",
-    color: PINK,
+    color: GOLD,
   },
 ];

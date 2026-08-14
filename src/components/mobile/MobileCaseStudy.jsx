@@ -92,7 +92,7 @@ export default function MobileCaseStudy({ card, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-label={`${card.label} 케이스 스터디`}
-      className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-[#06252e]"
+      className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-[#336bec]"
     >
       {/* Where the page's hamburger sits, and for the same reason: it is the
           one control in the corner. Here it closes rather than opens — this is
@@ -117,7 +117,7 @@ export default function MobileCaseStudy({ card, onClose }) {
       {/* The section's own name and line, at the sizes every mobile section
           uses — this is the PROJECT section still, seen from the inside. */}
       <div
-        className="mx-auto flex flex-col items-center gap-[12px] text-white"
+        className="mx-auto flex flex-col items-center gap-[18px] text-white"
         style={{ paddingTop: vw(TITLE.top), width: vw(TITLE.width) }}
       >
         <p

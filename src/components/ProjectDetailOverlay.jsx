@@ -225,14 +225,14 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
       {/* Fades in rather than appearing outright, so the cube's other three
           cards are still visible for a beat as they drop away behind it. */}
       <div
-        className="pointer-events-none fixed inset-0 bg-[#06252e]"
+        className="pointer-events-none fixed inset-0 bg-white"
         style={{ opacity: at > 0 ? 1 : 0, transition: "opacity 420ms ease-out" }}
       />
 
       <button
         type="button"
         onClick={close}
-        className="fixed right-[40px] top-[32px] z-40 flex h-[46px] w-[46px] items-center justify-center rounded-full border border-white/25 font-['Plus_Jakarta_Sans'] text-[20px] leading-none text-white transition-colors hover:bg-white/10"
+        className="fixed right-[40px] top-[32px] z-40 flex h-[46px] w-[46px] items-center justify-center rounded-full border border-black/25 font-['Plus_Jakarta_Sans'] text-[20px] leading-none text-black transition-colors hover:bg-black/5"
         style={{
           opacity: expanded ? 1 : 0,
           pointerEvents: expanded ? "auto" : "none",
@@ -285,9 +285,23 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
       </div>
 
       <div className="relative z-20 pb-[120px] pt-[110px]">
-        <p className="flex w-full items-center justify-center whitespace-nowrap font-['Plus_Jakarta_Sans'] text-[clamp(48px,8vw,150px)] font-semibold leading-none tracking-[clamp(-8px,-0.8vw,-15px)] text-white">
-          PROJECT
-        </p>
+        {/* The same heading the section shows behind this, in the same two
+            parts and the same sizes — see ProjectSection. It is repeated rather
+            than shared because the two are laid out differently (that one is
+            positioned off the section's own scroll, this one is in flow at the
+            top of a document), and a shared component would have to take every
+            one of those differences as a prop. The words are the thing to keep
+            in step; they are the section's own. */}
+        <div className="flex w-full flex-col items-center gap-[24px]">
+          <p className="whitespace-nowrap font-['Plus_Jakarta_Sans'] text-[clamp(48px,8vw,150px)] font-semibold leading-none tracking-[clamp(-8px,-0.8vw,-15px)] text-[#336bec]">
+            PROJECT
+          </p>
+          <p className="whitespace-nowrap text-center font-['Pretendard'] text-[clamp(11px,0.833vw,16px)] leading-[1.2] tracking-[-0.44px] text-black">
+            경험해 보신 것 처럼, 저는 이런 방식으로 만들어 갑니다
+            <br />
+            다른 프로젝트들도 보여드릴게요
+          </p>
+        </div>
 
         {/* Height is the scaled spread's, so the document scrolls correctly the
             moment the bloom lands — no reflow between animating and settled. */}

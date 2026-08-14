@@ -1,0 +1,211 @@
+/* The mobile menu's panel, from React Bits' StaggeredMenu.
+   Adapted, and the adaptations are the point:
+
+   - No header rules. The component that owns this markup does not draw a header
+     or a toggle — the page already has both (MobileHeader), and *when* the
+     hamburger appears belongs to the hero's scroll timeline. A second header
+     would be a second logo and a button on nobody's timeline.
+   - Panel and prelayers are pinned to the viewport rather than to a wrapper that
+     happens to fill it, so the sheet does not care what it is mounted inside.
+   - Type is the page's own: Plus Jakarta Sans for the labels, matching the sheet
+     this replaces rather than the library's default stack. */
+
+.staggered-menu-wrapper {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  overflow: hidden;
+  /* The wrapper is only a stage. Everything under it stays clickable while the
+     menu is closed, and the panel below turns pointer events back on for
+     itself. */
+  pointer-events: none;
+}
+
+.sm-prelayers {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0;
+}
+
+[data-position="left"] .sm-prelayers {
+  right: auto;
+  left: 0;
+}
+
+.sm-prelayer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  transform: translateX(0);
+}
+
+.staggered-menu-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  /* Clear of the fixed header, which stays above this and is what closes it. */
+  padding: calc(80px + 11.163vw) 30px 40px;
+  overflow-y: auto;
+  z-index: 10;
+  pointer-events: auto;
+  opacity: 0;
+}
+
+[data-position="left"] .staggered-menu-panel {
+  right: auto;
+  left: 0;
+}
+
+.sm-panel-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.25rem;
+}
+
+.sm-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* overflow-hidden per row is what makes the labels rise out of nothing: each
+   one starts pushed below its own row and is clipped until it arrives. */
+.sm-panel-itemWrap {
+  position: relative;
+  overflow: hidden;
+  line-height: 1;
+}
+
+.sm-panel-item {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0 1.4em 0 0;
+  color: #000000;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-weight: 600;
+  font-size: 3rem;
+  line-height: 1;
+  letter-spacing: -2px;
+  text-align: left;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.25s;
+}
+
+.sm-panel-item:hover,
+.sm-panel-item:focus-visible {
+  color: var(--sm-accent, #336bec);
+}
+
+.sm-panel-itemLabel {
+  display: inline-block;
+  will-change: transform;
+  transform-origin: 50% 100%;
+}
+
+.sm-panel-list[data-numbering] {
+  counter-reset: smItem;
+}
+
+.sm-panel-list[data-numbering] .sm-panel-item::after {
+  counter-increment: smItem;
+  content: counter(smItem, decimal-leading-zero);
+  position: absolute;
+  top: 0.1em;
+  right: 0.4em;
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--sm-accent, #336bec);
+  letter-spacing: 0;
+  pointer-events: none;
+  user-select: none;
+  /* Driven by gsap, which is why it is a custom property and not opacity: the
+     number is a pseudo-element and cannot be tweened directly. */
+  opacity: var(--sm-num-opacity, 0);
+}
+
+.sm-socials {
+  margin-top: auto;
+  padding-top: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sm-socials-title {
+  margin: 0;
+  font-family: "Pretendard", sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--sm-accent, #336bec);
+}
+
+.sm-socials-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.sm-socials-link {
+  font-family: "Pretendard", sans-serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: #111111;
+  text-decoration: none;
+  padding: 2px 0;
+  display: inline-block;
+  transition:
+    color 0.3s ease,
+    opacity 0.3s ease;
+}
+
+.sm-socials-list:hover .sm-socials-link:not(:hover),
+.sm-socials-list:focus-within .sm-socials-link:not(:focus-visible) {
+  opacity: 0.35;
+}
+
+.sm-socials-link:hover,
+.sm-socials-link:focus-visible {
+  color: var(--sm-accent, #336bec);
+  opacity: 1;
+}
+
+/* The labels are set large enough that three of them fill a phone; on a short
+   screen they would otherwise run under the fold with no sign there is more. */
+@media (max-height: 640px) {
+  .sm-panel-item {
+    font-size: 2.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sm-panel-item {
+    transition: none;
+  }
+}

@@ -9,17 +9,14 @@
 // scale turns a trapezoid into a rectangle, so nothing tries. A card simply
 // shows the file, and the transparent corners around the mockup are part of how
 // it is drawn.
-import card1 from "../assets/learn/card-1.avif";
-// The one card that is not an avif. The others were exported together as a
-// batch; this one was replaced later from a fresh 8864px capture, and the
-// project has no image toolchain to run that batch again — so it was downscaled
-// and re-encoded to webp instead. Same result at the sizes a card is actually
-// drawn: 1400px wide, 40KB against the avifs' 55-188.
-import card2 from "../assets/learn/card-2.webp";
-import card3 from "../assets/learn/card-3.avif";
-import card4 from "../assets/learn/card-4.avif";
-import card5 from "../assets/learn/card-5.avif";
-import card6 from "../assets/learn/card-6.avif";
+// All six re-captured together as png. The avif and webp exports they replace
+// are still on disk and nothing imports them.
+import card1 from "../assets/learn/card-1.png";
+import card2 from "../assets/learn/card-2.png";
+import card3 from "../assets/learn/card-3.png";
+import card4 from "../assets/learn/card-4.png";
+import card5 from "../assets/learn/card-5.png";
+import card6 from "../assets/learn/card-6.png";
 // The tab that hangs off each card's right edge, exported from Figma
 // (node 283:206). Not a plain rounded rectangle: its top edge slants up
 // slightly to the right, matching the perspective the mockups are drawn in.
@@ -51,30 +48,33 @@ export const LEARN_TAB_ASPECT = "41 / 122.372";
 // an unfinished one should be, rather than a link that goes nowhere.
 export const learnHref = (slug) => `/learn/${encodeURIComponent(slug)}/index.html`;
 
-// Two things decide this list, and they pull in opposite directions:
+// The image filenames now *are* the running order: card-1 is the leftmost card
+// and card-6 the rightmost, which is how the captures were numbered.
 //
-//   - Each image is that site's own screenshot, so image and slug are a fixed
-//     pair. card-1 is the chemical site, card-6 is Musign, and so on — the
-//     numbering in the image filenames is unrelated to the running order.
-//     Verified against each page's <title> and hero copy.
-//   - The array is back-to-front, so it reads bottom-up: the LAST entry is the
-//     card the viewer meets first, and the one that paints on top.
+// The array is still back-to-front, because that is what the deck needs — the
+// LAST entry paints on top and sits at the front, which is the left end of the
+// row (see LearnSection). So the numbering runs down this list, not up.
 //
-// So this list is the intended running order — qude, 뮤자인, 대방산업,
-// 크루어라모드, 와이스튜디오, 한화케미컬 — written in reverse.
+// Image and slug are a fixed pair: each capture is that site's own screen, and
+// which is which was read off the captures themselves and matched against the
+// text in each folder —
 //
-// The slug numbers used to run with that order, which is why they count down
-// here. They no longer do: qude was numbered 7 as the seventh folder to be
-// added, and then put at the front of the deck. The number is the folder's name
-// on disk and nothing more — this array is the only thing that says what comes
-// first.
+//   card-1  AGENCY CREATIVE AUDIO      -> 7-qude
+//   card-2  Musign w.platform          -> 1-mujain
+//   card-3  Website & App, Responsive  -> 4-y-studio
+//   card-4  CREW AL AL MODE            -> 3-crew-alamode
+//   card-5  IMAGINE IT, AND BUILD IT   -> 2-daebang
+//   card-6  J.young / 한화케미컬        -> 5-hanwha-chemical
+//
+// The slug numbers are the folders' names on disk and say nothing about order.
+// (6-kca is a seventh folder that the deck does not show.)
 //
 // Labels are each site's own <title>, which is not always the folder name.
 export const LEARN_CARDS = [
-  { image: card1, slug: "5-hanwha-chemical", label: "한화케미컬" },
-  { image: card3, slug: "4-y-studio", label: "와이스튜디오" },
-  { image: card4, slug: "3-crew-alamode", label: "크루 어 라 모드" },
+  { image: card6, slug: "5-hanwha-chemical", label: "한화케미컬" },
   { image: card5, slug: "2-daebang", label: "대방산업" },
-  { image: card6, slug: "1-mujain", label: "뮤자인" },
-  { image: card2, slug: "7-qude", label: "qude" },
+  { image: card4, slug: "3-crew-alamode", label: "크루 어 라 모드" },
+  { image: card3, slug: "4-y-studio", label: "와이스튜디오" },
+  { image: card2, slug: "1-mujain", label: "뮤자인" },
+  { image: card1, slug: "7-qude", label: "qude" },
 ];

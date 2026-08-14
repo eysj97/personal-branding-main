@@ -148,17 +148,17 @@ export default function LearnSection() {
          screen is closer to 5, so the same height would have made the exit
          half again as fast as the rest of the run — the extra 30vh buys the
          distance back at roughly the pace it had before. */
-      className="section-learn relative h-[240vh] bg-[#06252e]"
+      className="section-learn relative h-[240vh] bg-white"
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         <div
           ref={textRef}
           className="absolute top-1/2 -translate-y-1/2 left-5 flex flex-col gap-[24px]"
         >
-          <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-white whitespace-nowrap text-[clamp(40px,6.25vw,120px)] tracking-[clamp(-4px,-0.6vw,-12px)]">
+          <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-[#336bec] whitespace-nowrap text-[clamp(40px,6.25vw,120px)] tracking-[clamp(-4px,-0.6vw,-12px)]">
             LEARN
           </p>
-          <p className="font-['Pretendard'] text-white text-[clamp(11px,0.833vw,16px)] tracking-[-0.05em] leading-[1.2]">
+          <p className="font-['Pretendard'] text-black text-[clamp(11px,0.833vw,16px)] tracking-[-0.05em] leading-[1.2]">
             이 결과물들이 나오기까지,
             <br />
             계속 배우고 만들어봤습니다

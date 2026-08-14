@@ -18,7 +18,7 @@ import { useIsMobile } from './lib/viewport'
 // sitting straight on the page, so the ground is not decoration here.
 const SPREADS = {
   layer: { Spread: LayerSpread, page: '#f26a30' },
-  reviu: { Spread: ReviuSpread, page: '#c9e529' },
+  reviu: { Spread: ReviuSpread, page: '#ffd527' },
   aquaplanet: { Spread: AquaplanetSpread, page: '#018cfc' },
 }
 
@@ -55,7 +55,7 @@ export default function App() {
 
   if (showSnapkeepOnly) {
     return (
-      <main className="flex min-h-screen min-w-max items-start justify-center bg-[#06252e] p-8">
+      <main className="flex min-h-screen min-w-max items-start justify-center bg-[#336bec] p-8">
         <div className="relative">
           <button
             type="button"

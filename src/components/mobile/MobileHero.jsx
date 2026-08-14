@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import glassesImg from "../../assets/hero/glasses.avif";
+import glassesImg from "../../assets/hero/glasses.svg";
 import heroEyes from "../../assets/hero/hero-eyes.svg?raw";
 import { driveWithScroll } from "../../lib/scrollDriver";
 import { holdInside } from "../../lib/scrollHold";
@@ -13,9 +13,9 @@ import { HEADER_H, vw } from "./MobileHeader";
 // of the thing — name at the top, glasses in the middle, the lead at the bottom
 // — so it is built as three rows and the middle one takes whatever is left.
 //
-// The scroll timeline is the desktop's, beat for beat: black to teal, the eye
-// shut then half then open, the copy arriving after it, and the English handing
-// over to the Korean. Same numbers, same easing, read off the same scroll
+// The scroll timeline is the desktop's, beat for beat: black to the page
+// colour, the eye shut then open, the copy arriving after it, and the English
+// handing over to the Korean. Same numbers, same easing, read off the same scroll
 // position. See Hero.jsx — the two render functions are meant to match, and if
 // one is retimed the other should be.
 //
@@ -86,10 +86,8 @@ export default function MobileHero({ menuRef }) {
     const section = sectionRef.current;
     const q = (sel) => [...artRef.current.querySelectorAll(sel)];
     const closedEye = q('[data-eye="closed"]');
-    const halfEye = q('[data-eye="half"]');
     const openEye = q('[data-eye="open"]');
     const closedLens = q('[data-lens="closed"]');
-    const halfLens = q('[data-lens="half"]');
     // Whether the intro has actually been played to its last frame — what the
     // scroll hold waits on. See scrollHold, and Hero.jsx for the same pair.
     let timelineDone = false;
@@ -100,20 +98,16 @@ export default function MobileHero({ menuRef }) {
       const eyeProgress = clamp01(progress / 0.6);
       overlayRef.current.style.opacity = Math.pow(1 - eyeProgress, 1.5);
 
-      // Shut, half, open — handed over one pair at a time rather than all three
-      // dissolving across the whole scroll. An eyelid travels, it does not fade.
-      const toHalf = smoothstep(0.3, 0.52, eyeProgress);
-      const toOpen = smoothstep(0.76, 1, eyeProgress);
+      // Shut, then open — one handover, on the same band the desktop uses. An
+      // eyelid travels, it does not fade.
+      const toOpen = smoothstep(0.6, 0.85, eyeProgress);
       const openOp = toOpen;
-      const halfOp = toHalf * (1 - toOpen);
-      const closedOp = 1 - toHalf;
+      const closedOp = 1 - toOpen;
       for (const el of closedEye) el.style.opacity = closedOp;
-      for (const el of halfEye) el.style.opacity = halfOp;
       for (const el of openEye) el.style.opacity = openOp;
-      // Each tint on its own eye's fade, so the lens lightens as the eye comes
-      // up instead of holding at one value and then vanishing.
+      // The tint on the shut eye's own fade, so the lens clears as the eye
+      // comes up instead of holding at one value and then vanishing.
       for (const el of closedLens) el.style.opacity = closedOp;
-      for (const el of halfLens) el.style.opacity = halfOp;
 
       // The copy arrives here, and the menu button with it — the same beat the
       // desktop brings its nav in on. The eyes finish opening at 0.6, so this
@@ -177,7 +171,7 @@ export default function MobileHero({ menuRef }) {
       art.style.top = `${fromY + (toY - fromY) * e}px`;
 
       // Once it has arrived, the character breathes — the same shared animation
-      // the pink circle underneath runs, started off the same edge so the two
+      // the chat circle underneath runs, started off the same edge so the two
       // are in step. See `chatbot-idle` in index.css.
       idleRef.current?.toggleAttribute("data-chat-idle", t >= 1);
     }
@@ -236,7 +230,7 @@ export default function MobileHero({ menuRef }) {
     // pixel the hero starts to leave. The bar hiding resizes it, and the driver
     // re-measures on resize.
     <section ref={sectionRef} className="section-mobile-hero relative h-[300dvh]">
-      <div className="sticky top-0 flex h-[100dvh] flex-col overflow-hidden bg-[#06252e]">
+      <div className="sticky top-0 flex h-[100dvh] flex-col overflow-hidden bg-[#336bec]">
         {/* A wash behind the composition, not a curtain over it.
             The name and the glasses are on the screen from the first frame and
             stay there — what the scroll changes is the ground they stand on,
@@ -314,7 +308,7 @@ export default function MobileHero({ menuRef }) {
 
           Centred on its own position — hence the -50%/-50% — because the dock
           loop works in centres, which is the only thing the two ends have in
-          common: the slot is 324 wide and the pink circle is 56.
+          common: the slot is 324 wide and the chat circle is 56.
 
           Decoration all the way down, never a control. It lands on the chat
           button rather than becoming one, and stays pointer-transparent so the
@@ -324,7 +318,7 @@ export default function MobileHero({ menuRef }) {
         <div
           ref={artRef}
           aria-hidden="true"
-          // z-63, one above the pink circle's z-62 on a phone — the glasses
+          // z-63, one above the chat circle's z-62 on a phone — the glasses
           // lands *on* the circle and has to paint over it. Both sit under the
           // menu sheet and the case study at z-70, which are pages of their own
           // and do cover the character.
@@ -343,7 +337,14 @@ export default function MobileHero({ menuRef }) {
               className="absolute inset-0 block"
               dangerouslySetInnerHTML={{ __html: heroEyes }}
             />
-            <img src={glassesImg} alt="" className="absolute inset-0 h-full w-full" />
+            <img
+              src={glassesImg}
+              alt=""
+              className="absolute inset-0 h-full w-full"
+              // No filter, for the reason the desktop hero gives: the frame is
+              // a white stroke now rather than a bitmap that had to be turned
+              // white. Both still wear the one file.
+            />
           </div>
         </div>,
         document.body,

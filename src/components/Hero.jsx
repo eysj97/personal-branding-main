@@ -2,19 +2,30 @@ import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { driveWithScroll } from "../lib/scrollDriver";
 import { holdInside, releaseScrollHold } from "../lib/scrollHold";
-import glassesImg from "../assets/hero/glasses.avif";
+import glassesImg from "../assets/hero/glasses.svg";
 import heroEyes from "../assets/hero/hero-eyes.svg?raw";
 
 // The hero's eyes are a pair of glasses, and the eyes are what shows through
 // the lenses. Two files: the glasses itself, and an overlay carrying the eyes.
 //
-// The glasses is a picture rather than a drawing. The design paints a flat
-// #0492bd through a bitmap alpha mask, and one image with the colour already in
-// it is the same result with nothing left to reproduce. It never moves and
-// never changes, so it has no reason to be anything more.
+// The glasses is a drawing now, and used to be a picture: a bitmap painted
+// #0492bd through an alpha mask, turned white at each point of use. The design
+// redrew it as a line (Figma 1306:1469 / 1306:1493) — an open frame with the
+// page showing through the lenses rather than a filled shape — and a stroke is
+// not something a bitmap of a filled shape can be filtered into.
+//
+// It is white in the file, so nothing has to repaint it. The career section
+// still filters it black, and still uses it as a CSS mask for the rim light,
+// which a stroked path serves better than the bitmap did: the alpha of a stroke
+// *is* the frame, which is the shape that light was always meant to be clipped
+// to.
+//
+// Both files are drawn in this same 512.91 x 498 box even though the design's
+// own is 461 x 185, because the two are laid over each other at one size — see
+// heroBoxClass. The transform that put them here is anchored on the pupils.
 //
 // The overlay is inlined source, because its parts do have to be reachable:
-// three eye states to hand over between, and two pupils to move once they are
+// two eye states to hand over between, and two pupils to move once they are
 // open.
 const HERO_ART = { width: 512.91, height: 498 };
 // Sized to land on roughly the footprint the old pair of eyes had - two of
@@ -114,7 +125,7 @@ export default function Hero() {
   const textEnRef = useRef(null);
   const textKoRef = useRef(null);
   // The glasses. It travels out of the hero to the corner and parks on the chat
-  // button — which is the pink circle in Chatbot, not anything here.
+  // button — which is the chat circle in Chatbot, not anything here.
   const dockRef = useRef(null);
   const idleRef = useRef(null);
 
@@ -123,25 +134,25 @@ export default function Hero() {
     const overlay = overlayRef.current;
     // What the scroll hands over between, and what the pointer moves.
     //
-    // Three states rather than one shape being opened: the design draws a shut
-    // eye, a half one and an open one, and they are not the same drawing at
-    // three sizes — the shut one is a wider line than the open one is a circle,
-    // and the lens tint over them belongs only to the first two. So they are
-    // cross-faded, and the tint lightens on its own as the eye opens.
+    // Two states rather than one shape being opened: the design draws a shut
+    // eye and an open one, and they are not the same drawing at two sizes — the
+    // shut one is a wider line than the open one is a circle. So they are
+    // cross-faded, and the lens tint over the shut one lifts as it goes.
+    //
+    // There was a third, half-open drawing between them, handed over in two
+    // beats instead of one. It is gone, and with it the second lens tint that
+    // belonged to it.
     //
     // Scoped to the dock rather than to the stage: the glasses is portalled out
     // to the end of `body` (see the return), so it is no longer inside the
     // stage's subtree and a query rooted there would come back empty.
     const q = (sel) => [...dockRef.current.querySelectorAll(sel)];
     const closedEye = q('[data-eye="closed"]');
-    const halfEye = q('[data-eye="half"]');
     const openEye = q('[data-eye="open"]');
-    // The lens tints, one per eye state. The tint is not a fixed property of
-    // the glasses — the design lightens it as the eye comes up, from black at
-    // 50% shut to 10% half open to nothing at all once open — so each tint
-    // rides the same cross-fade as the eye it belongs to.
+    // The lens tint. Not a fixed property of the glasses — the design darkens
+    // the lens over a shut eye and clears it over an open one, black at 50% to
+    // nothing at all — so it rides the same cross-fade as the eye it belongs to.
     const closedLens = q('[data-lens="closed"]');
-    const halfLens = q('[data-lens="half"]');
     // Each pupil, and where it is currently looking.
     //
     // Grouped by eye rather than flattened into one list of parts: each eye
@@ -168,9 +179,9 @@ export default function Hero() {
 
     // The timeline below is read straight off the scroll position: the eyes
     // open exactly as far as you have scrolled, and stop where you stop. It
-    // used to be three beats handed over one wheel tick at a time, which meant
-    // the lids could only ever be shut, half, or open — the drawing in between
-    // was there but unreachable.
+    // used to be beats handed over one wheel tick at a time, which meant the
+    // lids could only ever be at one of the drawn states — everything the
+    // cross-fade puts between them was there but unreachable.
     let openAmount = 0;
     // Set once the timeline has actually been rendered to its end — which is
     // what the scroll hold below waits for. Read, not assumed: the render lags
@@ -189,24 +200,21 @@ export default function Hero() {
       const eyeProgress = clamp01(progress / 0.6);
       overlay.style.opacity = Math.pow(1 - eyeProgress, 1.5);
 
-      // Shut, half, open — handed over one pair at a time rather than all
-      // three dissolving across the whole scroll. Each drawing holds, then
-      // gives way over a short band: an eyelid travels, it does not fade, and a
-      // long cross-fade between two drawings of an eye just reads as a ghost.
-      // The bands are eased, so the lid comes off its hold and settles into the
-      // next one instead of sliding at a constant rate.
-      const toHalf = smoothstep(0.3, 0.52, eyeProgress);
-      const toOpen = smoothstep(0.76, 1, eyeProgress);
+      // Shut, then open — one handover rather than two. The band is kept to
+      // roughly the width each of the old pair had: an eyelid travels, it does
+      // not fade, and a long cross-fade between two drawings of an eye just
+      // reads as a ghost. Stretching this one across everything the three
+      // states used to cover would be exactly that fade, so the shut eye holds
+      // instead, gives way over a short eased band, and is open with a beat to
+      // spare before the copy comes up behind it.
+      const toOpen = smoothstep(0.6, 0.85, eyeProgress);
       const openOp = toOpen;
-      const halfOp = toHalf * (1 - toOpen);
-      const closedOp = 1 - toHalf;
+      const closedOp = 1 - toOpen;
       for (const el of closedEye) el.style.opacity = closedOp;
-      for (const el of halfEye) el.style.opacity = halfOp;
       for (const el of openEye) el.style.opacity = openOp;
-      // Each tint on its own eye's fade, so the lens lightens as the eye comes
-      // up instead of holding at one value and then vanishing.
+      // The tint on the shut eye's own fade, so the lens clears as the eye
+      // comes up instead of holding at one value and then vanishing.
       for (const el of closedLens) el.style.opacity = closedOp;
-      for (const el of halfLens) el.style.opacity = halfOp;
 
       // Nav + copy fade in right after the eyes finish opening, then the copy
       // hands over from English to Korean for the rest of the scroll.
@@ -399,7 +407,7 @@ export default function Hero() {
     const DOCK_OVERHANG = 64 / 56;
     const DOCK_SIZE = 126; // the fallback, for a page with no chat on it
     // Where it parks, as the distance from the viewport's corner to the
-    // glasses' middle. It has to be the middle of the pink circle in Chatbot,
+    // glasses' middle. It has to be the middle of the chat circle in Chatbot,
     // which is 56px across and sits `right-11` / `bottom-5` — so 44 + 28 across
     // and 20 + 28 up. The two are different sizes and only their centres can be
     // made to agree; change either of these and the matching inset on the
@@ -421,7 +429,7 @@ export default function Hero() {
     // Where the glasses is headed, as an offset from the middle of the
     // viewport — because that is what the transform below is written against.
     //
-    // Read off the pink circle itself rather than computed from the insets
+    // Read off the chat circle itself rather than computed from the insets
     // above. The circle does not stay in the corner any more: opening the chat
     // sends it up beside the conversation (see Chatbot), and the glasses has to
     // be wherever it is, not wherever it started. Measuring it every frame is
@@ -468,7 +476,7 @@ export default function Hero() {
       el.style.transform = `translate(calc(-50% + ${x.toFixed(1)}px), calc(-50% + ${y.toFixed(1)}px)) scale(${scale.toFixed(4)})`;
 
       // Once it has arrived, the character breathes. The same flag goes on the
-      // pink circle in Chatbot, off the same `t`, so both start the animation in
+      // chat circle in Chatbot, off the same `t`, so both start the animation in
       // the same frame and stay in step — see the `chatbot-idle` note in
       // index.css for why that is the whole trick.
       landed = t >= 1;
@@ -527,7 +535,7 @@ export default function Hero() {
     // over roughly the first screen and change, the copy over the second — so
     // it is the one number that sets how fast the hero plays.
     <section ref={sectionRef} className="section-hero relative h-[300vh]">
-      <div className="sticky top-0 h-screen w-full overflow-hidden bg-[#06252e]">
+      <div className="sticky top-0 h-screen w-full overflow-hidden bg-[#336bec]">
         <div
           ref={overlayRef}
           className="absolute inset-0 bg-black opacity-100 pointer-events-none"
@@ -577,7 +585,13 @@ export default function Hero() {
             up. Aligned to the bottom instead, the paragraph and the last line of
             the lead land on the same baselines in both, and the extra English
             line grows upward into empty space. */}
-        <div className="absolute bottom-0 left-0 p-5 grid items-end">
+        {/* Written out side by side rather than as `p-5 pb-[60px]`. Tailwind
+            resolves a shorthand against a longhand by their order in the
+            generated stylesheet and not by the order they are written here (see
+            the note on `position` above heroBoxClass), so a padding that reads
+            correctly in the class list is not on its own proof of which one
+            wins. Four sides, four utilities, nothing to resolve. */}
+        <div className="absolute bottom-0 left-0 grid items-end px-5 pt-5 pb-15">
           <div
             ref={textEnRef}
             className="col-start-1 row-start-1 flex flex-col gap-[12px] opacity-0"
@@ -630,7 +644,7 @@ export default function Hero() {
           hero draws straight over it. That is why it vanished.
 
           Out here it has no ancestor to be boxed in by, and z-59 puts it over
-          the pink chat button at z-58 — which is the one thing it must land on
+          the chat button at z-58 — which is the one thing it must land on
           top of.
 
           While the hero is pinned the stage *is* the viewport, so being fixed
@@ -638,7 +652,7 @@ export default function Hero() {
           the composition is unchanged.
 
           Decoration all the way down, never a control. It lands on the chat
-          button rather than becoming one — the button is the pink circle
+          button rather than becoming one — the button is the chat circle
           already sitting in the corner (see Chatbot), and this stays
           pointer-transparent so the clicks it looks like it should take go
           straight through to it. One thing to click, and the glasses does not
@@ -677,7 +691,16 @@ export default function Hero() {
               className="absolute inset-0 block"
               dangerouslySetInnerHTML={{ __html: heroEyes }}
             />
-            <img src={glassesImg} alt="" className="absolute inset-0 h-full w-full" />
+            <img
+              src={glassesImg}
+              alt=""
+              className="absolute inset-0 h-full w-full"
+              // No filter. The frame used to be a bitmap painted #0492bd and
+              // turned white here with brightness(0) invert(1); it is a stroked
+              // vector now and the stroke is simply white. The career section
+              // still filters it black, which is a thing this takes as well as
+              // the bitmap did.
+            />
           </div>
         </div>,
         document.body,
