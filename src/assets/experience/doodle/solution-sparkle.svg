@@ -1,6 +1,11 @@
 <svg width="170" height="203" viewBox="0 0 170 203" fill="none" xmlns="http://www.w3.org/2000/svg">
 <!-- The burst over the "3" in Produce 3 solution.
 
+     Black, not the section's yellow. The numeral it bursts off is pink now, and
+     a yellow burst over a pink "3" on blue is three chromatic colours fighting
+     in one glyph — black is the one thing here that reads as ink rather than as
+     a fourth colour, and it is already the type's own.
+
      Five marks, each 12 long and 4 thick with round ends — the design's own
      (node 1306:1403, where every one of them is a 16x4 line whose stroke runs
      x=2 to x=14). They were about 6 long at width 5 before, which is why the
@@ -25,10 +30,10 @@
      there is no inner-to-outer order to play: it is one burst, and relaying it
      would make it five separate marks being placed. -->
 <g id="solution-sparkle">
-<path id="Vector" d="M83.91 118V106" stroke="#FFD527" stroke-width="4" stroke-linecap="round"/>
-<path id="Vector_2" d="M64.73 125.39L58.73 115" stroke="#FFD527" stroke-width="4" stroke-linecap="round"/>
-<path id="Vector_3" d="M109.27 125.39L115.27 115" stroke="#FFD527" stroke-width="4" stroke-linecap="round"/>
-<path id="Vector_4" d="M49.12 141.86L38.73 135.86" stroke="#FFD527" stroke-width="4" stroke-linecap="round"/>
-<path id="Vector_5" d="M124.87 141.86L135.27 135.86" stroke="#FFD527" stroke-width="4" stroke-linecap="round"/>
+<path id="Vector" d="M83.91 118V106" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
+<path id="Vector_2" d="M64.73 125.39L58.73 115" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
+<path id="Vector_3" d="M109.27 125.39L115.27 115" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
+<path id="Vector_4" d="M49.12 141.86L38.73 135.86" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
+<path id="Vector_5" d="M124.87 141.86L135.27 135.86" stroke="#000000" stroke-width="4" stroke-linecap="round"/>
 </g>
 </svg>

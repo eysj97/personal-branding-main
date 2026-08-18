@@ -6,9 +6,21 @@
      group: the gaze moves [data-pupil] by GAZE_TRAVEL in *these* units (see
      Hero), and inside a scaled group those numbers would quietly mean something
      3.5% smaller. -->
+<!-- Registered on the open eye, not on the design's own placement.
+
+     The two states are cross-faded in place, so wherever their middles disagree
+     the eye slides across the lens as it opens. They disagreed badly: the shut
+     pair is drawn 234.46 apart and the open pupils are 192 apart, so the left
+     eye jumped 37 units outward and both dropped 11 as they opened, and only
+     the right one happened to land near where it started.
+
+     Each curve is therefore translated so the middle of its bounding box sits
+     on its own pupil's centre — (161, 236) and (353, 236). Shape, width and cap
+     are the design's, untouched; only the placement moved, and it moved to the
+     one place that makes the handover invisible. -->
 <g data-eye="closed">
-  <path d="M97.80,242.27 C104.08,253.37 138.33,256.74 150.39,245.65" stroke="#FFFFFF" stroke-width="9.648" stroke-linecap="round"/>
-  <path d="M332.26,242.27 C338.53,253.37 372.78,256.74 384.84,245.65" stroke="#FFFFFF" stroke-width="9.648" stroke-linecap="round"/>
+  <path d="M134.71,230.90 C140.99,242.00 175.24,245.37 187.30,234.28" stroke="#FFFFFF" stroke-width="9.648" stroke-linecap="round"/>
+  <path d="M326.71,230.90 C332.98,242.00 367.23,245.37 379.29,234.28" stroke="#FFFFFF" stroke-width="9.648" stroke-linecap="round"/>
 </g>
 <g data-eye="open">
   <g data-pupil="left"><circle cx="161" cy="236" r="19.779" fill="#FFFFFF"/></g>

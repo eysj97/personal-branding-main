@@ -67,9 +67,18 @@ const corner = () => ({
 // Hers is plain white and runs the full column width; yours is filled #28c9a0
 // and shrinks to its text. Both set their text black.
 //
-// No outline on hers. It had a 2px #0492bd one, from when that blue was the
-// site's accent — node 1303:46466 draws the bubble as white and nothing else,
-// and on this ground a white shape does not need to be drawn round to be seen.
+// Hers is drawn round in the character's pink. It had a 2px #0492bd outline
+// once, from when that blue was the accent, and it came off because the design
+// draws the bubble as white and nothing else — which held while the ground
+// behind it was reliably blue. It is not: the panel has no background of its
+// own on the desktop, so the bubbles sit on whatever section the reader happens
+// to be beside, and half of those are white. A white bubble on white is a shape
+// you can only find by its text. The stroke is what makes it a bubble again.
+//
+// Pink rather than the blue it went back on with, and pink is the one colour
+// that cannot be a ground here — the sections are white or #336bec and never
+// this. It is also the character's own, so what she says is drawn in her
+// colour.
 //
 // 12px both, and `leading-[14px]` is the design's own measurement (its greeting
 // is a 28px box over two lines).
@@ -89,14 +98,26 @@ const corner = () => ({
 // of them fits on one. But that is a fact about this one string; the rule above
 // is what keeps every other answer readable when it does not fit.
 const BOT_BUBBLE =
-  "w-full snap-start whitespace-pre-line [word-break:keep-all] rounded-bl-none bg-white font-['Pretendard'] text-black";
+  "w-full snap-start whitespace-pre-line [word-break:keep-all] border-2 border-[#f460c0] bg-white font-['Pretendard'] text-black";
+// Yours is the design's own #28c9a0 with black type, and it stays that whatever
+// is behind the panel. It was briefly the site's blue, and then that blue
+// swapping to white wherever the ground was blue as well — which is machinery
+// the green does not need: green is neither of the two grounds, so it reads on
+// both without being told which one it is on.
 const YOU_BUBBLE =
-  "max-w-[85%] snap-start self-end whitespace-pre-line [word-break:keep-all] rounded-br-none bg-[#28c9a0] font-['Pretendard'] font-medium text-black";
+  "max-w-[85%] snap-start self-end whitespace-pre-line [word-break:keep-all] bg-[#28c9a0] font-['Pretendard'] font-medium text-black";
 // The part of a bubble that is a number, scaled. `leading-[14px]` on 12px type
 // is the design's own measurement — its greeting is a 28px box over two lines —
 // so it rides the same factor rather than becoming a ratio.
+//
+// The square corner is here rather than on the class strings, and it has to be.
+// It was `rounded-bl-none` / `rounded-br-none` up there, which is a longhand —
+// and this object sets `borderRadius`, which is the shorthand for all four. An
+// inline style beats any stylesheet rule, so the shorthand quietly rounded the
+// corner the class had squared off and every bubble came out a plain pill with
+// no tail. Setting the four corners here means one rule owns all of them.
+const bubbleRadius = px(15);
 const bubbleStyle = {
-  borderRadius: px(15),
   paddingLeft: px(20),
   paddingRight: px(20),
   paddingTop: px(10),
@@ -104,6 +125,18 @@ const bubbleStyle = {
   fontSize: px(12),
   lineHeight: px(14),
 };
+// `tail` is the bottom corner left square — the one nearest that speaker's own
+// side of the panel, so which way a message points is legible without reading
+// it. Hers is on the left, yours on the right.
+const bubbleShape = (tail) => ({
+  ...bubbleStyle,
+  borderTopLeftRadius: bubbleRadius,
+  borderTopRightRadius: bubbleRadius,
+  borderBottomLeftRadius: tail === "left" ? 0 : bubbleRadius,
+  borderBottomRightRadius: tail === "right" ? 0 : bubbleRadius,
+});
+const BOT_SHAPE = bubbleShape("left");
+const YOU_SHAPE = bubbleShape("right");
 
 let seq = 0;
 const nextId = () => (seq += 1);
@@ -459,7 +492,7 @@ export default function Chatbot() {
                 key={m.id}
                 data-from={m.from}
                 className={m.from === "you" ? YOU_BUBBLE : BOT_BUBBLE}
-                style={bubbleStyle}
+                style={m.from === "you" ? YOU_SHAPE : BOT_SHAPE}
               >
                 {m.text}
               </p>
@@ -468,7 +501,7 @@ export default function Chatbot() {
               <p
                 data-from="bot"
                 className={`${BOT_BUBBLE} text-black/45`}
-                style={bubbleStyle}
+                style={BOT_SHAPE}
                 aria-live="polite"
               >
                 답변 중…
@@ -495,11 +528,17 @@ export default function Chatbot() {
               ask(draft);
             }}
           >
-            {/* No focus ring. It was a lime one, and lime is the site's accent
-                rather than this control's: on a white pill with a blue border
-                it read as a second, brighter border drawn around the first.
-                The field says it has focus by lighting the send button instead
-                — see below — which is the thing you were reaching for anyway. */}
+            {/* Drawn round in the same blue as the bubbles, and for the same
+                reason: the panel has no ground of its own on the desktop, and a
+                white pill on a white section is a control you cannot see the
+                edges of.
+
+                No focus ring on top of it. It was a lime one, and lime is the
+                site's accent rather than this control's: on a white pill with a
+                blue border it read as a second, brighter border drawn around the
+                first. The field says it has focus by lighting the send button
+                instead — see below — which is the thing you were reaching for
+                anyway. */}
             <input
               ref={inputRef}
               value={draft}
@@ -508,7 +547,7 @@ export default function Chatbot() {
               onBlur={() => setInputFocused(false)}
               placeholder="궁금한 걸 입력해 주세요"
               aria-label="질문 입력"
-              className="w-full bg-white font-['Pretendard'] text-black placeholder:text-black/35 focus:outline-none"
+              className="w-full border-2 border-[#336bec] bg-white font-['Pretendard'] text-black placeholder:text-black/35 focus:outline-none"
               style={{
                 height: px(30),
                 borderRadius: px(15),
@@ -521,7 +560,17 @@ export default function Chatbot() {
               type="submit"
               disabled={pending || !draft.trim()}
               aria-label="보내기"
-              className="absolute grid place-items-center rounded-full bg-[#28c9a0] text-black transition-opacity"
+              // Blue disc, white arrow. It was the green the "you" bubbles are
+              // filled with, which read as belonging to the messages rather than
+              // to the chat, and then briefly the character's pink — but the
+              // pink is now the bot bubbles' stroke, and having the one control
+              // in here wear the same colour as the thing she says makes them a
+              // pair they are not.
+              //
+              // The arrow is `stroke="currentColor"`, so the text colour here is
+              // the arrow's — white on the blue, which is the strongest contrast
+              // available to a 22px target.
+              className="absolute grid place-items-center rounded-full bg-[#336bec] text-white transition-opacity"
               // Full strength the moment the field is yours, not only once you
               // have typed something. Clicking into an input is the point at
               // which the control you are about to use should look available;

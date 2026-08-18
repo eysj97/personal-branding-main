@@ -1,18 +1,34 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import SnapkeepSpread from "./detail/SnapkeepSpread";
 import ProjectAppWindow from "./ProjectAppWindow";
 import { driveWithScroll } from "../lib/scrollDriver";
+import { isLightUnder } from "../lib/ground";
 import { MOBILE_MAX } from "../lib/viewport";
 
-import noteMark from "../assets/experience/note-mark.avif";
+// A png where its neighbours are avif, and deliberately so. The floppy is pink
+// now rather than the teal Figma exported, and there is no avif encoder in this
+// project to re-export it through — so the recolour was done on the png and the
+// avif, which no longer showed the right colour, is gone. It is a flat two-tone
+// shape at 420px for a 140px box, which is 33kB: the avif's own 12kB is not
+// worth a second copy of the drawing to keep in step.
+import noteMark from "../assets/experience/note-mark.png";
 import boxBase from "../assets/experience/box-base.svg";
 import boxLid from "../assets/experience/box-lid.svg";
 import savedScreen from "../assets/experience/saved-screen.avif";
 import savedFigma from "../assets/experience/saved-figma.avif";
 import savedSiteMenu from "../assets/experience/saved-site-menu.avif";
-import archiveCapture from "../assets/experience/archive-capture.avif";
-import snapkeepGrid from "../assets/experience/snapkeep-grid.avif";
+// The still behind the recording, for a build with no video file. A png rather
+// than the avif the rest of these are, because that is the format it arrives in
+// and there is no avif encoder in this project to put it back through.
+import archiveCapture from "../assets/experience/archive-capture.png";
+// The library as it actually looks, re-captured. A png rather than the avif it
+// replaces, for the reason the archive still is one: it arrived as a png and
+// there is no avif encoder here to put it back through. Downscaled to 1420 —
+// twice the 710 it is shown at — from the 8304 it was exported at, which was
+// eleven megabytes for a picture a tenth that wide on screen.
+import snapkeepGrid from "../assets/experience/snapkeep-grid.png";
 
 // The drawn-on layer: lime and pink marks scribbled over the panels, and the
 // blue swashes that run under the headlines. All of it is exported straight
@@ -595,23 +611,6 @@ function IntroPanel() {
 function ArchivePanel() {
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#336bec]">
-      {/* Marker-pen highlight behind the last word of the headline. First in
-          the panel, so the type sits on top of it — which is the whole effect.
-          `wipe` because a highlighter is drawn across, not popped in.
-          It was a thin blue bar struck through the line, and tilted a few
-          degrees. The design makes it white and the height of the type itself,
-          so it stops being a strike and becomes a block the word is printed on
-          — which is why "Needed" is set black: on white, at this size, the word
-          is the marker's whole reason for being there. Upright too; a highlight
-          that covers the line has no slant to read as a hand gesture. */}
-      <div
-        className="absolute left-[1144px] top-[257px] h-[47px] w-[176px] bg-white"
-        data-anim="wipe"
-        data-stop={STOP.archive}
-        data-delay={260 + HIGHLIGHT_AFTER}
-        style={{ clipPath: "inset(0 100% 0 0)" }}
-      />
-
       <div className="absolute left-1/2 top-[calc(50%+0.22px)] flex w-[710px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[32px]">
         <div className="flex w-full flex-col items-center gap-[24px]">
           {/* The credit line. It used to sit on the next panel against the
@@ -623,9 +622,63 @@ function ArchivePanel() {
             delay={0}
           />
 
-          <div className="relative flex w-full flex-col items-center gap-[18px] leading-none text-white">
+          <div className="relative flex w-full flex-col items-center gap-[20px] leading-none text-white">
+            {/* Marker-pen highlight behind the last word of the headline.
+                `wipe` because a highlighter is drawn across, not popped in.
+
+                It was a thin blue bar struck through the line, and tilted a few
+                degrees. The design makes it white and the height of the type
+                itself, so it stops being a strike and becomes a block the word
+                is printed on — which is why "Needed" is set black: on white, at
+                this size, the word is the marker's whole reason for being
+                there. Upright too; a highlight that covers the line has no
+                slant to read as a hand gesture.
+
+                In here, against the headline, rather than out in the panel
+                where it was. It used to be at 1144/257 in panel coordinates,
+                which is where the headline happens to land — and only while the
+                column below it is a particular height. The column is centred by
+                transform, so growing the video box pushes the headline up by
+                half of whatever it grew, and the bar stayed behind: 190px of
+                new video left it 95px adrift, sitting under the line it is
+                supposed to be behind. Hung off the headline instead, there is
+                nothing left to keep in step. The offsets are the old ones
+                rebased on this block — 1144 - 605 across, and 3 down. */}
+            <div
+              className="absolute left-[539px] top-[3px] h-[47px] w-[176px] bg-white"
+              data-anim="wipe"
+              data-stop={STOP.archive}
+              data-delay={260 + HIGHLIGHT_AFTER}
+              style={{ clipPath: "inset(0 100% 0 0)" }}
+            />
+
+            {/* Set at 42px, which is what makes this line come out just about
+                exactly the column's own 710 — so it reads as the width of the
+                block rather than as a line sitting inside it.
+
+                `relative` only for the paint order. The highlight above is
+                positioned, and a positioned box paints over an in-flow one
+                however early it comes in the markup — so without this the
+                marker covers the words it is meant to sit behind. */}
+            <p
+              className={`relative font-['Plus_Jakarta_Sans'] text-[42px] font-bold whitespace-nowrap ${SWEEP_BOX}`}
+              data-anim="sweep"
+              data-stop={STOP.archive}
+              data-delay={260}
+              style={sweepStyle}
+            >
+              {"The Archive You've Always "}
+              <Half stop={STOP.archive} after={260 + MARKED_AFTER}>
+                Needed
+              </Half>
+            </p>
+
             {/* Scribbled over the front of the headline, hanging above the
                 block's own top — hence the negative offset.
+
+                After the headline in the markup, not before it, for the same
+                paint-order reason: the headline is positioned now, so a mark
+                meant to sit *over* the words has to come later.
 
                 The design hangs it off the column that carries the credit line
                 as well (node 285:3243, at 7 / -43); this sits inside the
@@ -643,22 +696,6 @@ function ArchivePanel() {
               delay={620}
               float="10"
             />
-
-            {/* Set at 42px, which is what makes this line come out just about
-                exactly the column's own 710 — so it reads as the width of the
-                block rather than as a line sitting inside it. */}
-            <p
-              className={`font-['Plus_Jakarta_Sans'] text-[42px] font-bold whitespace-nowrap ${SWEEP_BOX}`}
-              data-anim="sweep"
-              data-stop={STOP.archive}
-              data-delay={260}
-              style={sweepStyle}
-            >
-              {"The Archive You've Always "}
-              <Half stop={STOP.archive} after={260 + MARKED_AFTER}>
-                Needed
-              </Half>
-            </p>
             <TypedText
               lines={["모은 레퍼런스를 제때 꺼내 쓸 수 있는 경험"]}
               className="w-full text-center font-['Pretendard'] text-[16px] font-medium leading-none"
@@ -668,10 +705,21 @@ function ArchivePanel() {
           </div>
         </div>
 
-        {/* 710 x 444.35 is the design's 778:487 box resolved at this column's
-            width; the capture is exported at exactly that size. */}
+        {/* 710 x 635 — the column's width at the *picture's* aspect, which is
+            not the file's.
+
+            The file is 1920 x 1080, but the recording inside it is not: it is a
+            1207.5 x 1080 capture of a tall app window, sitting centred on black
+            with 356px bars either side. Measured off a frame, not guessed — 805
+            of 1280 columns on the thumbnail, full height. So the shape to build
+            the frame from is 1207.5:1080, or 1.118:1, and 710 / 1.118 is 635.
+
+            Sizing to the file instead is what put the bars on screen: a 16:9
+            hole for a 1.118:1 picture leaves the difference showing, and the
+            difference is black. The width is the column the copy above and
+            below sits in and cannot move, so the height is what gives. */}
         <div
-          className="h-[444.35px] w-[710px] overflow-hidden rounded-[8px]"
+          className="h-[635px] w-[710px] overflow-hidden rounded-[8px]"
           data-anim="popup"
           data-stop={STOP.archive}
           data-delay={1000}
@@ -680,11 +728,17 @@ function ArchivePanel() {
           {ARCHIVE_VIDEO ? (
             <video
               src={ARCHIVE_VIDEO}
-              // Nudged past the frame it is clipped to. The recording carries
-              // a dark column of its own along the edge, and `cover` fits this
-              // one by width, so that column lands just inside the box and
-              // reads as a hairline drawn down the side of the video.
-              className="h-[444.35px] w-[710px] max-w-none scale-[1.03] object-cover"
+              // `object-cover` is what actually removes the bars. The box is
+              // the picture's aspect and the file is wider than that, so cover
+              // fits by height and throws away the overflow either side — which
+              // is exactly the black, and nothing else.
+              //
+              // The 1% is slack on the measurement. The bar edge was read off a
+              // 1280-wide thumbnail, so it is good to about 1.5px of the real
+              // 1920 — a quarter of a per cent. Cropping one per cent is four
+              // times that and costs three pixels of picture, which is a better
+              // trade than a hairline of black down one side.
+              className="h-full w-full max-w-none scale-[1.01] object-cover"
               autoPlay
               muted
               loop
@@ -702,13 +756,18 @@ function ArchivePanel() {
             <img
               src={archiveCapture}
               alt=""
-              className="h-[444.35px] w-[710px] max-w-none"
+              // Sized to the box rather than to itself. This still is a frame of
+              // the *old* capture at the old 778:487, so it no longer matches
+              // the box — cover crops it rather than letting it hang out of a
+              // shorter frame. It only shows on a build with no video file at
+              // all; re-export it from the new recording and the crop goes away.
+              className="h-full w-full max-w-none object-cover"
             />
           )}
         </div>
 
         <TypedText
-          lines={["이걸 만들기까지의 이야기입니다"]}
+          lines={["스냅킵을 만들기까지의 과정입니다"]}
           className="text-center font-['Pretendard'] text-[22px] font-medium leading-none text-white whitespace-nowrap"
           stop={STOP.archive}
           delay={1100}
@@ -962,10 +1021,17 @@ function SavedPanel() {
           It is wider than the 466 column it is centred in, and deliberately
           keeps that width rather than shrink-wrapping: the overhang falls
           evenly on both sides, which is what centres it on the headline above
-          rather than on itself. */}
+          rather than on itself.
+
+          588 is 20px under the headline, and it is arithmetic rather than a
+          number chosen by eye: the headline starts at 484 and is two lines of
+          42px at `leading-none`, so its box ends at 568. Both blocks are typed
+          on rather than laid out together — they are separate absolute boxes —
+          so nothing keeps this gap for us. Retiming or resizing the headline
+          means redoing this sum. */}
       <TypedText
         lines={["사용자들이 레퍼런스는 많이 저장하지만,  정작 필요할 때 찾지 못하는 문제"]}
-        className="absolute left-[315px] top-[580px] w-[466px] text-center font-['Pretendard'] text-[16px] font-medium leading-none text-white"
+        className="absolute left-[315px] top-[588px] w-[466px] text-center font-['Pretendard'] text-[16px] font-medium leading-none text-white"
         stop={STOP.saved}
         delay={620}
       />
@@ -1069,8 +1135,14 @@ function ProblemPanel() {
           sets it and `items-end` hangs the line underneath off that same right
           edge — which is the whole point of the arrangement and is not
           something a fixed left offset can reproduce, since it depends on how
-          wide the headline actually renders. */}
-      <div className="absolute left-[307px] top-[401px] flex flex-col items-end gap-[12px]">
+          wide the headline actually renders.
+
+          The gap is box to box, which is the only measurable thing here: the
+          headline is `leading-none`, so its box is exactly the 80px em box and
+          the descender on "saving" hangs below it. The ink is therefore nearer
+          than 20px and always will be — closing that instead would mean moving
+          the caption on a number that changes with every word in the line. */}
+      <div className="absolute left-[307px] top-[401px] flex flex-col items-end gap-[20px]">
         {/* No sweep on the <p>: each half carries its own, because they do not
             arrive together. */}
         <p className="text-right font-['Pretendard'] text-[80px] font-bold leading-none whitespace-nowrap">
@@ -1106,8 +1178,14 @@ function ProblemPanel() {
 
       {/* The second half. This one the design does give a width — 809 — and
           the headline fills it, so the line below hangs off that edge rather
-          than off the text's own. */}
-      <div className="absolute left-[1205px] top-[605px] flex w-[809px] flex-col items-end gap-[12px]">
+          than off the text's own.
+
+          20px, matching the pair above it. It survives SWEEP_BOX sitting on the
+          <p> itself here rather than on spans inside it: a flex gap is measured
+          between margin boxes, and that pair cancels to nothing, so the box the
+          gap starts from is still the 70px em box. The padding does hang into
+          the gap, but it is padding — there is nothing in it to see. */}
+      <div className="absolute left-[1205px] top-[605px] flex w-[809px] flex-col items-end gap-[20px]">
         <p
           className={`w-full text-right font-['Pretendard'] text-[70px] font-bold leading-none text-white ${SWEEP_BOX}`}
           data-anim="sweep"
@@ -1268,7 +1346,7 @@ function SolutionPanel() {
           data-delay={SETTLE_DELAY}
           style={sweepStyleGhosted}
         >
-          Produce <span className="text-black">3</span> solution
+          Produce <span className="text-[#f460c0]">3</span> solution
         </p>
         <TypedText
           lines={["사용자의 행동 패턴에서 도출한 3가지 핵심 기능"]}
@@ -1291,9 +1369,15 @@ function SolutionPanel() {
         delay={HIGHLIGHT_AFTER}
       />
 
-      {/* Row 1 — AI tagging */}
+      {/* Row 1 — AI tagging.
+
+          20px between the headline and its Korean line, and the same on the two
+          rows below — the three read as one list, so the gap is theirs jointly
+          rather than each row's own. Only the swash and the loose marks are
+          absolute inside these columns, so they sit outside the gap and none of
+          this moves them. */}
       <div className="absolute left-[2011px] top-[227px] flex items-center">
-        <div className="relative flex flex-col items-center gap-[16px]">
+        <div className="relative flex flex-col items-center gap-[20px]">
           <Swash
             className="left-[-6px] top-[7px] h-[75px] w-[348px]"
             stop={STOP.solutionTag}
@@ -1350,7 +1434,7 @@ function SolutionPanel() {
 
       {/* Row 2 — search in design language */}
       <div className="absolute left-[2508px] top-[467px] flex items-center">
-        <div className="relative flex flex-col items-center gap-[16px]">
+        <div className="relative flex flex-col items-center gap-[20px]">
           {/* Struck through from a third of the way into the headline, not
               from its start — this bar is the one the design offsets. */}
           <Swash
@@ -1423,7 +1507,7 @@ function SolutionPanel() {
         delay={0}
       />
       <div className="absolute left-[3054px] top-[677px] flex items-center">
-        <div className="flex flex-col items-center gap-[16px]">
+        <div className="flex flex-col items-center gap-[20px]">
           {/* Every word of this one stands on the marker, so there is no
               second half to follow it. */}
           <p className={rowLineClass}>
@@ -1479,9 +1563,15 @@ function SolutionPanel() {
  *  real thing opens on click — the strip is a read-through, and an app you can
  *  type into sitting inside it competes with that. Opening it deliberately
  *  also gives it the whole screen instead of a panel's worth. */
-// 710 x 443.4 is the design's 2307:1441 box at this column's width. The inner
-// offsets are the design's own crop of the capture.
-const GRID_BOX = { width: 710, height: 443.4 };
+// 710 x 631 — the column's width at the capture's own 1420:1262.
+//
+// It was 710 x 443.4, the design's 2307:1441 box, and the capture was cropped
+// to it by hand: the <img> below carried a set of percentage offsets that
+// stretched a 1.60 picture over a 1.60 hole. The re-capture is 1.125 — a much
+// taller shot, because it holds the whole library rather than the first row and
+// a half — and forcing that into the old frame squashes every card in it. The
+// width is fixed by the column the copy above it sits in, so the height gives.
+const GRID_BOX = { width: 710, height: 631 };
 
 function SnapkeepPanel({ onOpen }) {
   return (
@@ -1491,12 +1581,19 @@ function SnapkeepPanel({ onOpen }) {
           archive panel opens with, which is what makes the two read as the
           bookends they are. */}
       <div className="absolute left-1/2 top-[calc(50%+0.5px)] flex w-[710px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[32px]">
-        <div className="relative flex w-full flex-col items-center justify-center gap-[18px] leading-none text-white">
+        <div className="relative flex w-full flex-col items-center justify-center gap-[24px] leading-none text-white">
           {/* The leading space is the design's own, and it is load-bearing:
               the word is pushed right so the "Try" chip pinned above its left
               shoulder sits beside it rather than over the S. Needs
               `whitespace-pre` or the browser collapses it away and the chip
-              lands back on the letter. */}
+              lands back on the letter.
+
+              The word itself is wrapped so it can be measured on its own. It is
+              the box the flying copy starts from as the section leaves (see
+              SnapkeepFly), and the <p>'s box is the word *plus* those ten
+              spaces — starting from that would launch the copy from a point well
+              to the left of the letters. The spaces stay outside the span so
+              they still belong to the line. */}
           <p
             className={`font-['Plus_Jakarta_Sans'] text-[42px] font-bold whitespace-pre ${SWEEP_BOX}`}
             data-anim="sweep"
@@ -1504,7 +1601,14 @@ function SnapkeepPanel({ onOpen }) {
             data-delay={0}
             style={sweepStyle}
           >
-            {"          Snapkeep"}
+            {"          "}
+            {/* `inline-block` so the box it hands over is a real one. A plain
+                inline span measures to the font's own ascent and descent, which
+                is a couple of px taller than the 42px line the copy is laid out
+                on — enough for the word to hop as the two swap. */}
+            <span data-snapkeep-word className="inline-block">
+              Snapkeep
+            </span>
           </p>
           <TypedText
             lines={["완성된 서비스 경험  클릭해서 직접 체험해보세요"]}
@@ -1550,10 +1654,15 @@ function SnapkeepPanel({ onOpen }) {
           data-stop={STOP.snapkeep}
           data-delay={1000}
         >
+          {/* Fills the box, because the box is the capture's own aspect now.
+              The offsets and the 104/105% that used to be here were the crop
+              that made the old shot fit a frame it did not match; there is
+              nothing left for them to correct. The hover scale stays — that is
+              the picture answering the pointer, not a fit. */}
           <img
             src={snapkeepGrid}
             alt=""
-            className="absolute left-[-1.69%] top-[-2.71%] h-[105.9%] w-[104.12%] max-w-none transition-transform duration-500 group-hover:scale-[1.03]"
+            className="absolute inset-0 h-full w-full max-w-none object-cover transition-transform duration-500 group-hover:scale-[1.03]"
           />
           {/* Darkens under the pointer so the call to action has something to
               sit on — the screenshot underneath is a bright grid of other
@@ -1589,9 +1698,193 @@ function SnapkeepPanel({ onOpen }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// The word leaving with the section.
+//
+// The last panel's invitation is the end of the Snapkeep story, and the reader
+// is about to be handed to the projects. So the word does not simply scroll
+// away with its panel: it comes off the panel, picks up the section's own
+// colours and shrinks onto the chat character in the corner, which is where
+// Snapkeep stays reachable for the rest of the page.
+//
+// The colour is a sequence, not a blend: white, then pink, then yellow, then
+// green, then the site's blue, each one arriving as a change rather than as a
+// point on a gradient. `from` is where along the travel each takes over.
+//
+// Blue last, and blue is the one that has to be checked against what is behind
+// it. It lands on the projects, which are white; it would be invisible against
+// this section's own #336bec, and it is only ever blue after this section has
+// gone.
+const FLY_WORD = "Snapkeep";
+// Four colours, and the first of them is not a fixed one.
+//
+// Two of this site's colours are also its two grounds: white is what the
+// projects are on, and #336bec is what this section is on. Either of them, put
+// on the other, is a word you cannot see — and the word crosses from one to the
+// other on its way to the corner, so there is no single choice that works for
+// the whole trip.
+//
+// So slot 0 is whichever of the two is *not* the ground underneath the word at
+// that moment: white while it is still over this section, the blue once it is
+// over the projects. The other three are chromatic and read on both.
+const FLY_TINTS = ["#ffffff", "#f460c0", "#ffd527", "#28c9a0"];
+const FLY_ON_WHITE = "#336bec";
+function flyTone(index, overWhite) {
+  const i = ((index % FLY_TINTS.length) + FLY_TINTS.length) % FLY_TINTS.length;
+  return i === 0 && overWhite ? FLY_ON_WHITE : FLY_TINTS[i];
+}
+// How much of the leaving screen the word spends still sitting in its panel
+// before it sets off, as a fraction of that screen.
+//
+// It used to leave on the first pixel of scroll, which is the panel and the
+// word coming apart the instant the section starts to go — the word appeared to
+// detach from copy it was still next to. Held for the first third instead, it
+// scrolls away *with* its panel and then leaves, which reads as a decision
+// rather than as a seam.
+//
+// Everything below is measured against what is left after this: the travel, the
+// colour steps and the landing all live in the remaining screen, so moving this
+// one number re-times the whole thing and keeps it in proportion.
+const FLY_START = 0.3;
+// Where along that travel each colour takes over. Four slots, four thresholds,
+// and the last of them lands before the corner does — so the word turns over
+// its whole palette exactly once on the way down and arrives on the last of
+// them, rather than getting part way round or going round twice.
+const FLY_STEPS = [0, 0.25, 0.5, 0.75];
+// The last step whose threshold has been passed.
+function flyStageAt(t) {
+  let found = 0;
+  for (let i = 1; i < FLY_STEPS.length; i += 1) {
+    if (t >= FLY_STEPS[i]) found = i;
+  }
+  return found;
+}
+
+// The word is drawn several times over, in the section's colours.
+//
+// StaggeredMenu opens as a set of coloured sheets that cross the screen 0.07
+// apart and arrive *before* the panel does — the colours run ahead and the real
+// thing lands last. This is that, on a word: each coloured copy is further
+// along the same flight than the one behind it, and the word itself is the one
+// at the back. What you see is the colours already most of the way to the
+// corner while the word is still catching up.
+//
+// Ahead, not behind. It was built the other way round first — copies chasing
+// the word from where it had been — and that is a wake, which is not what the
+// menu does and not what was asked for.
+// Three: the word, and two copies ahead of it.
+//
+// It was five, one per colour in the palette, and five is the whole palette on
+// screen at once — a ladder of Snapkeeps in every colour the site owns, which
+// reads as a list rather than as one word moving. Two is enough to say "there
+// is more of this coming" without any of them being legible as its own word for
+// long enough to count.
+//
+// Which two changes as the word changes: they are always the next two colours
+// after whatever the word is wearing (see paintColours), so each step of the
+// sequence brings a different pair with it rather than the same pair trailing
+// the whole way down.
+const FLY_LAYERS = 3;
+// How much further along the travel each copy runs, as a fraction of the whole.
+// Read straight off the scroll rather than chased frame by frame, so the copies
+// string out along the actual flight path — a curve into the corner, shrinking
+// as it goes — instead of trailing off in a straight line behind.
+//
+// Small, and it has to be. This has come down a long way: 0.055 strung the
+// copies far enough apart to be read as separate words crossing the screen,
+// which is a queue rather than a trail, and 0.022 was still three whole words
+// stacked one under the next.
+//
+// How far the copies stand off the word, sideways, in the word's own px.
+//
+// Sideways, and nothing else. Every version of this until now offset the copies
+// *along the flight* — a fraction of the path, so one sat further down it and
+// one further back — and the flight runs diagonally down the screen. What that
+// produces is three words stacked down and to the right of each other, which is
+// the thing the word is supposed to be one of, not a rim on it. Worse, the
+// length of the path is not a constant: the panel it starts from is scrolling
+// away the whole time, so the same fraction was a different number of pixels in
+// every frame and there was no value that stayed small.
+//
+// Left a little and right a little instead. A fixed number of pixels, in the
+// word's own units so it holds its proportion as the word shrinks, and it moves
+// nothing else — the copies sit at exactly the word's position and size and are
+// only nudged apart. 4 across is about a tenth of the cap height: enough to
+// show a coloured edge down each side of every letter, not enough to be read as
+// a second Snapkeep.
+//
+// And a little up with the left one, a little down with the right. Straight
+// sideways, the two copies and the word share one baseline, so what shows is
+// three words on a line with their edges touching — a widened word rather than
+// a doubled one. Tipping the pair the other way off the baseline separates them
+// where the letters do not: the colour comes out above the word on one side and
+// below it on the other, and the black-and-white shape in the middle stays
+// whole. Less than the sideways figure, so the offset still reads as mostly
+// horizontal.
+const FLY_NUDGE = { x: 4, y: 2.5 };
+// Per copy of depth, and 1 means none at all.
+//
+// It was 0.72, and fading a flat colour is not making it fainter — it is mixing
+// it with whatever is behind. Behind here is the section's #336bec, and the
+// second copy at 0.52 was the palette's yellow blended halfway into blue, which
+// arrives as a muddy olive that is in no part of this site. Every copy is a
+// palette colour or it is a colour nobody chose.
+//
+// Nothing is lost by dropping it. Depth is carried by the overlap instead: the
+// copies are a hair ahead of the word and it is drawn over them, so all that
+// shows of each is the edge it sticks out by — which reads as behind without
+// needing to be dimmer, and reads as the actual colour while it does.
+const FLY_FADE = 1;
+// How long each colour is held once the word has parked on the chat character.
+// Slower than anything in the travel: up there it is a thing in the corner of a
+// page being read, and a word changing colour every half second beside the copy
+// is a thing being looked at instead of read.
+const FLY_HOLD_MS = 1400;
+// The "Try" chip, carried along with the word.
+//
+// The panel has one of these already (see SnapkeepPanel), and the word leaving
+// without it was the word arriving as a label rather than as the invitation it
+// is. The same drawing at the same tilt — but centred over the word rather than
+// pinned to its left shoulder the way the panel's is. The panel can hang it off
+// to one side because there is a 710 column around it; out here the word is on
+// its own in a corner, and anything off to one side of it just reads as adrift.
+//
+// `top` puts the *box* four above the word's cap line. The black pill inside is
+// smaller than the box and centred in it, so what actually shows is a gap of
+// about ten — which is the gap, the box being a centring frame from the design
+// rather than the shape itself.
+//
+// Rides the word only, not the copies running ahead of it — five tilted chips
+// strung across the screen is a different effect from the one asked for.
+const FLY_CHIP = { width: 67.313, height: 49.318, gap: 4 };
+// How far the word's underside sits above the chat circle. The glasses that
+// parks on that circle is a shade wider than it and overhangs its top by about
+// 5px, so anything under about 8 would land the word on the frame rather than
+// above it.
+const FLY_GAP = 16;
+// The corner the circle sits in, for a page with no chat on it — Chatbot's own
+// 44/20 insets on a 90px character. See `corner()` there.
+const FLY_FALLBACK = { size: 90, inset: 44, drop: 20 };
+
 export default function ExperienceSection() {
   const sectionRef = useRef(null);
   const trackRef = useRef(null);
+  // The travelling copy of the word. A copy, and portalled out to the end of
+  // `body`, for the reason Hero's glasses is: it has to be `fixed` to outlive
+  // its section, and the strip's stage is `sticky` — which makes a stacking
+  // context, so anything inside it paints at the stage's place in the order no
+  // matter its z-index, and every section after this one would draw over it.
+  const flyRef = useRef(null);
+  // Whether the word has finished its travel and is sitting on the corner.
+  //
+  // State, not a property the loop pokes onto the element. It was the latter,
+  // and the button stayed dead: `disabled` and `pointerEvents` are both things
+  // React believes it owns — it wrote `disabled` at mount and holds a record of
+  // the inline style — so writing them from outside is a bet on React never
+  // re-rendering this subtree, which it does the moment anything else here
+  // changes. One re-render on landing is cheaper than a control that works
+  // until something unrelated happens.
+  const [flyLanded, setFlyLanded] = useState(false);
   const [{ scale, offsetY }, setFit] = useState({ scale: 1, offsetY: 0 });
   // Snapkeep opens over the whole page rather than inside the strip, so it
   // lives here and not in the panel that launches it.
@@ -1604,6 +1897,282 @@ export default function ExperienceSection() {
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
+  }, []);
+
+  // The word's travel out of the last panel and onto the chat character.
+  //
+  // Driven by the section's own bottom edge rather than by its scroll progress,
+  // the same way Hero's glasses is: progress is spent by the time the strip has
+  // reached its last stop, and this belongs to the screen *after* all of that,
+  // where the section is scrolling away and the projects are coming up. The
+  // bottom edge goes from a full viewport to zero over exactly that screen.
+  //
+  // Its own effect, and not folded into the strip's: nothing here reads the
+  // strip's state, and this outlives the section's entrance machinery — the
+  // word stays parked in the corner for the rest of the page.
+  useEffect(() => {
+    const section = sectionRef.current;
+    const fly = flyRef.current;
+    // The word in the panel, which is both what this starts from and what it
+    // replaces.
+    const slot = section.querySelector("[data-snapkeep-word]");
+    if (!fly || !slot) return undefined;
+
+    // Index 0 is the word itself, and every index after it is a copy running
+    // that much further ahead. They are drawn back to front so the word paints
+    // over its own colours, which makes the markup order the reverse of this.
+    const layers = [...fly.querySelectorAll("[data-fly-layer]")].sort(
+      (a, b) => Number(a.dataset.flyLayer) - Number(b.dataset.flyLayer),
+    );
+    const word = layers[0];
+
+    // Whether what is behind the word is light, and therefore which way round
+    // slot 0 resolves.
+    //
+    // Read off the page rather than worked out from the scroll. It was the
+    // latter — "past this section's bottom edge, so it must be on the projects'
+    // white" — and that is true for exactly one boundary. The word does not stop
+    // there: it stays in the corner for the whole rest of the page, and the page
+    // goes back to blue further down (the career section paints its own), where
+    // a blue word on blue is nothing at all. That is the bug in the screenshot,
+    // and no amount of adjusting a threshold fixes it, because the ground is not
+    // a function of how far you have scrolled.
+    let overWhite = false;
+    // Last checked at, so this runs a few times a second rather than sixty. It
+    // hit-tests and reads a computed style, both of which make the browser
+    // settle layout, and the answer changes about four times in a whole page.
+    let groundAt = 0;
+
+    // The ground is read by isLightUnder — see lib/ground, which the chat panel
+    // uses for the same reason. The word's own copies are passed as the thing to
+    // ignore: they are at that point by definition.
+
+    // The word's own colour, and the ones after it in the sequence on the copies
+    // running ahead — so what is in front of the word is literally what it is
+    // about to become. Every step swaps all three, which is what keeps a
+    // different pair on screen at each stage instead of one fixed pair trailing
+    // the whole way down.
+    function paintColours() {
+      word.style.color = flyTone(colour, overWhite);
+      for (let i = 1; i < layers.length; i += 1) {
+        layers[i].style.color = flyTone(colour + i, overWhite);
+      }
+    }
+
+    // The copy's own untransformed size. Everything below is written as a scale
+    // against this, so it has to be the size the copy is laid out at rather
+    // than the size it is currently wearing — hence offsetWidth, which a
+    // transform does not touch. Measured off the front copy, since the wrapper
+    // holds nothing but absolutely positioned children and has no size at all.
+    let naturalW = 0;
+    let naturalH = 0;
+    function measure() {
+      naturalW = layers[0]?.offsetWidth ?? 0;
+      naturalH = layers[0]?.offsetHeight ?? 0;
+    }
+    measure();
+    // The word is the widest thing this measures and it is set in a webfont, so
+    // a cold load has it at fallback metrics until the real face lands.
+    document.fonts?.ready.then(measure);
+    window.addEventListener("resize", measure);
+
+    // Written only when it changes. The two are a handover rather than a fade:
+    // at the first frame of travel the copy is laid exactly on the word it
+    // replaces, so swapping them outright is invisible and crossing them over
+    // would just be the word printed on itself at half strength.
+    let travelling = null;
+    // Which colour is on the front copy. During the travel it is read off the
+    // scroll; once parked it walks on by itself.
+    let colour = 0;
+    let heldSince = 0;
+    // Whether the travel is over. The copies ahead of the word only exist while
+    // it is going somewhere.
+    let landed = null;
+    let frameId = null;
+    // After `colour` exists, since that is what it reads. The markup's own
+    // colours are the same set for stage 0, so nothing moves on screen — this
+    // is here so the two are stated in one place rather than agreeing by luck.
+    paintColours();
+
+    function tick(now) {
+      const rect = section.getBoundingClientRect();
+      const vh = window.innerHeight;
+      const vw = window.innerWidth;
+      // How far the section has gone, and how far the word has gone — which
+      // are not the same thing. The word holds for the first FLY_START of the
+      // screen and then covers the rest of it, so `travel` is the one every
+      // number below is written against.
+      const t = clamp01((vh - rect.bottom) / vh);
+      const travel = clamp01((t - FLY_START) / (1 - FLY_START));
+      // The handover from the panel's word happens at the top of the screen,
+      // not at the top of the travel. Through the hold the copy is laid exactly
+      // on the word it replaced and tracks it as the panel scrolls away, so the
+      // two are interchangeable and swapping early costs nothing — and it means
+      // there is no swap left to notice at the moment it sets off.
+      const moving = t > 0;
+
+      if (moving !== travelling) {
+        travelling = moving;
+        slot.style.opacity = moving ? "0" : "";
+        fly.style.opacity = moving ? "1" : "0";
+      }
+
+      // The copies are the travel, so they are switched off once it is over.
+      //
+      // Not left stacked and relied on being covered: at the landing every copy
+      // is on the same spot and the word is opaque on top of them, which looks
+      // like one word until you look at its edges. Type is antialiased, so the
+      // colours underneath come through every soft edge — the word arrives
+      // wearing a coloured fringe that never goes away, and each change of
+      // colour drags it along. One word up there means one word drawn.
+      const parked = travel >= 1;
+      if (parked !== landed) {
+        landed = parked;
+        for (let i = 1; i < layers.length; i += 1) {
+          layers[i].style.opacity = parked ? "0" : String(Math.pow(FLY_FADE, i));
+        }
+        // And it only becomes something you can press once it has arrived.
+        // Mid-flight it is a word crossing the screen, and a button moving
+        // under the pointer is a button you hit by accident.
+        setFlyLanded(parked);
+      }
+
+      if (parked) {
+        // Parked. The colour keeps going, on a clock rather than on the scroll,
+        // because there is no scroll left to read — the section is gone and the
+        // word is part of the corner now.
+        //
+        // Every slot, white included — up here `overWhite` is true and slot 0
+        // resolves to the blue, so nothing in the rotation is the ground.
+        if (now - heldSince >= FLY_HOLD_MS) {
+          heldSince = now;
+          colour = (colour + 1) % FLY_TINTS.length;
+          paintColours();
+        }
+      } else {
+        // Still travelling, so the scroll is the clock. Held here as well, so
+        // that landing does not immediately fire a change on top of the one the
+        // last step just made.
+        heldSince = now;
+        const next = flyStageAt(travel);
+        if (next !== colour) {
+          colour = next;
+          paintColours();
+        }
+      }
+
+      if (moving && naturalW > 0) {
+        // Eased, so the word neither sets off abruptly nor slams into the
+        // corner. Off `travel`, so the ease belongs to the journey rather than
+        // to the screen the journey happens on — read off `t` it would spend
+        // its slow start on the hold, where nothing is moving anyway.
+        const e = smoothstep(travel);
+        // Measured every frame rather than captured when the travel began. The
+        // start moves — the panel is scrolling away underneath it — and so does
+        // the end, because opening the chat walks the character up beside the
+        // conversation. Reading both live is the only version of this with no
+        // second copy of a position to keep in step.
+        const from = slot.getBoundingClientRect();
+        const circle = document.getElementById("chatbot-launcher");
+        const to = circle
+          ? circle.getBoundingClientRect()
+          : {
+              left: vw - FLY_FALLBACK.inset - FLY_FALLBACK.size,
+              top: vh - FLY_FALLBACK.drop - FLY_FALLBACK.size,
+              width: FLY_FALLBACK.size,
+            };
+
+        // The panel's word is inside the strip's own scale, so the size it
+        // starts at is whatever it currently measures rather than its 42px.
+        const startScale = from.width / naturalW;
+        // "The width of the chat button", which is the whole point of where it
+        // is going: the word ends up as wide as the character it sits on.
+        const endScale = to.width / naturalW;
+
+        const startX = from.left + from.width / 2;
+        // Where the word was when the section began to leave, not where its
+        // panel has since carried it.
+        //
+        // `from` is the live box, and once the stage unsticks it travels up the
+        // screen one-for-one with the page — so read straight, the word rises
+        // with its panel through the hold and then comes back down to the
+        // corner. Scrolled back the other way it does the same in reverse: the
+        // word lifts off its own resting place before settling onto it again,
+        // which is a bob nobody asked for on a move that is supposed to be one
+        // direction only.
+        //
+        // `vh - rect.bottom` is exactly how far the stage has gone, so adding it
+        // back puts the origin at the resting position and holds it there. No
+        // capturing, no first-frame snapshot to get wrong on a fast flick: it is
+        // the same number on every frame however the reader got here.
+        const startY = from.top + from.height / 2 + (vh - rect.bottom);
+        const endX = to.left + to.width / 2;
+        const endY = to.top - FLY_GAP - (naturalH * endScale) / 2;
+
+        // How far open the spread is: shut while the word is still standing in
+        // its panel, open for the whole of the way down, shut again as it comes
+        // to rest.
+        //
+        // It was the ease's own slope — 4·travel·(1−travel) — which is the
+        // physically honest version and the wrong one to look at. That peaks
+        // for an instant in the middle and is near nothing either side of it,
+        // so the offset the word wears is different in every frame and only
+        // really there in the one place. What was asked for is a fixed
+        // misregistration, held the whole way down like a print run out of
+        // alignment.
+        //
+        // So: a ramp rather than a curve. Nothing for the first fifteenth,
+        // because the word is still at the position it left the panel in and a
+        // trail on something that has not moved is just three words; full for
+        // the descent; and back to nothing over the last tenth so it does not
+        // snap shut on landing.
+        const speed =
+          smoothstep(travel / 0.15) * (1 - smoothstep((travel - 0.9) / 0.1));
+
+        // Every copy is at the word's own place on the flight, at the word's own
+        // size — the only difference between them is a few px off to one side.
+        //
+        // Odd copies go right and down, even copies left and up, and the step
+        // grows every pair, so this keeps working if the layer count ever goes
+        // back up.
+        const scale = startScale + (endScale - startScale) * e;
+        const x = startX + (endX - startX) * e;
+        const y = startY + (endY - startY) * e;
+
+        // Now that there is a point to sample. Down here rather than up with
+        // the other colour work because it needs the word's actual position,
+        // and that is not known until the flight has been read for this frame.
+        if (now - groundAt > 180) {
+          groundAt = now;
+          const light = isLightUnder(x, y, fly);
+          if (light !== overWhite) {
+            overWhite = light;
+            paintColours();
+          }
+        }
+
+        for (let i = 0; i < layers.length; i += 1) {
+          const side = i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * Math.ceil(i / 2);
+          // Scaled with the word, so the offset keeps its proportion to the
+          // letters all the way down rather than growing into them.
+          const nudgeX = side * FLY_NUDGE.x * scale * speed;
+          const nudgeY = side * FLY_NUDGE.y * scale * speed;
+          // `transform-origin: 0 0` and the half-size taken off by hand, rather
+          // than a -50% translate: with the origin at the corner the scale is
+          // not applied to the travel, so the point a copy lands on is the
+          // point asked for at every size along the way.
+          layers[i].style.transform = `translate(${(x + nudgeX - (naturalW * scale) / 2).toFixed(2)}px, ${(y + nudgeY - (naturalH * scale) / 2).toFixed(2)}px) scale(${scale.toFixed(4)})`;
+        }
+      }
+
+      frameId = requestAnimationFrame(tick);
+    }
+
+    frameId = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", measure);
+    };
   }, []);
 
   useEffect(() => {
@@ -2028,6 +2597,153 @@ export default function ExperienceSection() {
           card={{ detail: SnapkeepSpread }}
           onClose={() => setAppOpen(false)}
         />
+      )}
+
+      {/* The travelling word, at the end of `body`. See flyRef for why it
+          cannot live in the stage above.
+
+          z-57 puts it under the chat circle at z-58 and the glasses at z-59.
+          It lands above both rather than on them, so nothing here overlaps —
+          but if the word is ever nudged down onto the character, the character
+          is the thing that should be in front.
+
+          Decoration on the way down and a control once it gets there. It was
+          decoration all the way through, on the grounds that the thing you press
+          in that corner is the chat circle — but the word does not land *on* the
+          circle, it lands above it, and a word that plainly says Snapkeep and
+          does nothing when pressed is a dead spot rather than a picture. So it
+          opens Snapkeep, which is what the panel it came from offers, and stays
+          inert until it has actually parked. See the `landed` block in the loop.
+
+          `visibility` rather than anything the loop owns, for the case where
+          Snapkeep is already open: the app window is z-50 and this is z-57, so
+          without it the word sits on top of the very thing it just opened. The
+          loop writes `opacity`, so taking a different property keeps the two
+          from overwriting each other frame by frame. */}
+      {createPortal(
+        <div
+          ref={flyRef}
+          className="pointer-events-none fixed left-0 top-0 z-[57]"
+          style={{ opacity: 0, visibility: appOpen ? "hidden" : undefined }}
+        >
+          {/* The word, and the coloured copies running ahead of it. Every one is
+              positioned in viewport coordinates by the loop, so this wrapper
+              carries no transform and no size of its own — it is here to be the
+              containing block and the one opacity that switches the whole set
+              on and off.
+
+              No `aria-hidden` on the wrapper any more. The word is a real
+              control once it has parked — a second way into Snapkeep, kept in
+              the corner after the panel that offers it has scrolled away — and
+              hiding the whole set would take the button with it. The copies
+              carry their own `aria-hidden` instead, which is where it belongs:
+              they are the same word drawn four more times, and a screen reader
+              should hear it once.
+
+              `pointer-events-none` stays on the wrapper so the copies can never
+              take a click; the word turns its own back on once it lands.
+
+              Written furthest-ahead first, so the word at index 0 comes last in
+              the markup and paints over the colours rather than under them.
+
+              Colour and opacity are fixed per copy and set here rather than in
+              the loop: they are what a copy *is*. Index 0 is the exception — it
+              starts white and the loop repaints it, which is the sequence the
+              word itself steps through. The rest take the palette in order,
+              which is the menu's own set of sheets. */}
+          {Array.from({ length: FLY_LAYERS }, (_, i) => {
+            const ahead = FLY_LAYERS - 1 - i;
+            // The word itself is the one you can press once it has parked; the
+            // copies ahead of it are decoration and stay out of the way of both
+            // the pointer and a screen reader.
+            const Tag = ahead === 0 ? "button" : "span";
+            return (
+              <Tag
+                key={ahead}
+                data-fly-layer={ahead}
+                {...(ahead === 0
+                  ? {
+                      type: "button",
+                      disabled: !flyLanded,
+                      onClick: () => setAppOpen(true),
+                      "aria-label": "Snapkeep 열기",
+                    }
+                  : { "aria-hidden": "true" })}
+                className={`absolute left-0 top-0 font-['Plus_Jakarta_Sans'] text-[42px] font-bold leading-none whitespace-nowrap will-change-transform${ahead === 0 ? " cursor-pointer" : ""}`}
+                style={{
+                  transformOrigin: "0 0",
+                  // The stage-0 set, over this section's blue — which is where
+                  // the word starts. The loop repaints all of these before the
+                  // first frame is seen; this is here so the markup is never
+                  // momentarily colourless rather than to decide anything.
+                  color: flyTone(ahead, false),
+                  opacity: Math.pow(FLY_FADE, ahead),
+                  // The wrapper turns every copy pointer-transparent; the word
+                  // takes it back once it has landed, and only then.
+                  pointerEvents: ahead === 0 && flyLanded ? "auto" : "none",
+                }}
+              >
+                {FLY_WORD}
+                {/* Something to actually hit. Parked, the word is drawn at
+                    about 0.45 — the chat button's width over its own — so the
+                    letters come to roughly 90 by 19 on screen, which is a
+                    target you have to aim at. This pads it out from the inside:
+                    absolutely positioned, so it adds nothing to the box the
+                    loop measures and moves the word by not a pixel, and it is
+                    stated in the word's own units so the 30 and 20 here are
+                    about 13 and 9 by the time they are on screen.
+
+                    It stops short of the chat circle below — the word parks
+                    FLY_GAP above it, and this reaches nowhere near that far. */}
+                {ahead === 0 && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -inset-x-[20px] -inset-y-[30px]"
+                  />
+                )}
+                {/* Inside the word's own span, so it inherits the whole travel
+                    — position, scale and all — without a second set of sums to
+                    keep in step with it. Absolutely positioned, so it adds
+                    nothing to the box the loop measures. */}
+                {ahead === 0 && (
+                  <span
+                    className="absolute flex items-center justify-center"
+                    style={{
+                      // Centred by a half-width margin rather than a translate:
+                      // the pill inside is already rotated, and stacking a
+                      // second transform on the box around it is a way to
+                      // discover that the two do not commute.
+                      left: "50%",
+                      marginLeft: -FLY_CHIP.width / 2,
+                      top: -(FLY_CHIP.height + FLY_CHIP.gap),
+                      width: FLY_CHIP.width,
+                      height: FLY_CHIP.height,
+                      // Only once the word has actually arrived. It is a label
+                      // on a thing you can press, and until the travel is over
+                      // there is nothing to press — see `flyLanded`, which is
+                      // the same moment the button turns itself on. Carried
+                      // down the whole way it was also a black chip tumbling
+                      // across the screen with the copies, which is a fourth
+                      // thing moving in a shot that already has three.
+                      //
+                      // Faded rather than switched, and kept mounted either
+                      // way: the word is measured for its own travel and a chip
+                      // appearing inside it is one more thing that could move
+                      // that measurement.
+                      opacity: flyLanded ? 1 : 0,
+                      transition: "opacity 260ms ease-out",
+                    }}
+                  >
+                    <span className="flex rotate-[11.41deg] items-center justify-center rounded-[10px] bg-black px-[10px] py-[5px] text-[28px] leading-none text-white">
+                      Try
+                    </span>
+                  </span>
+                )}
+              </Tag>
+            );
+          })}
+        </div>,
+        document.body,
       )}
     </section>
   );

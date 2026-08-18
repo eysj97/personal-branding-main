@@ -109,11 +109,18 @@ const DETAIL_TABS = [["original", "원본"], ["structure", "구조"], ["componen
 // screenshots that had been scanned in during development and then sat in the
 // library looking like part of it: they live in localStorage, so no amount of
 // reloading the page removes them, and only the browser that made them ever saw
-// them. The others stay at v2 because saved marks and tag edits are worth
-// keeping.
+// them.
+//
+// `deleted` went to v3 for the mirror image of that problem: references deleted
+// while trying the app out stayed deleted forever, so the library a visitor
+// opens was whatever the last person happened to leave behind. The built-in
+// nine are the case study — they are not the visitor's to lose permanently, and
+// there is no way back to them from inside the app.
+//
+// The rest stay at v2 because saved marks and tag edits are worth keeping.
 const STORAGE = {
   uploads: "snapkeep-uploads-v3",
-  deleted: "snapkeep-deleted-v2",
+  deleted: "snapkeep-deleted-v3",
   saved: "snapkeep-saved-v2",
   tags: "snapkeep-tags-v2",
   recents: "snapkeep-recents-v2",

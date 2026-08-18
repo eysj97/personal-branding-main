@@ -207,12 +207,22 @@ const HOVER_CLUSTER_ZOOM = 1;
 // the card: the cluster's offset from the card's top-left over 343 x 522. That
 // is what keeps a cluster hanging off the right corner at one size and every
 // other size too.
+//
+// `tabColor` is the one colour a project has, and it is sampled off its own
+// face artwork rather than picked: aqua #0085ff, layer #ff742c, reviu #c9d722.
+// It paints the drum's back face here and the pages of the opened folder in
+// ProjectDetailOverlay, so the folder is the same colour shut as it is open.
+//
+// There was a second `pageColor` beside it for the opened pages, deliberately
+// a shade of its own. What that produced was a folder that changed colour as
+// it turned — mildly on aqua and layer, and completely on reviu, whose lime
+// cover opened into a yellow #ffd527 inside. Two values that are meant to look
+// like one thing will drift; there is one now.
 const CARDS = [
   {
     angle: 60,
     image: faceAquaWeb,
-    tabColor: "#2686e7",
-    pageColor: "#018cfc",
+    tabColor: "#0085ff",
     detail: AquaplanetSpread,
     hover: {
       origin: "50% 50%",
@@ -231,8 +241,7 @@ const CARDS = [
   {
     angle: 120,
     image: faceLayerDark,
-    tabColor: "#ff4800",
-    pageColor: "#f26a30",
+    tabColor: "#ff742c",
     detail: LayerSpread,
     hover: {
       origin: "50% 50%",
@@ -255,8 +264,7 @@ const CARDS = [
   {
     angle: 0,
     image: faceReviuApp,
-    tabColor: "#78db44",
-    pageColor: "#ffd527",
+    tabColor: "#c9d722",
     detail: ReviuSpread,
     hover: {
       origin: "50% 50%",
@@ -283,8 +291,7 @@ const CARDS = [
   {
     angle: 240,
     image: faceAquaApp,
-    tabColor: "#2686e7",
-    pageColor: "#018cfc",
+    tabColor: "#0085ff",
     detail: AquaplanetSpread,
     hover: {
       origin: "50% 50%",
@@ -311,8 +318,7 @@ const CARDS = [
   {
     angle: 300,
     image: faceLayerLight,
-    tabColor: "#ff4800",
-    pageColor: "#f26a30",
+    tabColor: "#ff742c",
     detail: LayerSpread,
     hover: {
       origin: "50% 50%",
@@ -335,8 +341,7 @@ const CARDS = [
   {
     angle: 180,
     image: faceReviuSurvey,
-    tabColor: "#78db44",
-    pageColor: "#ffd527",
+    tabColor: "#c9d722",
     detail: ReviuSpread,
     hover: {
       origin: "50% 50%",

@@ -37,6 +37,15 @@ import { HEADER_H, vw } from "./MobileHeader";
 // and 47.4%, and the mobile design puts them at 31.4% and 47.4%.
 const ART = { w: 324.43, h: 315 };
 
+// The overlay minus the lens tint, exactly as the desktop hero does it and for
+// the same reasons — see EYES_ONLY in Hero.jsx. The file keeps the tint because
+// the career section is built out of it; neither hero wants it.
+const EYES_ONLY = (() => {
+  const doc = new DOMParser().parseFromString(heroEyes, "image/svg+xml");
+  for (const el of doc.querySelectorAll("[data-lens]")) el.remove();
+  return doc.documentElement.outerHTML;
+})();
+
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (a, b, v) => {
   const t = clamp01((v - a) / (b - a));
@@ -87,7 +96,6 @@ export default function MobileHero({ menuRef }) {
     const q = (sel) => [...artRef.current.querySelectorAll(sel)];
     const closedEye = q('[data-eye="closed"]');
     const openEye = q('[data-eye="open"]');
-    const closedLens = q('[data-lens="closed"]');
     // Whether the intro has actually been played to its last frame — what the
     // scroll hold waits on. See scrollHold, and Hero.jsx for the same pair.
     let timelineDone = false;
@@ -105,9 +113,6 @@ export default function MobileHero({ menuRef }) {
       const closedOp = 1 - toOpen;
       for (const el of closedEye) el.style.opacity = closedOp;
       for (const el of openEye) el.style.opacity = openOp;
-      // The tint on the shut eye's own fade, so the lens clears as the eye
-      // comes up instead of holding at one value and then vanishing.
-      for (const el of closedLens) el.style.opacity = closedOp;
 
       // The copy arrives here, and the menu button with it — the same beat the
       // desktop brings its nav in on. The eyes finish opening at 0.6, so this
@@ -329,13 +334,12 @@ export default function MobileHero({ menuRef }) {
               its own position every frame. Nested, the two compose instead of
               overwriting each other. */}
           <div ref={idleRef} className="absolute inset-0">
-            {/* Back to front: eye, the tinted lens over it, the frame over
-                both. The overlay carries the first two in that order; the frame
-                is the image, and it comes last because it is the thing in
-                front. */}
+            {/* Back to front: the eye, then the frame over it. The tint that
+                used to sit between them is gone — see EYES_ONLY. The frame
+                comes last because it is the thing in front. */}
             <span
               className="absolute inset-0 block"
-              dangerouslySetInnerHTML={{ __html: heroEyes }}
+              dangerouslySetInnerHTML={{ __html: EYES_ONLY }}
             />
             <img
               src={glassesImg}

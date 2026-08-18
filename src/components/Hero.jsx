@@ -28,6 +28,22 @@ import heroEyes from "../assets/hero/hero-eyes.svg?raw";
 // two eye states to hand over between, and two pupils to move once they are
 // open.
 const HERO_ART = { width: 512.91, height: 498 };
+
+// The overlay with the lens tint taken out.
+//
+// The file still carries it, and has to: the career section builds its handoff
+// glasses out of that one group and nothing else (see LENS_ONLY there). It is
+// the hero that does not want it — the design draws a clear lens, and a black
+// disc behind the eye reads as a smoked one.
+//
+// Cut out of the markup rather than left in at zero opacity, for the reason
+// CareerSection gives about its own half: a shape that is not in the document
+// cannot be painted by a frame that runs before the code setting its opacity.
+const EYES_ONLY = (() => {
+  const doc = new DOMParser().parseFromString(heroEyes, "image/svg+xml");
+  for (const el of doc.querySelectorAll("[data-lens]")) el.remove();
+  return doc.documentElement.outerHTML;
+})();
 // Sized to land on roughly the footprint the old pair of eyes had - two of
 // 194.81 with a 76 gap came to 465.6 at the 1920 design width, or 24.25vw. The
 // px floor stops it disappearing on a phone; the ceiling is the design size, so
@@ -149,10 +165,6 @@ export default function Hero() {
     const q = (sel) => [...dockRef.current.querySelectorAll(sel)];
     const closedEye = q('[data-eye="closed"]');
     const openEye = q('[data-eye="open"]');
-    // The lens tint. Not a fixed property of the glasses — the design darkens
-    // the lens over a shut eye and clears it over an open one, black at 50% to
-    // nothing at all — so it rides the same cross-fade as the eye it belongs to.
-    const closedLens = q('[data-lens="closed"]');
     // Each pupil, and where it is currently looking.
     //
     // Grouped by eye rather than flattened into one list of parts: each eye
@@ -212,9 +224,6 @@ export default function Hero() {
       const closedOp = 1 - toOpen;
       for (const el of closedEye) el.style.opacity = closedOp;
       for (const el of openEye) el.style.opacity = openOp;
-      // The tint on the shut eye's own fade, so the lens clears as the eye
-      // comes up instead of holding at one value and then vanishing.
-      for (const el of closedLens) el.style.opacity = closedOp;
 
       // Nav + copy fade in right after the eyes finish opening, then the copy
       // hands over from English to Korean for the rest of the scroll.
@@ -678,18 +687,18 @@ export default function Hero() {
               idle outside instead and it would swing the character around a
               point back in the middle of the screen. */}
           <div ref={idleRef} className="absolute inset-0">
-            {/* Back to front: eye, then the tinted lens over it, then the frame
-                over both. The overlay carries the first two in that order; the
-                frame is this image, and it comes last because it is the thing
-                in front — an eye painted over its own glasses is the one
-                arrangement that reads as wrong immediately.
+            {/* Back to front: the eye, then the frame over it. The lens tint
+                that used to sit between them is gone — see EYES_ONLY. The frame
+                comes last because it is the thing in front; an eye painted over
+                its own glasses is the one arrangement that reads as wrong
+                immediately.
 
                 Absolute so neither wrapper contributes height of its own: the
                 box is sized by its width and aspectRatio, and any in-flow
                 content here would override that. */}
             <span
               className="absolute inset-0 block"
-              dangerouslySetInnerHTML={{ __html: heroEyes }}
+              dangerouslySetInnerHTML={{ __html: EYES_ONLY }}
             />
             <img
               src={glassesImg}

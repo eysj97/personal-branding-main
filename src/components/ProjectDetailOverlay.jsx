@@ -56,10 +56,11 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
   const Spread = card.detail;
   // What the opened pages — the case study's own background — are painted.
   //
-  // Chosen per project rather than taken from the cover: the cover colours are
-  // sampled off the face artwork, and these are picked to be read against. They
-  // are close enough to the covers that opening a folder still reads as seeing
-  // inside it, but they are their own decision. See CARDS in ProjectSection.
+  // The cover's own colour, not a shade picked to be read against it. Opening a
+  // folder is meant to be seeing inside the folder you clicked, and a cover that
+  // changes colour on the way round is a different folder arriving. `pageColor`
+  // is the override for a card that ever needs its own; nothing sets one, and
+  // the fallback is the card's single colour. See CARDS in ProjectSection.
   const pageColor = card.pageColor ?? card.tabColor;
   const outerRef = useRef(null);
   const innerRef = useRef(null);
@@ -270,13 +271,11 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
           {/* The tab belongs to the folder, not the cover, so it stays put
               through the whole turn.
 
-              The page's colour throughout, not the card's own `tabColor` until
-              the cover swings away. A folder is one piece of card: a tab in a
-              different colour from the file it is attached to reads as a
-              sticker stuck on the side, and the difference was plain — #2686e7
-              against #018cfc, #78db44 against #c9e529. It used to cross-fade
-              between the two as the cover opened, which only made the mismatch
-              something you watched happen. */}
+              The page's colour throughout. A folder is one piece of card: a tab
+              in a different colour from the file it is attached to reads as a
+              sticker stuck on the side. It used to cross-fade to a `tabColor`
+              of its own as the cover opened, back when that was a second colour
+              — it is the same one now, so there is nothing left to fade. */}
           <div
             className="absolute right-0 top-[3.5%] h-[24%] w-[11%] translate-x-full rounded-r-[10px]"
             style={{ backgroundColor: pageColor }}
@@ -284,15 +283,30 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
         </div>
       </div>
 
-      <div className="relative z-20 pb-[120px] pt-[110px]">
+      {/* No z of its own, deliberately. This used to be `z-20`, which put the
+          heading and the spread in one layer above the folder — and the heading
+          is not above the folder, it is the page the folder is opening on top
+          of. A folder turning over its own section title, with the title
+          winning, reads as the title being pasted onto the paper.
+
+          Left at `z-auto` so it makes no stacking context, and the two blocks
+          inside take their own place against the folder at 10: the heading
+          under it, the spread over it. Boxed inside a layer of its own they
+          could only ever both be on the same side of it. */}
+      <div className="relative pb-[120px] pt-[110px]">
         {/* The same heading the section shows behind this, in the same two
             parts and the same sizes — see ProjectSection. It is repeated rather
             than shared because the two are laid out differently (that one is
             positioned off the section's own scroll, this one is in flow at the
             top of a document), and a shared component would have to take every
             one of those differences as a prop. The words are the thing to keep
-            in step; they are the section's own. */}
-        <div className="flex w-full flex-col items-center gap-[24px]">
+            in step; they are the section's own.
+
+            z-0 — over the white sheet that fades in behind everything, under
+            the folder at z-10. It only matters while the folder is on screen:
+            once the spread has bloomed the folder layer is faded out entirely,
+            and there is nothing left for this to be behind. */}
+        <div className="relative z-0 flex w-full flex-col items-center gap-[24px]">
           <p className="whitespace-nowrap font-['Plus_Jakarta_Sans'] text-[clamp(48px,8vw,150px)] font-semibold leading-none tracking-[clamp(-8px,-0.8vw,-15px)] text-[#336bec]">
             PROJECT
           </p>
@@ -304,10 +318,14 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
         </div>
 
         {/* Height is the scaled spread's, so the document scrolls correctly the
-            moment the bloom lands — no reflow between animating and settled. */}
+            moment the bloom lands — no reflow between animating and settled.
+
+            z-20 is the half of the old wrapper's layer that belongs here: the
+            spread grows out of the folder and has to paint over it, which is
+            the opposite of what the heading above needs. */}
         <div
           ref={outerRef}
-          className="relative mt-[52px] w-full"
+          className="relative z-20 mt-[52px] w-full"
           style={{ height: spreadH * fit || 0 }}
         >
           <div
