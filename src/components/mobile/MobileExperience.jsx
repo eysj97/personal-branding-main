@@ -577,7 +577,7 @@ function ProblemA({ active }) {
           active={active}
         />
       </div>
-      <p className={BODY}>현재 있는 좋은 저장기능은 충분하다고 다양하게 존재합니다</p>
+      <p className={BODY}>현재 있는 저장기능은 충분하고 다양하게 존재합니다</p>
     </div>
   );
 }
@@ -595,7 +595,11 @@ function ProblemB({ active }) {
           back out
         </p>
       </div>
-      <p className={BODY}>현재 있는 좋은 저장기능은 충분하다고 다양하게 존재합니다</p>
+      {/* Its own line, where the design frame repeats the previous screen's.
+          The two headlines are the halves of one sentence — the problem was not
+          saving, it was getting it back out — and a caption that says the same
+          thing under both leaves the second half unanswered. */}
+      <p className={BODY}>저장된 내용을 어떻게 꺼내는 지가 중요합니다</p>
       {/* The desktop's 439.666 box at the same 42-against-100 ratio. */}
       <DrawnMark
         raw={problemArrow}
