@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GREETING, QUICK } from "../data/chatbot";
 import { match } from "../lib/chatbotMatch";
-import { useIsMobile } from "../lib/viewport";
+import { MOBILE_MAX, useIsMobile } from "../lib/viewport";
 
 // A launcher in the corner and a panel above it. Fixed, so it rides over every
 // section without joining any of them — none of the scroll timelines on this
@@ -37,6 +37,18 @@ const CHIPS_MS = 520;
 // mobile/MobileHero), so changing it here moves both.
 const CHAR_SIZE = 90;
 const CHAR_GAP = 30;
+// Two thirds of it on a phone. 90 is a fifth of a 430px screen's width and it
+// reads as a mascot standing in front of the page rather than waiting beside
+// it; on a laptop, where it is a fifteenth of the width, the same 90 is right.
+// The gap goes with it for the reason above — the character keeps the same
+// relationship to the bubbles at either size.
+const PHONE_RATIO = 2 / 3;
+// clientWidth, not the useIsMobile hook: these are called from layout effects
+// and from module-level helpers, where there is no component to hold a hook,
+// and it has to be the same answer in all of them.
+const onPhone = () => document.documentElement.clientWidth <= MOBILE_MAX;
+const charSize = () => (onPhone() ? Math.round(CHAR_SIZE * PHONE_RATIO) : CHAR_SIZE);
+const charGap = () => (onPhone() ? Math.round(CHAR_GAP * PHONE_RATIO) : CHAR_GAP);
 // The conversation is set at 16 against the design's 12, and everything that
 // holds it is scaled by the same ratio: the bubbles' radius and padding, the
 // quick questions, the composer and its button, the gaps between them, and the
@@ -53,8 +65,8 @@ const px = (n) => `${Math.round(n * CHAT_SCALE)}px`;
 // Its home while the chat is shut — 44 in from the right, 20 up from the
 // bottom, which puts its middle on the corner insets Hero falls back to.
 const corner = () => ({
-  left: window.innerWidth - 44 - CHAR_SIZE,
-  top: window.innerHeight - 20 - CHAR_SIZE,
+  left: window.innerWidth - 44 - charSize(),
+  top: window.innerHeight - 20 - charSize(),
 });
 
 // The two bubbles, from the design (Figma 343:3338 and 343:3335).
@@ -154,6 +166,9 @@ export default function Chatbot() {
   // The chat is a corner panel on the desktop and a page of its own on a phone
   // — see the panel's className for why.
   const isMobile = useIsMobile();
+  // The same number `charSize()` gives, but off the hook so that a render is
+  // triggered when the viewport crosses the breakpoint.
+  const char = isMobile ? Math.round(CHAR_SIZE * PHONE_RATIO) : CHAR_SIZE;
   const logRef = useRef(null);
   const inputRef = useRef(null);
   const panelRef = useRef(null);
@@ -218,11 +233,11 @@ export default function Chatbot() {
       setSpot({
         // Never off the left edge — a narrow window keeps the character on
         // screen even if that means crowding the panel.
-        left: Math.max(8, p.left - CHAR_GAP - CHAR_SIZE),
+        left: Math.max(8, p.left - charGap() - charSize()),
         // Centred on that bubble. Its height varies a lot — the greeting is two
         // lines and a full answer can be six — and centring is the one rule
         // that reads right at both ends.
-        top: last ? last.top + last.height / 2 - CHAR_SIZE / 2 : p.top,
+        top: last ? last.top + last.height / 2 - charSize() / 2 : p.top,
       });
     }
     place();
@@ -352,8 +367,8 @@ export default function Chatbot() {
           // one number: `corner()` and the walk beside the conversation are
           // both measured from it, and a class would be a second copy to keep
           // in step.
-          width: CHAR_SIZE,
-          height: CHAR_SIZE,
+          width: char,
+          height: char,
           // `filter` is here for the hover, which is a brightness. It was a
           // colour swap for a while, for a black circle: brightness is the one
           // thing that cannot lift black, since every channel is already at zero
@@ -403,9 +418,14 @@ export default function Chatbot() {
              on a full-width panel the bubbles would otherwise be underneath it. */
           className={
             isMobile
-              ? "fixed inset-0 z-[60] flex flex-col bg-[#336bec] px-5 pb-6 pl-[112px] pt-16"
+              ? "fixed inset-0 z-[60] flex flex-col bg-[#336bec] px-5 pb-6 pt-16"
               : "fixed bottom-24 right-11 z-[60] flex w-[min(440px,calc(100vw-5.5rem))] flex-col"
           }
+          // The character's lane, on the phone only. Written off the same two
+          // numbers the character is placed with rather than the 112px it was,
+          // which was those two numbers added up by hand and did not follow
+          // when they changed.
+          style={isMobile ? { paddingLeft: char + CHAR_GAP * PHONE_RATIO } : undefined}
         >
           {/* Escape and the launcher both close this, but neither is visible,
               and the design has no chrome to put a control in. So: a bare X in

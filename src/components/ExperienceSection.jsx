@@ -5,7 +5,7 @@ import SnapkeepSpread from "./detail/SnapkeepSpread";
 import ProjectAppWindow from "./ProjectAppWindow";
 import { driveWithScroll } from "../lib/scrollDriver";
 import { isLightUnder } from "../lib/ground";
-import { MOBILE_MAX } from "../lib/viewport";
+import { MOBILE_MAX, useIsMobile } from "../lib/viewport";
 
 // A png where its neighbours are avif, and deliberately so. The floppy is pink
 // now rather than the teal Figma exported, and there is no avif encoder in this
@@ -564,20 +564,48 @@ function applyAnim(el, kind, t, typedCounts) {
   }
 }
 
+// What the title card is set in on a phone, in the strip's own authored px.
+//
+// Down here the strip is fitted to the viewport's *width*: everything in it is
+// authored against SCREEN and drawn at clientWidth / SCREEN, so a size written
+// in this file lands on the glass at `authored * clientWidth / SCREEN`. The
+// phone's other sections are authored against a 430px design instead (see
+// MobileHeader's vw()), where PROJECT sets its name at 60 and the line under it
+// at 16. Solving the two against each other is the (x / 430) * SCREEN below.
+//
+// The title matches at every width, because both sides work out proportional to
+// the viewport — vw(60) is 13.953vw, and so is this. The caption only matches
+// exactly at 430: PROJECT's is a flat 16px and nothing authored in a strip that
+// scales can be flat. 430 is the width the phone layout is drawn at, and on the
+// 390-430 the phones actually come in it is within a pixel and a half.
+const phoneSize = (atDesign430) => (atDesign430 / 430) * SCREEN;
+
 /** Panel 1 — the title card that hands off from the hero. */
 function IntroPanel() {
+  // The one thing in this section that is not simply the desktop composition
+  // scaled: at the strip's own scale the 120px title comes out around 27px on a
+  // phone, which is half the size every other section sets its name at.
+  const isMobile = useIsMobile();
+
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#336bec]">
       {/* No left padding: it would be inside the box being centred, which
           pushes the type half of it off to the right. */}
       <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-[24px] leading-[1.2] text-white">
+        {/* tracking in em rather than the -2.4px it was: -2.4 on 120 *is*
+            -0.02em, so the desktop is unchanged, and the phone's much larger
+            authored size then keeps the same letterfit instead of a tracking
+            that has quietly become a tenth of what it should be. */}
         <p
-          className={`font-['Plus_Jakarta_Sans'] text-[120px] font-semibold tracking-[-2.4px] ${SWEEP_BOX}`}
+          className={`font-['Plus_Jakarta_Sans'] text-[120px] font-semibold tracking-[-0.02em] ${SWEEP_BOX}`}
           data-anim="sweep"
           data-stop={STOP.intro}
           data-delay={0}
           data-duration={220}
-          style={sweepStyleGhosted}
+          style={{
+            ...sweepStyleGhosted,
+            ...(isMobile ? { fontSize: phoneSize(60) } : null),
+          }}
         >
           Experience It
         </p>
@@ -594,6 +622,7 @@ function IntroPanel() {
         <TypedText
           lines={["말보다 먼저, 만든 걸 보여드릴게요."]}
           className="font-['Pretendard'] text-[16px] tracking-[-0.05em]"
+          style={isMobile ? { fontSize: phoneSize(16) } : undefined}
           stop={STOP.intro}
           delay={0}
         />

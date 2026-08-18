@@ -680,11 +680,16 @@ function ChangeCopy({ wordTone, titleTone, copyTone, paraRef, subtitleRef, chars
 // canvas — the card is what you read and the circle is what it is read against,
 // so they do not overlap.
 const CONTACT_BOX = { x: 1188, y: 820 };
-// Both label rows are the design's same width, which is the whole reason they
-// are rows rather than lines: the labels are different lengths, so it is the
-// shared width plus justify-between that ranges the values against one edge and
-// makes the two read as a pair rather than as two sentences.
-const CONTACT_ROW_WIDTH = 295;
+// The label column the two contact rows share. They are one grid rather than two
+// independent rows because the labels are different lengths ("email" vs
+// "이력서") and it is the *values* that have to line up: a shared column puts
+// both leading bars on the same x, which is what makes the pair read as a table
+// rather than as two sentences.
+//
+// minmax(), not a flat width: 84px is the design's gap, but if a label ever
+// renders wider than that -- another face, another language -- the column grows
+// with it instead of the label running into the bar.
+const CONTACT_LABEL_COL = "minmax(84px,auto)";
 
 // The full half-step to the next one, so a role hands over to its neighbour by
 // crossfading exactly at the midpoint between them and the stage is never
@@ -2358,35 +2363,37 @@ export default function CareerSection() {
               <p className="font-['Pretendard'] font-semibold text-[42px] tracking-[-0.02em] leading-none whitespace-nowrap">
                 더 나은 사용자 경험, 함께 고민하겠습니다
               </p>
-              <div className="flex flex-col gap-[10px] items-start font-['Pretendard'] font-medium text-[22px] tracking-[-0.02em] leading-none whitespace-nowrap">
-                <div
-                  className="flex items-center justify-between"
-                  style={{ width: CONTACT_ROW_WIDTH }}
-                >
-                  <p>email</p>
-                  <p>| eysj1620@gmail.com</p>
-                </div>
+              {/* One grid, four cells for the two labelled rows: sharing the
+                  column is what holds the two leading bars on the same x. The
+                  closing lines have no label, so they span both columns and
+                  start back at the grid's left edge. */}
+              <div
+                className="grid justify-start items-center gap-x-0 gap-y-[10px] font-['Pretendard'] font-medium text-[22px] tracking-[-0.02em] leading-none whitespace-nowrap"
+                style={{ gridTemplateColumns: `${CONTACT_LABEL_COL} auto` }}
+              >
+                <p>email</p>
+                <p>| eysj1620@gmail.com</p>
+
+                <p>이력서</p>
                 {/* Opens the document, and in a new tab: a recruiter reading
                     this is somewhere in the middle of a scroll-driven page, and
                     navigating away from it loses that place. `noreferrer` for
                     the usual reason — a new tab opened this way otherwise gets a
                     handle back to the page that opened it. */}
-                <div
-                  className="flex items-center justify-between"
-                  style={{ width: CONTACT_ROW_WIDTH }}
+                <a
+                  href={RESUME_HREF}
+                  target="_blank"
+                  rel="noreferrer"
+                  // justify-self, because a grid item is blockified: without it
+                  // the anchor stretches to the column and the click target runs
+                  // on past the word.
+                  className="justify-self-start underline decoration-1 underline-offset-4 transition-opacity hover:opacity-60"
                 >
-                  <p>이력서</p>
-                  <a
-                    href={RESUME_HREF}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline decoration-1 underline-offset-4 transition-opacity hover:opacity-60"
-                  >
-                    | 보러가기
-                  </a>
-                </div>
-                <p>이 사이트는 Claude Code로 직접 만들었습니다</p>
-                <p>©2026yunsujeong</p>
+                  | 보러가기
+                </a>
+
+                <p className="col-span-2">이 사이트는 Claude Code로 직접 만들었습니다</p>
+                <p className="col-span-2">©2026yunsujeong</p>
               </div>
             </div>
           </div>

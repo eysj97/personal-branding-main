@@ -18,11 +18,16 @@ export default function ProjectAppWindow({ card, onClose }) {
 
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [scale, setScale] = useState(1);
-  // Where the app's own header sits, in the app's unscaled px, so the close
-  // button can line up with the row the app's logo is on instead of floating
-  // in the screen corner. Read off the real header rather than hardcoded —
-  // the app owns that row's height, and index.css restyles it.
-  const [headerRow, setHeaderRow] = useState(null);
+  // The app's own wordmark, in the app's unscaled px: its height, its centre
+  // line, and how far it is inset from the app's edge. The close button is cut
+  // from these rather than given numbers of its own, so it comes out the same
+  // size as the logo and floats off its edge by the same margin the logo floats
+  // off the opposite one — a matched pair at either end of the header row.
+  //
+  // Measured, never hardcoded: index.css restyles this header (the wordmark is
+  // 28px there, not the 42px the component asks for) and the whole app is
+  // scaled to fit besides.
+  const [mark, setMark] = useState(null);
 
   // offsetWidth/offsetHeight are read off the untransformed layout, so this is
   // safe to run while the element is already mid-scale.
@@ -33,14 +38,23 @@ export default function ProjectAppWindow({ card, onClose }) {
       const height = el.offsetHeight;
       setSize({ width, height });
 
-      const header = el.querySelector("header");
-      setHeaderRow(
-        header
+      // getBoundingClientRect, because the logo's box is what has to be
+      // matched and offsetTop/offsetLeft only reach as far as the nearest
+      // positioned ancestor. The rects come back with whatever scale is
+      // currently applied already baked in, so they are divided back out by
+      // the scale actually on the element right now (its rendered width over
+      // its layout width) and kept in the app's own px. Render multiplies by
+      // the scale again — one place, one direction.
+      const logo = el.querySelector("header .font-serif") ?? el.querySelector("header");
+      const rootRect = el.getBoundingClientRect();
+      const applied = width ? rootRect.width / width : 1;
+      const logoRect = logo && applied ? logo.getBoundingClientRect() : null;
+      setMark(
+        logoRect
           ? {
-              centre: header.offsetTop + header.offsetHeight / 2,
-              // Match the header's own side padding so the button lands on
-              // the logo's opposite margin, not just near the corner.
-              inset: parseFloat(getComputedStyle(header).paddingRight) || 0,
+              size: logoRect.height / applied,
+              centre: (logoRect.top + logoRect.height / 2 - rootRect.top) / applied,
+              inset: (logoRect.left - rootRect.left) / applied,
             }
           : null,
       );
@@ -102,6 +116,33 @@ export default function ProjectAppWindow({ card, onClose }) {
     };
   }, []);
 
+  // The button's box, in screen px. Everything about it comes off the wordmark:
+  // the same height, and the same margin off its own edge as the logo has off
+  // the opposite one — which is why the inset the logo gives is applied to
+  // `right`, not to `left`.
+  //
+  // Then clamped into the window, which is the whole reason this is worked out
+  // here rather than written inline. The button does not scale with the app, so
+  // as the window shrinks the header row it is centred on comes up to meet it:
+  // below about a 0.6 scale, half a button is taller than the whole header and
+  // the top of it crosses the window's top edge. Clamping on both axes keeps
+  // the button inside the rounded corners at any size, and at the sizes where
+  // nothing is tight it changes nothing.
+  const boxWidth = size.width * scale;
+  const boxHeight = size.height * scale;
+  const clamp = (min, value, max) => Math.min(Math.max(value, min), Math.max(min, max));
+  // Not smaller than a finger, whatever the scale says.
+  const closeSize = mark ? Math.max(28, mark.size * scale) : 40;
+  const closeBtn = {
+    size: closeSize,
+    top: mark
+      ? clamp(0, mark.centre * scale - closeSize / 2, boxHeight - closeSize)
+      : 20,
+    right: mark
+      ? clamp(0, mark.inset * scale, boxWidth - closeSize)
+      : 24,
+  };
+
   return (
     // `data-interactive` because this is rendered inside whichever section
     // opened it, and those sections claim the wheel to drive themselves — the
@@ -143,16 +184,22 @@ export default function ProjectAppWindow({ card, onClose }) {
           height: size.height * scale || undefined,
         }}
       >
-        {/* Inside the footprint box, not the app — so it sits on the app's
-            header row without being scaled down along with it. Falls back to
-            the box's top corner until the header has been measured. */}
+        {/* Inside the footprint box, not the app — so it stays a real 40-odd
+            px of click target instead of being scaled down along with the
+            window. Falls back to a plain corner until the wordmark has been
+            measured. */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute z-10 flex h-[40px] w-[40px] -translate-y-1/2 items-center justify-center rounded-full text-[18px] leading-none text-[#1d1c1c] transition-colors hover:bg-black/5"
+          className="absolute z-10 flex items-center justify-center rounded-full leading-none text-[#1d1c1c] transition-colors hover:bg-black/5"
           style={{
-            top: headerRow ? headerRow.centre * scale : 28,
-            right: headerRow ? headerRow.inset * scale : 24,
+            width: closeBtn.size,
+            height: closeBtn.size,
+            // The ✕ is drawn to the button rather than pinned at 18px, so it
+            // keeps its weight against the logo at every window size.
+            fontSize: closeBtn.size * 0.45,
+            top: closeBtn.top,
+            right: closeBtn.right,
           }}
           aria-label="닫기"
         >

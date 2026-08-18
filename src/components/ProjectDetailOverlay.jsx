@@ -25,6 +25,18 @@ const cardSize = () => ({
   h: Math.min(522, Math.max(260, window.innerWidth * 0.27)),
 });
 
+// Same trick for the heading below: the resolved form of its own clamp(). The
+// type is set `leading-none`, so the font size *is* the line's height, which is
+// what the padding has to be solved against.
+const titleHeight = () => Math.min(150, Math.max(48, window.innerWidth * 0.08));
+// The gap the word keeps above the folder once it has been pushed up, and the
+// room the padding is allowed to move in. 110 is where it sat before any of
+// this and is still where it lands on a tall screen, where the folder is
+// already low enough that nothing needs moving.
+const TITLE_CLEARANCE = 16;
+const HEAD_PAD_MIN = 24;
+const HEAD_PAD_MAX = 110;
+
 // enter    — the folder is still exactly where the card was on the cube
 // center   — it has slid right so its spine sits on the middle of the screen
 // open     — the cover is swinging left, uncovering the right-hand page
@@ -72,6 +84,10 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
   const [fit, setFit] = useState(0);
   const [spreadH, setSpreadH] = useState(0);
   const [card3d, setCard3d] = useState(cardSize);
+  // The folder is centred on the viewport, so the heading's padding depends on
+  // the window's height as well as its width — and nothing else here did, which
+  // is why it has to be tracked.
+  const [viewportH, setViewportH] = useState(() => window.innerHeight);
   const [folded, setFolded] = useState(null);
 
   const at = PHASES.indexOf(phase);
@@ -89,6 +105,7 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
       setFit(Math.min(1, (window.innerWidth - SIDE_PAD * 2) / SPREAD_W));
       setSpreadH(el.offsetHeight);
       setCard3d(cardSize());
+      setViewportH(window.innerHeight);
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -99,6 +116,26 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
       window.removeEventListener("resize", measure);
     };
   }, []);
+
+  // The folder parks in the middle of the screen, and the heading is in flow at
+  // the top of the document — so on a short screen the folder's top edge comes
+  // up over the word and PROJECT is read as a strip of blue behind a folder.
+  //
+  // Solved rather than nudged: the padding is whatever leaves the title's
+  // baseline sitting a clearance above wherever the folder's top edge actually
+  // is, and the folder's top edge is a number this component already knows
+  // (it positions the thing). Clamped at both ends so a tall screen keeps the
+  // 110px the design asks for and a very short one still gets air above the
+  // word rather than a negative pad.
+  //
+  // Only the title is promised. The line under it is a second block and there
+  // is not room for both on a laptop; it comes back the moment the folder fades
+  // out, which is a beat later.
+  const folderTop = viewportH / 2 - card3d.h / 2;
+  const headPad = Math.min(
+    HEAD_PAD_MAX,
+    Math.max(HEAD_PAD_MIN, folderTop - titleHeight() - TITLE_CLEARANCE),
+  );
 
   // Where the spread sits while it is still tucked inside the folder. Solved
   // rather than eyeballed: with transform-origin at 0 0, a local point p lands
@@ -293,7 +330,7 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
           inside take their own place against the folder at 10: the heading
           under it, the spread over it. Boxed inside a layer of its own they
           could only ever both be on the same side of it. */}
-      <div className="relative pb-[120px] pt-[110px]">
+      <div className="relative pb-[120px]" style={{ paddingTop: headPad }}>
         {/* The same heading the section shows behind this, in the same two
             parts and the same sizes — see ProjectSection. It is repeated rather
             than shared because the two are laid out differently (that one is
