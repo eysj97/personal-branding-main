@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { MenuButton } from "./MobileNav";
+import { useGroundUnder } from "../../lib/useGround";
 
 // The mobile page's one header: the name and the menu, fixed, always there.
 //
@@ -25,25 +27,41 @@ export const HEADER_H = `calc(80px + ${vw(48)})`;
 // that timeline: it is on the screen from the first frame, because the black
 // wash the hero opens on is meant to have her name on it.
 export default function MobileHeader({ onMenu, menuRef, menuOpen }) {
+  const nameRef = useRef(null);
+  const barRef = useRef(null);
+  // What is behind the bar, and whether the section under it is the one that
+  // writes her name backwards. Shared with the Snapkeep word that parks over
+  // the chat character — see lib/useGround, which is where the reasoning is.
+  const { light: onLight, name } = useGroundUnder(nameRef, barRef);
+  const reversed = name === "reverse";
+
+  // The sheet wins over the ground: it covers the section entirely, so what the
+  // section is painted makes no difference while it is up.
+  const dark = menuOpen || onLight;
+
   return (
     // z-75 so it outranks the menu's own stacking (z-70). The hamburger *is* the
     // menu's close button — the panel fills a phone, so there is no outside to
     // tap — and a header that the sheet covers is a menu with no way out.
-    <header className="fixed inset-x-0 top-0 z-[75] flex items-start justify-between">
+    <header
+      ref={barRef}
+      className="fixed inset-x-0 top-0 z-[75] flex items-start justify-between"
+    >
       {/* Black while the menu is up, for the same reason the hamburger is: this
           bar sits above a white panel and the name would otherwise vanish into
           it. */}
       <div
+        ref={nameRef}
         className={`flex items-center whitespace-nowrap px-[5px] py-[40px] font-['Plus_Jakarta_Sans'] font-semibold leading-none transition-colors ${
-          menuOpen ? "text-black" : "text-white"
+          dark ? "text-black" : "text-white"
         }`}
         style={{ fontSize: vw(48), letterSpacing: vw(-4.8), gap: vw(10) }}
       >
-        <p>YUN</p>
-        <p>SU</p>
-        <p>JEONG</p>
+        {(reversed ? ["JEONG", "SU", "YUN"] : ["YUN", "SU", "JEONG"]).map((part) => (
+          <p key={part}>{part}</p>
+        ))}
       </div>
-      <MenuButton onClick={onMenu} buttonRef={menuRef} open={menuOpen} />
+      <MenuButton onClick={onMenu} buttonRef={menuRef} open={menuOpen} dark={dark} />
     </header>
   );
 }

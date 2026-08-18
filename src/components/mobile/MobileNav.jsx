@@ -31,7 +31,7 @@ const ITEMS = [
  *  not clickable while hidden: an invisible button over the glasses is worse
  *  than no button.
  */
-export function MenuButton({ onClick, buttonRef, open }) {
+export function MenuButton({ onClick, buttonRef, open, dark }) {
   return (
     <button
       ref={buttonRef}
@@ -44,8 +44,12 @@ export function MenuButton({ onClick, buttonRef, open }) {
       // above it (the header outranks the menu's own stacking, see
       // MobileHeader) — a white icon there is a button you cannot see on a
       // panel whose only way out it is.
+      //
+      // And black over a light section, for the same reason one step out: the
+      // page is mostly #336bec but CAREER is white. The header works out which
+      // it is over; this only paints what it is told.
       className={`flex items-center px-[20px] py-[40px] transition-colors ${
-        open ? "text-black" : "text-white"
+        open || dark ? "text-black" : "text-white"
       }`}
       style={{ opacity: 0, pointerEvents: "none" }}
     >

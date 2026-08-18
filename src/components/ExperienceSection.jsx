@@ -5,7 +5,7 @@ import SnapkeepSpread from "./detail/SnapkeepSpread";
 import ProjectAppWindow from "./ProjectAppWindow";
 import { driveWithScroll } from "../lib/scrollDriver";
 import { isLightUnder } from "../lib/ground";
-import { MOBILE_MAX, useIsMobile } from "../lib/viewport";
+import { MOBILE_MAX } from "../lib/viewport";
 
 // A png where its neighbours are avif, and deliberately so. The floppy is pink
 // now rather than the teal Figma exported, and there is no avif encoder in this
@@ -97,16 +97,10 @@ const ARCHIVE_SPEED = 2;
 // The same monitor the project cards' hover cluster uses — one asset, one
 // download, rather than a second copy of the identical frame.
 import imacFrame from "../assets/project/mockup/imac.avif";
-import sfSidebar from "../assets/experience/safari/sidebar-leading.svg";
-import sfChevronDown from "../assets/experience/safari/chevron-down.svg";
-import sfChevronLeft from "../assets/experience/safari/chevron-left.svg";
-import sfChevronRight from "../assets/experience/safari/chevron-right.svg";
-import sfShield from "../assets/experience/safari/shield.svg";
-import sfLock from "../assets/experience/safari/lock.svg";
-import sfReload from "../assets/experience/safari/reload.svg";
-import sfShare from "../assets/experience/safari/share.svg";
-import sfPlus from "../assets/experience/safari/plus.svg";
-import sfGrid from "../assets/experience/safari/grid.svg";
+// The browser chrome the stacked windows are drawn in, and the size it is
+// drawn at. Its own file because the phone's EXPERIENCE draws the same window
+// inside the same monitor at a different scale — see mobile/MobileExperience.
+import SafariWindow, { WINDOW } from "./experience/SafariWindow";
 
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const smoothstep = (v) => {
@@ -564,29 +558,8 @@ function applyAnim(el, kind, t, typedCounts) {
   }
 }
 
-// What the title card is set in on a phone, in the strip's own authored px.
-//
-// Down here the strip is fitted to the viewport's *width*: everything in it is
-// authored against SCREEN and drawn at clientWidth / SCREEN, so a size written
-// in this file lands on the glass at `authored * clientWidth / SCREEN`. The
-// phone's other sections are authored against a 430px design instead (see
-// MobileHeader's vw()), where PROJECT sets its name at 60 and the line under it
-// at 16. Solving the two against each other is the (x / 430) * SCREEN below.
-//
-// The title matches at every width, because both sides work out proportional to
-// the viewport — vw(60) is 13.953vw, and so is this. The caption only matches
-// exactly at 430: PROJECT's is a flat 16px and nothing authored in a strip that
-// scales can be flat. 430 is the width the phone layout is drawn at, and on the
-// 390-430 the phones actually come in it is within a pixel and a half.
-const phoneSize = (atDesign430) => (atDesign430 / 430) * SCREEN;
-
 /** Panel 1 — the title card that hands off from the hero. */
 function IntroPanel() {
-  // The one thing in this section that is not simply the desktop composition
-  // scaled: at the strip's own scale the 120px title comes out around 27px on a
-  // phone, which is half the size every other section sets its name at.
-  const isMobile = useIsMobile();
-
   return (
     <div className="relative h-full w-[1920px] shrink-0 overflow-hidden bg-[#336bec]">
       {/* No left padding: it would be inside the box being centred, which
@@ -602,10 +575,7 @@ function IntroPanel() {
           data-stop={STOP.intro}
           data-delay={0}
           data-duration={220}
-          style={{
-            ...sweepStyleGhosted,
-            ...(isMobile ? { fontSize: phoneSize(60) } : null),
-          }}
+          style={sweepStyleGhosted}
         >
           Experience It
         </p>
@@ -622,7 +592,6 @@ function IntroPanel() {
         <TypedText
           lines={["말보다 먼저, 만든 걸 보여드릴게요."]}
           className="font-['Pretendard'] text-[16px] tracking-[-0.05em]"
-          style={isMobile ? { fontSize: phoneSize(16) } : undefined}
           stop={STOP.intro}
           delay={0}
         />
@@ -801,96 +770,6 @@ function ArchivePanel() {
           stop={STOP.archive}
           delay={1100}
         />
-      </div>
-    </div>
-  );
-}
-
-// The size the design draws a browser window at. Its chrome is fixed px, so
-// the only way a smaller copy keeps its proportions is to build it at this size
-// and scale the whole thing — the same fixed-canvas trick the sections use.
-const WINDOW = { width: 852, height: 494 };
-
-/** The Safari chrome, at the design's own window size. */
-function SafariWindow({ url, children }) {
-  return (
-    <div className="absolute inset-0 flex flex-col items-start overflow-hidden rounded-[10px] border-[0.5px] border-solid border-[#a5a5a5] bg-[#bfc2c8]">
-      <div className="relative h-[52px] w-full shrink-0 overflow-hidden bg-[rgba(255,255,255,0.8)] backdrop-blur-[24px]">
-        <div className="absolute left-[20px] top-[20px] flex items-start gap-[8px]">
-          <div className="size-[12px] shrink-0 rounded-[6px] bg-[#ec6b5e]" />
-          <div className="size-[12px] shrink-0 rounded-[6px] bg-[#f4bf4f]" />
-          <div className="size-[12px] shrink-0 rounded-[6px] bg-[#61c453]" />
-        </div>
-
-        <img
-          src={sfSidebar}
-          alt=""
-          className="absolute left-[110.91px] top-[20.41px] h-[14.383px] w-[18.422px] max-w-none"
-        />
-        <div className="absolute left-[139.21px] top-[19.09px] h-[18px] w-px bg-[rgba(0,0,0,0.1)]" />
-        <img
-          src={sfChevronDown}
-          alt=""
-          className="absolute left-[147.07px] top-[28.07px] h-[3px] w-[6px] max-w-none"
-        />
-        <img
-          src={sfChevronLeft}
-          alt=""
-          className="absolute left-[163.63px] top-[18.58px] h-[13.563px] w-[7.641px] max-w-none"
-        />
-        <img
-          src={sfChevronRight}
-          alt=""
-          className="absolute left-[199.61px] top-[18.58px] h-[13.563px] w-[7.641px] max-w-none"
-        />
-
-        <div className="absolute left-[27.69%] right-[29.84%] top-1/2 h-[28px] -translate-y-1/2">
-          <img
-            src={sfShield}
-            alt=""
-            className="absolute left-[0.76px] top-[6.68px] h-[15.781px] w-[12.984px] max-w-none"
-          />
-          <div className="absolute left-[29.5px] right-0 top-1/2 h-[28px] -translate-y-1/2 overflow-hidden rounded-[8px] border border-solid border-[rgba(0,0,0,0.25)]">
-            <div className="absolute left-1/2 top-[5.5px] flex -translate-x-1/2 items-center justify-center gap-[8px]">
-              <img
-                src={sfLock}
-                alt=""
-                className="h-[11.432px] w-[7.828px] max-w-none shrink-0"
-              />
-              <p className="shrink-0 font-['Roboto'] text-[14px] leading-normal text-[#999] whitespace-nowrap">
-                {url}
-              </p>
-            </div>
-            <img
-              src={sfReload}
-              alt=""
-              className="absolute right-[5.77px] top-[5.58px] h-[13.667px] w-[11.216px] max-w-none"
-            />
-          </div>
-        </div>
-
-        <img
-          src={sfShare}
-          alt=""
-          className="absolute right-[93.57px] top-[15.97px] h-[17.633px] w-[13.867px] max-w-none"
-        />
-        <img
-          src={sfPlus}
-          alt=""
-          className="absolute right-[57.55px] top-[18.91px] size-[12.891px] max-w-none"
-        />
-        <img
-          src={sfGrid}
-          alt=""
-          className="absolute right-[19.81px] top-[18.18px] h-[14.383px] w-[14.383px] max-w-none"
-        />
-      </div>
-
-      <div className="relative min-h-px w-full flex-1 overflow-hidden bg-[#f5f5f5]">
-        {children}
-        {/* The hairline the design puts under the toolbar. */}
-        <div className="absolute inset-x-0 top-0 h-[0.5px] bg-[rgba(0,0,0,0.2)]" />
-        <div className="absolute inset-x-0 top-[0.5px] h-[0.5px] bg-[rgba(0,0,0,0.1)]" />
       </div>
     </div>
   );

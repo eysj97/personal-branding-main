@@ -54,7 +54,7 @@ export default function AquaplanetSpread({ stacked }) {
   const header = (
     <div
       className={`flex flex-col gap-[8px] font-['Pretendard'] tracking-[-0.44px] text-white ${
-        stacked ? "mx-auto w-[350px] items-start text-left" : "items-end"
+        stacked ? "w-[350px] items-start text-left" : "items-end"
       }`}
     >
       <p className="whitespace-pre font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-0.56px]">

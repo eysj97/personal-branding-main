@@ -62,11 +62,24 @@ const CHAT_FONT = 16;
 const CHAT_SCALE = CHAT_FONT / 12;
 const px = (n) => `${Math.round(n * CHAT_SCALE)}px`;
 
-// Its home while the chat is shut — 44 in from the right, 20 up from the
-// bottom, which puts its middle on the corner insets Hero falls back to.
+// Its home while the chat is shut: RIGHT_INSET in from the right edge, and up
+// from the bottom by RIGHT_INSET too on a phone — one number on both axes, so
+// the circle sits on the corner's diagonal instead of being tucked nearer one
+// edge than the other.
+//
+// The desktop keeps its own 20. That is not an oversight: it is the number
+// Hero's dock falls back to, and up there the circle is 90 across with a whole
+// page of room around it, so a square corner is not what it was drawn to. The
+// phone is the case where the asymmetry showed — a 60px circle 44 in and 20 up
+// reads as having slipped down the side of the screen.
+const RIGHT_INSET = 44;
+const BOTTOM_INSET = 20;
 const corner = () => ({
-  left: window.innerWidth - 44 - charSize(),
-  top: window.innerHeight - 20 - charSize(),
+  left: window.innerWidth - RIGHT_INSET - charSize(),
+  top:
+    window.innerHeight -
+    (onPhone() ? RIGHT_INSET : BOTTOM_INSET) -
+    charSize(),
 });
 
 // The two bubbles, from the design (Figma 343:3338 and 343:3335).

@@ -6,6 +6,7 @@ import LayerSpread from "../detail/LayerSpread";
 import ReviuSpread from "../detail/ReviuSpread";
 import MobileCaseStudy from "./MobileCaseStudy";
 import { HEADER_H, vw } from "./MobileHeader";
+import SectionSeam from "../SectionSeam";
 
 // The project section, on a phone. Figma 349:3201, drawn at 430 x 932.
 //
@@ -18,7 +19,7 @@ import { HEADER_H, vw } from "./MobileHeader";
 //
 // The cards are drawn rather than imported. On the desktop each folder face is
 // an exported image with its old colour baked in; these carry the case study
-// palette (#018cfc / #f26a30 / #ffd527), so an image would have to be
+// palette (#038AFD / #F16A30 / #C9E529), so an image would have to be
 // re-exported every time a colour moved. Text and a rounded rectangle cost
 // nothing and stay in step with the rest of the site.
 // The fan's own box, off the design (349:3201). The cards are allowed to hang
@@ -93,27 +94,30 @@ const SPREAD_STAGGER_MS = 90;
 const CARDS = [
   {
     id: "reviu",
-    fill: "#ffd527",
+    // The three fills are the deck's own colours and have to be the desktop's
+    // to the digit: a project that is one colour up there and another down here
+    // is two projects. See the note on CARDS in ProjectSection.
+    fill: "#C9E529",
     ink: "#000000",
     label: "개인 프로젝트",
     logo: { src: logoReviu, width: 100, height: 29.988, alt: "reviu" },
     lines: ["일정 | 3월26일 ~ 6월 1일", "제작 | 윤수정"],
     detail: ReviuSpread,
-    pageColor: "#ffd527",
+    pageColor: "#C9E529",
   },
   {
     id: "layer",
-    fill: "#f26a30",
+    fill: "#F16A30",
     ink: "#000000",
     label: "향수 팬덤앱 팀 프로젝트",
     logo: { src: logoLayer, width: 126, height: 51.991, alt: "Layer" },
     lines: ["일정 | 7월3일 ~ 8월 7일", "조원 | 윤수정 외 5인"],
     detail: LayerSpread,
-    pageColor: "#f26a30",
+    pageColor: "#F16A30",
   },
   {
     id: "aqua",
-    fill: "#018cfc",
+    fill: "#038AFD",
     ink: "#ffffff",
     // The only wordmark that is type rather than a drawing, which is how the
     // design has it — Poppins Medium, loaded in index.html for these cards.
@@ -121,7 +125,7 @@ const CARDS = [
     label: "사이트 리뉴얼 팀 프로젝트",
     lines: ["일정 | 6월4일 ~ 7월 3일", "조원 | 윤수정 외 5인"],
     detail: AquaplanetSpread,
-    pageColor: "#018cfc",
+    pageColor: "#038AFD",
   },
 ];
 
@@ -141,7 +145,7 @@ function Card({ card, slot, z, drag, spread, onSelect }) {
       // is the difference between three unlabelled shapes and a deck.
       aria-label={`${card.label} 케이스 스터디 열기`}
       aria-current={front ? "true" : undefined}
-      className="absolute block select-none text-left outline-none focus-visible:ring-2 focus-visible:ring-white"
+      className="absolute block select-none text-left outline-none focus-visible:ring-2 focus-visible:ring-black"
       style={{
         width: `${CARD.w * 100}%`,
         height: `${CARD.h * 100}%`,
@@ -293,7 +297,33 @@ export default function MobileProject() {
     // scroll container between the page and a sticky element is what stops the
     // sticky working. Nothing here is sticky today; the hero next door is, and
     // this is the kind of thing that is fixed once and broken again later.
-    <section className="section-mobile-project flex min-h-[100svh] flex-col overflow-x-clip bg-[#336bec]">
+    <section
+      data-ground="light"
+      className="section-mobile-project relative flex min-h-[100svh] flex-col overflow-x-clip bg-white"
+    >
+      {/* The join with EXPERIENCE above, which is the page's blue against this
+          section's white — the same seam, and the same two colours, the desktop
+          puts at this exact boundary.
+
+          Mounted here rather than at the foot of the section above because this
+          one is what has to paint over it: later in the markup and `relative`,
+          so the half that hangs upward lands on top of that section instead of
+          under it. `overflow-x-clip` above is horizontal only, so the overhang
+          is not cut off.
+
+          110 against the desktop's 220. The seam is half a section-boundary and
+          half a picture of water, and a picture of water 220px deep on a 932px
+          screen is a quarter of the page given over to a join.
+
+          z-40 clears this section's own layers so the sheet is never drawn
+          behind a card that has scrolled up to the boundary. */}
+      <SectionSeam
+        height={110}
+        fillAbove="#336bec"
+        fillBelow="#ffffff"
+        className="z-40"
+      />
+
       {/* Clear of the fixed header — see MobileHeader. */}
       <div className="shrink-0" style={{ height: HEADER_H }} />
 
@@ -365,9 +395,16 @@ export default function MobileProject() {
             rather than left to the painting rules: a static block happens to
             paint below a positioned one today, and that stops being true the
             moment anything in the chain above gains a stacking context. */}
-        <div className="relative z-0 flex flex-col items-center gap-[18px] text-white">
+        {/* Black, because this section is the one on a white ground now. <body>
+            is `text-white`, which is right on the blue sections and invisible
+            here, so this states its own colour rather than inheriting. */}
+        <div className="relative z-0 flex flex-col items-center gap-[18px] text-black">
           <p
-            className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px]"
+            // The page's blue, which is what a section's name is set in
+            // wherever the ground is white — LEARN, SKILLS and the desktop's
+            // PROJECT all do it, and the phone's CAREER design draws "Every
+            // Role" the same way. Only the line under it is black.
+            className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px] text-[#336bec]"
             style={{ fontSize: vw(60) }}
           >
             PROJECT

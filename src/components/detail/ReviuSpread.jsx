@@ -46,7 +46,7 @@ export default function ReviuSpread({ stacked }) {
     // that is barely there.
     <div
       className={`flex flex-col gap-[8px] text-black ${
-        stacked ? "mx-auto w-[350px] items-start text-left" : "items-end text-right"
+        stacked ? "w-[350px] items-start text-left" : "items-end text-right"
       }`}
     >
       <p className="whitespace-pre font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-0.44px]">

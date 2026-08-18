@@ -208,8 +208,11 @@ const HOVER_CLUSTER_ZOOM = 1;
 // is what keeps a cluster hanging off the right corner at one size and every
 // other size too.
 //
-// `tabColor` is the one colour a project has, and it is sampled off its own
-// face artwork rather than picked: aqua #0085ff, layer #ff742c, reviu #c9d722.
+// `tabColor` is the one colour a project has, and all three are the designer's
+// own: aqua #038AFD, layer #F16A30, reviu #C9E529. They started as samples off
+// each project's face artwork and have been set by hand since — so these are
+// the values to change, and sampling the artwork again is not the way to get
+// back to them.
 // It paints the drum's back face here and the pages of the opened folder in
 // ProjectDetailOverlay, so the folder is the same colour shut as it is open.
 //
@@ -222,7 +225,7 @@ const CARDS = [
   {
     angle: 60,
     image: faceAquaWeb,
-    tabColor: "#0085ff",
+    tabColor: "#038AFD",
     detail: AquaplanetSpread,
     hover: {
       origin: "50% 50%",
@@ -241,7 +244,7 @@ const CARDS = [
   {
     angle: 120,
     image: faceLayerDark,
-    tabColor: "#ff742c",
+    tabColor: "#F16A30",
     detail: LayerSpread,
     hover: {
       origin: "50% 50%",
@@ -264,7 +267,7 @@ const CARDS = [
   {
     angle: 0,
     image: faceReviuApp,
-    tabColor: "#c9d722",
+    tabColor: "#C9E529",
     detail: ReviuSpread,
     hover: {
       origin: "50% 50%",
@@ -291,7 +294,7 @@ const CARDS = [
   {
     angle: 240,
     image: faceAquaApp,
-    tabColor: "#0085ff",
+    tabColor: "#038AFD",
     detail: AquaplanetSpread,
     hover: {
       origin: "50% 50%",
@@ -318,7 +321,7 @@ const CARDS = [
   {
     angle: 300,
     image: faceLayerLight,
-    tabColor: "#ff742c",
+    tabColor: "#F16A30",
     detail: LayerSpread,
     hover: {
       origin: "50% 50%",
@@ -341,7 +344,7 @@ const CARDS = [
   {
     angle: 180,
     image: faceReviuSurvey,
-    tabColor: "#c9d722",
+    tabColor: "#C9E529",
     detail: ReviuSpread,
     hover: {
       origin: "50% 50%",

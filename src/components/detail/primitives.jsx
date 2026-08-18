@@ -149,6 +149,12 @@ export function VisitLink({ href, label = "직접 살펴보기" }) {
  * single column, which is what the phone design does.
  */
 export function HeaderColumn({ at, gap, header, stacked, children }) {
+  // Stacked, the header is the first block in the single column and is ranged
+  // left with the rest of them. It kept its authored 350px width — that is what
+  // the copy is written to wrap at — but it used to be centred in the 475px
+  // column as well, which left it inset by 62.5 from a left edge every block
+  // under it starts on. The title reading as indented from its own screenshots
+  // is the one thing the folded layout is meant not to do.
   if (stacked) {
     return (
       <div className={`${COLUMN} w-[475px]`}>

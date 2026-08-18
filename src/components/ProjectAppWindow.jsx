@@ -180,8 +180,8 @@ export default function ProjectAppWindow({ card, onClose }) {
       <div
         className="relative"
         style={{
-          width: size.width * scale || undefined,
-          height: size.height * scale || undefined,
+          width: boxWidth || undefined,
+          height: boxHeight || undefined,
         }}
       >
         {/* Inside the footprint box, not the app — so it stays a real 40-odd

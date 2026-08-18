@@ -234,7 +234,11 @@ export default function MobileHero({ menuRef }) {
     // stage exactly fills the screen, and the animation finishes on the same
     // pixel the hero starts to leave. The bar hiding resizes it, and the driver
     // re-measures on resize.
-    <section ref={sectionRef} className="section-mobile-hero relative h-[300dvh]">
+    <section
+      ref={sectionRef}
+      data-ground="dark"
+      className="section-mobile-hero relative h-[300dvh]"
+    >
       <div className="sticky top-0 flex h-[100dvh] flex-col overflow-hidden bg-[#336bec]">
         {/* A wash behind the composition, not a curtain over it.
             The name and the glasses are on the screen from the first frame and

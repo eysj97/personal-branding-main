@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { driveWithScroll } from "../lib/scrollDriver";
+import { ROLES } from "../data/roles";
+import { RESUME_HREF } from "../data/contact";
 // The same two files the hero is built from. Not a copy of them: the glasses
 // that lands on the handoff blob *is* the hero's glasses, and the black that
 // fills its lenses is the same shape at the same 50% the hero opens on. Doing
@@ -7,11 +9,6 @@ import { driveWithScroll } from "../lib/scrollDriver";
 // happened to look similar.
 import glassesImg from "../assets/hero/glasses.svg";
 import heroEyes from "../assets/hero/hero-eyes.svg?raw";
-import role1Img from "../assets/role/1.avif";
-import role2Img from "../assets/role/2.avif";
-import role3Img from "../assets/role/3.avif";
-import role4Img from "../assets/role/4.avif";
-import role5Img from "../assets/role/5.avif";
 
 // The hero's overlay file is a face: two eye states, two pupils, and the lens
 // tint that goes over them. Only the tint belongs here — what lands on the
@@ -48,45 +45,6 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const DESIGN_WIDTH = 1920;
 const DESIGN_HEIGHT = 1080;
 
-const ROLES = [
-  {
-    n: 1,
-    title: "Daughter",
-    desc: "표현이 서툰 부모님을 위해,\n먼저 원하는 걸 제안할 줄 아는 딸",
-    img: role1Img,
-    imgFit: { position: "center" },
-  },
-  {
-    n: 2,
-    title: "Older sister",
-    desc: "내가 겪은 불편을 동생은 겪지 않도록 살피는 언니이자 누나",
-    img: role2Img,
-    imgFit: { position: "center" },
-  },
-  {
-    n: 3,
-    title: "Friend",
-    desc: "사소한 말도 기억하고 챙기는 친구",
-    img: role3Img,
-    imgFit: { position: "center" },
-  },
-  {
-    n: 4,
-    title: "Student",
-    desc: "옳다고 생각한 일은 스스로 해내던 학생",
-    img: role4Img,
-    imgFit: {
-      custom: { width: "100%", height: "138.64%", left: "0%", top: "-11.25%" },
-    },
-  },
-  {
-    n: 5,
-    title: "Employee",
-    desc: "맡은 일은 방법을 찾아내서라도 끝내는 직원",
-    img: role5Img,
-    imgFit: { position: "center" },
-  },
-];
 
 // Two sizes, not one. The design draws the circle at CENTER — START, and then
 // whichever role has come round to it — at 80, and the four waiting their turn
@@ -402,10 +360,6 @@ const ROTATE_SPIN = -360;
 // there, and every revision needed a redeploy. A document she can edit in place
 // is always the current one, and the site never has to be rebuilt for it.
 //
-// It opens rather than downloads, so nothing lands in a stranger's downloads
-// folder uninvited — see the link itself for the rest of that.
-const RESUME_HREF =
-  "https://docs.google.com/document/d/1_MKMUGDh-uK04oRP9Ie_QtJZHfkl_we7/edit?usp=sharing&ouid=106727088774758261640&rtpof=true&sd=true";
 
 const CHAPTER_TITLE_POS = { x: 118, y: 118 };
 const WORD_RIGHT = 1249;

@@ -1,11 +1,12 @@
 import { useCallback, useRef, useState } from "react";
-import { EMAIL } from "../data/chatbot";
 import Chatbot from "./Chatbot";
-import ExperienceSection from "./ExperienceSection";
 import MobileHero from "./mobile/MobileHero";
+import MobileExperience from "./mobile/MobileExperience";
 import MobileProject from "./mobile/MobileProject";
 import MobileLearn from "./mobile/MobileLearn";
 import MobileSkills from "./mobile/MobileSkills";
+import MobileCareer from "./mobile/MobileCareer";
+import MobileAbout from "./mobile/MobileAbout";
 import MobileNav from "./mobile/MobileNav";
 import MobileHeader from "./mobile/MobileHeader";
 
@@ -42,41 +43,43 @@ export default function MobileNotice() {
   const menuRef = useRef(null);
 
   return (
-    <main className="bg-[#336bec]">
+    // White, and it used to be the page's blue.
+    //
+    // Nothing is meant to show through here: every section paints its own
+    // ground edge to edge. But section heights are viewport units, they land on
+    // fractional device pixels, and a hairline of whatever is behind them shows
+    // at the joins — which was a blue line across a run of white sections. The
+    // sections that are still blue paint themselves; this only has to be the
+    // colour that does not show up when it leaks.
+    <main className="bg-white">
       <MobileHeader onMenu={toggleNav} menuRef={menuRef} menuOpen={navOpen} />
 
       <MobileHero menuRef={menuRef} />
-      {/* The desktop strip, at phone size, and deliberately not a mobile layout
-          of its own — there isn't one designed, and this section is a single
-          composition whose whole point is that it is one continuous strip. It
-          is fitted to the screen's width rather than its height down here (see
-          fitStrip), so a stop frames a whole panel the way it does on a laptop.
-          Small, but all of it, and it behaves exactly as it does up there. */}
-      <ExperienceSection />
+      {/* There is a mobile layout for this one now (Figma 1317:114 and the
+          seven frames after it), so the desktop strip is no longer squeezed
+          down here. It never really fitted: fitted to the screen's *width*, a
+          composition drawn on a 1920 canvas came out at about a quarter size,
+          and its heading landed at 27px where every other section on this page
+          sets one at 60. Same eight beats, laid out for the screen they are on,
+          and tapped through rather than scrolled. */}
+      <MobileExperience />
       <MobileProject />
       <MobileLearn />
       <MobileSkills />
+      {/* The roles half of CAREER — Figma 1317:730 and the two after it. The
+          chapters that follow them on the desktop are still desktop-only, which
+          is what the note below is about. */}
+      <MobileCareer />
 
-      {/* Carries `.section-mobile-about` so the menu's ABOUT has somewhere real
-          to land — see MobileNav. The class moves onto the mobile career section
-          the day it exists, and the menu entry does not change. */}
-      <div className="section-mobile-about flex flex-col items-center gap-5 px-8 py-16 text-center">
-        <div className="flex flex-col gap-2 font-['Pretendard'] text-[15px] leading-[1.6] text-white/70">
-          <p>
-            ABOUT은 아직 데스크톱 화면에 맞춰져 있어요.
-            <br />
-            노트북이나 데스크톱에서 열어 주시면 전체를 보실 수 있습니다.
-          </p>
-          <p className="text-white/45">모바일 화면은 준비 중입니다.</p>
-        </div>
+      {/* And what the roles led to — Figma 1317:1149 and the four after it.
+          Scrolled down rather than swiped across, which is the point of it
+          being its own section: the wheel above is one object being turned, and
+          this is the page moving on from it.
 
-        <a
-          href={`mailto:${EMAIL}`}
-          className="rounded-full border border-[#ffd527] px-5 py-2 font-['Pretendard'] text-[14px] text-[#ffd527] transition-colors hover:bg-[#ffd527] hover:text-[#06252e]"
-        >
-          {EMAIL}
-        </a>
-      </div>
+          It carries `.section-mobile-about`, which is where the menu's ABOUT
+          entry lands. That class used to sit on a note saying this part was
+          desktop-only; the note is gone because the part is here. */}
+      <MobileAbout />
 
       {/* The same chat as the desktop's, unchanged. Its panel is already
           `min(300px, 100vw - 5.5rem)` and its launcher is a fixed corner

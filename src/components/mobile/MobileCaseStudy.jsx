@@ -92,36 +92,21 @@ export default function MobileCaseStudy({ card, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-label={`${card.label} 케이스 스터디`}
-      className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-[#336bec]"
+      // White, because that is what the PROJECT section is now. This is that
+      // section seen from the inside — same name, same line, same ground — and
+      // opening a file used to put the page's old blue back under it, which
+      // read as having been taken somewhere else.
+      className="fixed inset-0 z-[70] overflow-y-auto overscroll-contain bg-white"
     >
-      {/* Where the page's hamburger sits, and for the same reason: it is the
-          one control in the corner. Here it closes rather than opens — this is
-          a page over the page, and the way out of it is the thing you reach
-          for in that corner. */}
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="케이스 스터디 닫기"
-        className="fixed right-0 top-0 z-10 flex items-center px-[20px] py-[40px] text-white"
-      >
-        <svg viewBox="0 0 24 24" className="size-6" fill="none" aria-hidden="true">
-          <path
-            d="M6 6l12 12M18 6L6 18"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-          />
-        </svg>
-      </button>
-
       {/* The section's own name and line, at the sizes every mobile section
           uses — this is the PROJECT section still, seen from the inside. */}
       <div
-        className="mx-auto flex flex-col items-center gap-[18px] text-white"
+        className="mx-auto flex flex-col items-center gap-[18px] text-black"
         style={{ paddingTop: vw(TITLE.top), width: vw(TITLE.width) }}
       >
         <p
-          className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px]"
+          // The page's blue, the same as the section this is the inside of.
+          className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px] text-[#336bec]"
           style={{ fontSize: vw(60) }}
         >
           PROJECT
@@ -168,6 +153,75 @@ export default function MobileCaseStudy({ card, onClose }) {
             paddingBottom: vw(40),
           }}
         >
+          {/* The way out, on the page rather than off it.
+              
+              It used to be a bare white ✕ pinned to the screen's own top-right
+              corner, where the page's hamburger lives. That put it on the blue
+              *behind* the folder, which reads as a control belonging to the
+              site rather than to the thing that is open — and on the two pages
+              whose colour is light it was white on near-white.
+
+              Sticky rather than absolute, and that is the whole reason it is a
+              zero-height box in the flow instead of a corner of the folder: a
+              case study is a thousand px of reading, and a close button at the
+              top of it is gone by the second screen. There is no Escape key on
+              a phone, so gone means trapped. It rides down the page instead,
+              and stops when the folder does.
+
+              A bare mark, no circle behind it: the folder is one flat sheet of
+              colour and a bordered disc on it reads as a control that was
+              dropped on the page rather than one belonging to it.
+
+              On the reading column's right edge — the same edge every
+              screenshot and every block in the spread ends on. It sat out on
+              the folder's own margin for a while, a clear 35 right of anything
+              it belonged to.
+
+              The offset is negative by the tap target's own slack, and that is
+              the difference between the box lining up and the *mark* lining up:
+              the ✕ is 20 in a 34 square, so at `right: 0` the box ends on the
+              edge and the ink stops 7 short of it, reading as a gap. Pushing
+              the box out by exactly that 7 puts the ink on the edge and leaves
+              the target the size a finger needs. */}
+          <div
+            className="sticky z-10 h-0"
+            style={{
+              // Up out of the reading column and into the sheet's own top
+              // margin. A negative margin rather than a negative `top` on the
+              // button: `top` is what parks it while the page scrolls under
+              // it, so moving the mark with that would take it off the screen
+              // the moment it started riding.
+              marginTop: `calc(${vw(22)} * -1)`,
+              top: vw(16),
+            }}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="케이스 스터디 닫기"
+              className="absolute top-0 flex items-center justify-center text-black"
+              style={{
+                right: `calc(${vw((34 - 20) / 2)} * -1)`,
+                width: vw(34),
+                height: vw(34),
+              }}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden="true"
+                style={{ width: vw(20), height: vw(20) }}
+              >
+                <path
+                  d="M6 6l12 12M18 6L6 18"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
+
           {/* The holder is the box the spread has to fit; the spread inside it
               keeps its authored size and is scaled down to match. Hidden until
               the first measurement so the full-size version is never painted. */}

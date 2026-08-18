@@ -149,7 +149,8 @@ export default function MobileSkills() {
   return (
     <section
       ref={sectionRef}
-      className="section-mobile-skills flex min-h-[100svh] flex-col bg-[#336bec]"
+      data-ground="light"
+      className="section-mobile-skills flex min-h-[100svh] flex-col bg-white"
     >
       {/* Clear of the fixed header — see MobileHeader. */}
       <div className="shrink-0" style={{ height: HEADER_H }} />
@@ -197,9 +198,17 @@ export default function MobileSkills() {
         {/* The same pair every mobile section ends on — the name of the section
             and the one line that says what it is — at the same sizes, so they
             read as one page. */}
-        <div className="flex flex-col items-center gap-[18px] text-white">
+        {/* Black, because this section is on a white ground now. <body> is
+            `text-white`, which is right on the page's blue sections and
+            invisible here, so this states its own colour rather than
+            inheriting one that would leave it off the page. */}
+        <div className="flex flex-col items-center gap-[18px] text-black">
           <p
-            className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px]"
+            // The page's blue, which is what a section's name is set in
+            // wherever the ground is white — LEARN, SKILLS and the desktop's
+            // PROJECT all do it, and the phone's CAREER design draws "Every
+            // Role" the same way. Only the line under it is black.
+            className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px] text-[#336bec]"
             style={{ fontSize: vw(60) }}
           >
             Skill

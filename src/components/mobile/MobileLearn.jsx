@@ -1,5 +1,4 @@
-import { useEffect, useRef } from "react";
-import { holdInside } from "../../lib/scrollHold";
+import { useRef } from "react";
 import {
   LEARN_CARDS,
   LEARN_CARD_ASPECT,
@@ -37,57 +36,33 @@ const STRIP_INSET = 42;
 const TRACK_W =
   STRIP_INSET * 2 + PITCH * (LEARN_CARDS.length - 1) + CARD_W * (1 + LEARN_TAB_FRAC);
 
-// How near the far end of the strip counts as having reached it. A scroll
-// container's own maths rarely lands on the exact number — fractional device
-// pixels, a rounded track width — so requiring the last pixel is requiring
-// something that may never arrive.
-const STRIP_END_SLACK = 8;
-
 export default function MobileLearn() {
   // Back-to-front, so the last entry paints on top — which is also the leftmost
   // one, since the offsets count down. Nothing needs a z-index: within one
   // stacking context the later element wins, so the running order *is* the
   // depth, exactly as on the desktop.
   const last = LEARN_CARDS.length - 1;
-  const sectionRef = useRef(null);
   const stripRef = useRef(null);
-  // Whether the strip has been taken to its far end at least once.
-  const seenAll = useRef(false);
 
-  // The page does not go past LEARN until all six files have been seen.
+  // This section used to hold the page: it would not scroll past LEARN until
+  // the strip had been run to its far end, on the reasoning that the page moves
+  // down and the strip moves sideways, so nothing otherwise makes the second
+  // gesture happen and five of the six files are never seen.
   //
-  // The desktop cannot have this problem: its deck is driven by the page's own
-  // scroll, so getting past the section *is* dealing the deck. Here the two are
-  // different gestures — the page scrolls down, the strip swipes sideways — and
-  // nothing makes the second one happen. Scroll straight through and five of
-  // the six files were never on screen.
+  // That reasoning is sound and the trade is still not worth it. A section that
+  // refuses to scroll reads as a stuck page long before it reads as an
+  // invitation — there is nothing on screen saying what it wants, and the one
+  // gesture that would satisfy it is the one the reader has not thought to try.
+  // Being made to look at the work is worth less than being able to leave.
   //
-  // So the section holds the page until the strip has been run to its end, and
-  // then lets go for good. Same mechanism as the hero's intro (see scrollHold),
-  // and the same one-way release: being made to look at the work once is the
-  // point, being made to swipe through it again on the way back is a trap.
-  useEffect(() => {
-    const strip = stripRef.current;
-    const check = () => {
-      if (strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - STRIP_END_SLACK) {
-        seenAll.current = true;
-      }
-    };
-    // Run once up front: on a wide enough window the strip does not overflow at
-    // all, so there is nothing to swipe and nothing to wait for.
-    check();
-    strip.addEventListener("scroll", check, { passive: true });
-    const release = holdInside(sectionRef.current, () => seenAll.current);
-    return () => {
-      strip.removeEventListener("scroll", check);
-      release();
-    };
-  }, []);
+  // EXPERIENCE dropped the same hold for the same reason. See scrollHold, which
+  // the hero still uses — that one is a few hundred ms at the top of the page
+  // rather than a gate in the middle of it.
 
   return (
     <section
-      ref={sectionRef}
-      className="section-mobile-learn flex min-h-[100svh] flex-col bg-[#336bec]"
+      data-ground="light"
+      className="section-mobile-learn flex min-h-[100svh] flex-col bg-white"
     >
       {/* Clear of the fixed header — see MobileHeader. */}
       <div className="shrink-0" style={{ height: HEADER_H }} />
@@ -171,9 +146,17 @@ export default function MobileLearn() {
         {/* Same pair as PROJECT — the name of the section and the one line that
             says what it is — at the same sizes, so the two read as the same
             page. The design sets this one in mixed case. */}
-        <div className="flex flex-col items-center gap-[18px] text-white">
+        {/* Black, because this section is on a white ground now. <body> is
+            `text-white`, which is right on the page's blue sections and
+            invisible here, so this states its own colour rather than
+            inheriting one that would leave it off the page. */}
+        <div className="flex flex-col items-center gap-[18px] text-black">
           <p
-            className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px]"
+            // The page's blue, which is what a section's name is set in
+            // wherever the ground is white — LEARN, SKILLS and the desktop's
+            // PROJECT all do it, and the phone's CAREER design draws "Every
+            // Role" the same way. Only the line under it is black.
+            className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px] text-[#336bec]"
             style={{ fontSize: vw(60) }}
           >
             Learn

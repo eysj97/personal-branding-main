@@ -17,9 +17,9 @@ import { useIsMobile } from './lib/viewport'
 // the folder opens onto in ProjectDetailOverlay. Reviu's header is black type
 // sitting straight on the page, so the ground is not decoration here.
 const SPREADS = {
-  layer: { Spread: LayerSpread, page: '#ff742c' },
-  reviu: { Spread: ReviuSpread, page: '#c9d722' },
-  aquaplanet: { Spread: AquaplanetSpread, page: '#0085ff' },
+  layer: { Spread: LayerSpread, page: '#F16A30' },
+  reviu: { Spread: ReviuSpread, page: '#C9E529' },
+  aquaplanet: { Spread: AquaplanetSpread, page: '#038AFD' },
 }
 
 export default function App() {
