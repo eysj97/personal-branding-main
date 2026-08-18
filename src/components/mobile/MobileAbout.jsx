@@ -343,7 +343,15 @@ export default function MobileAbout() {
               character wears, so the two read as one face. Turned back by
               whatever the disc is turned by, so it stays level: a pair of
               glasses standing on end is not a wheel rolling, it is a picture
-              that has fallen over. */}
+              that has fallen over.
+
+              Painted black here. The drawing is white, which is right on the
+              chat character's pink and all but invisible on this yellow. A
+              filter rather than a second file: `brightness(0)` takes every
+              channel to nothing and leaves the alpha, so a white line drawing
+              comes out a black one — and there is still only one drawing, which
+              is the point. Two files of the same glasses would be two things to
+              keep in step and one of them would eventually be wrong. */}
           <img
             ref={faceRef}
             src={glasses}
@@ -352,6 +360,7 @@ export default function MobileAbout() {
             style={{
               width: "82%",
               opacity: 0,
+              filter: "brightness(0)",
               transition: "opacity 500ms ease-out, transform 700ms cubic-bezier(0.16, 1, 0.3, 1)",
               willChange: "transform",
             }}
