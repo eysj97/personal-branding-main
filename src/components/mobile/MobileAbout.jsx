@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { vw } from "./MobileHeader";
 import { EMAIL, RESUME_HREF } from "../../data/contact";
-import glasses from "../../assets/hero/glasses.svg";
+import glasses from "../../assets/hero/glasses.svg?raw";
 
 /*  ABOUT — what the roles led to.
  *  Figma 1317:1149, 1318:1177, 1318:1230, 1318:1276, 1318:1304, all drawn at
@@ -78,36 +78,48 @@ const PANELS = [
 // the design gives them. The spoke is placed and turned; what it carries does
 // not have to know it is on a wheel.
 const WORD_TURN = 120;
+// Where a chapter's copy and its word sit, and it is one pair of numbers for
+// all three rather than each frame's own.
+//
+// Figma gives the word its own y on each frame — 863, 868, 858 — because each
+// was drawn on its own and nothing in a still says they are the same object at
+// three moments. On a wheel they are: the arm swings the next chapter into the
+// place the last one left, and a word that lands ten px higher than the one
+// before reads as the page twitching rather than as the wheel turning.
+// 1318:1230's number, since that is the frame this was measured against. The
+// copy above it is not placed by a number at all — see Chapter.
+const WORD_TOP = 868;
+
+// And the three sizes a chapter is set in, at the design's 430.
+//
+// Named rather than written at each use, because there are three chapters and
+// the whole point of the pass that produced these numbers was that the three
+// stop differing. A size typed out six times is a size that ends up being two
+// sizes.
+const TITLE_PX = 32;
+const BODY_PX = 14;
+const WORD_PX = 42;
+
 const SPOKES = [
   {
-    word: { text: "SOCIALWORKER", right: 399, top: 863, ink: "text-black" },
+    word: { text: "SOCIALWORKER", ink: "text-black" },
     tone: "light",
-    top: 311,
-    align: "center",
     title: "니즈를 찾고\n충족시키는 일",
-    body:
-      "4년간 정신건강사회복지사로 일하며,\n사람들이 말하지 않는 니즈를 읽고,\n채우는 일을 했습니다.\n니즈는 요구하는 것만이 아니라,\n미처 말하지 못하는 것까지\n포함합니다.",
+    body: "4년간 정신건강사회복지사로 일하며,\n사람들이 말하지 않는 니즈를 읽고,\n채우는 일을 했습니다.\n니즈는 요구하는 것만이 아니라,\n미처 말하지 못하는 것까지\n포함합니다.",
   },
   {
-    word: { text: "CHANGE", right: 314, top: 868, ink: "text-[#336bec]" },
+    word: { text: "CHANGE", ink: "text-[#336bec]" },
     tone: "dark",
-    top: 283,
-    align: "center",
     title: "개입의 시점을\n고민하게 됩니다",
-    body:
-      "개입은 늘 문제가 발생한 이후였습니다\n문제가 생기기 전에 막을 수는 없을까\n그 고민의 끝에서 디자인을 만났습니다\n도망친 것이 아니라, 개입의 시점을\n사후에서 사전으로 재정의한 것입니다",
+    body: "개입은 늘 문제가 발생한 이후였습니다\n문제가 생기기 전에 막을 수는 없을까\n그 고민의 끝에서 디자인을 만났습니다\n도망친 것이 아니라, 개입의 시점을\n사후에서 사전으로 재정의한 것입니다",
   },
   {
-    word: { text: "UXUI DESIGNER", right: 383, top: 858, ink: "text-[#336bec]" },
+    word: { text: "UXUI DESIGNER", ink: "text-[#336bec]" },
     tone: "dark",
-    top: 352,
-    align: "center",
     title: "스스로 답을 찾습니다",
-    body:
-      "방향이 필요하면 스스로 답을\n찾는 것이 익숙합니다.\n막히면 방법을 찾아 풀고,\n그 과정에 AI를 도구로 씁니다.\n지금 보고 계신 이 사이트도\n직접 설계하고 만들었습니다.",
+    body: "방향이 필요하면 스스로 답을\n찾는 것이 익숙합니다.\n막히면 방법을 찾아 풀고,\n그 과정에 AI를 도구로 씁니다.\n지금 보고 계신 이 사이트도\n직접 설계하고 만들었습니다.",
   },
 ];
-
 // The point the wheel turns about: the blob's own centre, which is where the
 // words sit on the rim and where the arms carrying the copy are hinged.
 const HUB = { x: 214, y: 933 };
@@ -150,8 +162,7 @@ const clamp01 = (v) => Math.min(1, Math.max(0, v));
 /** A chapter's heading and the paragraph under it. The chapter on white ranges
  *  its block left; the two on blue centre theirs, which is the design's own
  *  split rather than a preference. */
-function Chapter({ title, body, tone, top, align, spin }) {
-  const centred = align === "center";
+function Chapter({ title, body, tone, spin }) {
   return (
     // `inset-x-0`, not `left: 50%` and a translate back.
     //
@@ -166,31 +177,40 @@ function Chapter({ title, body, tone, top, align, spin }) {
     // are the design's, written into the copy, and nothing here should be free
     // to pick its own.
     <div
-      className={`absolute inset-x-0 flex flex-col ${centred ? "items-center" : "items-start"}`}
+      className="absolute inset-x-0 flex flex-col items-center"
       style={{
-        top: vw(top),
+        // Centred on the screen rather than dropped at a measured top.
+        //
+        // The design gives each frame its own y, and a y is only right for the
+        // block that was in front of the designer: these three run to two, five
+        // and six lines, so one number leaves the short one high and the long
+        // one low. What the eye is actually keeping track of is the middle of
+        // the paragraph, and the middle is the thing to pin.
+        //
+        // `translateY(-50%)` leads the transform so the levelling rotation
+        // still happens about the block's own centre — see the note where
+        // `spin` is passed in.
+        top: "50%",
         gap: vw(42),
         paddingInline: vw(27),
-        // Levelled about its own middle while the arm it is on goes round — see
-        // the note where this is passed in.
-        transform: spin,
+        transform: `translateY(-50%) ${spin ?? ""}`.trim(),
         transformOrigin: "center",
         transition: spin ? `transform ${MOVE_MS}ms ${EASE}` : undefined,
       }}
     >
       <p
-        className={`whitespace-pre font-['Pretendard'] font-bold leading-none ${
+        className={`whitespace-pre text-center font-['Pretendard'] font-bold leading-none ${
           tone === "light" ? "text-[#336bec]" : "text-white"
-        } ${centred ? "text-center" : "text-left"}`}
-        style={{ fontSize: vw(42) }}
+        }`}
+        style={{ fontSize: vw(TITLE_PX) }}
       >
         {title}
       </p>
       <p
-        className={`whitespace-pre font-['Pretendard'] leading-[1.3] ${
-          centred ? "text-center" : "text-left"
-        } ${tone === "light" ? "text-black" : "text-white"}`}
-        style={{ fontSize: vw(24) }}
+        className={`whitespace-pre text-center font-['Pretendard'] leading-[1.3] ${
+          tone === "light" ? "text-black" : "text-white"
+        }`}
+        style={{ fontSize: vw(BODY_PX) }}
       >
         {body}
       </p>
@@ -345,25 +365,31 @@ export default function MobileAbout() {
               glasses standing on end is not a wheel rolling, it is a picture
               that has fallen over.
 
-              Painted black here. The drawing is white, which is right on the
-              chat character's pink and all but invisible on this yellow. A
-              filter rather than a second file: `brightness(0)` takes every
-              channel to nothing and leaves the alpha, so a white line drawing
-              comes out a black one — and there is still only one drawing, which
-              is the point. Two files of the same glasses would be two things to
-              keep in step and one of them would eventually be wrong. */}
-          <img
+              White, which is simply the colour the drawing is — no filter, no
+              override, no second file. It was painted black here, first with
+              `filter: brightness(0)` on an <img> and then with a
+              `[&_path]:stroke-black` on the inlined markup, on the theory that
+              a white line needs darkening against yellow. It does not: the
+              frame is a 15-unit stroke and it reads perfectly well, and black
+              made this the one place the character wears a different face from
+              the one it wears on the chat circle.
+
+              Inlined rather than an <img> all the same, and that stays. A
+              filter is a way of saying "make every pixel black" and hoping the
+              transparent ones stay transparent; inline there is no filter and
+              no second document, so what is drawn is what the file draws. */}
+          <div
             ref={faceRef}
-            src={glasses}
-            alt=""
-            className="absolute left-1/2 top-1/2 block max-w-none"
+            aria-hidden
+            className="absolute left-1/2 top-1/2 [&>svg]:size-full"
             style={{
               width: "82%",
+              aspectRatio: "512.91 / 498",
               opacity: 0,
-              filter: "brightness(0)",
               transition: "opacity 500ms ease-out, transform 700ms cubic-bezier(0.16, 1, 0.3, 1)",
               willChange: "transform",
             }}
+            dangerouslySetInnerHTML={{ __html: glasses }}
           />
 
         </div>
@@ -423,8 +449,8 @@ export default function MobileAbout() {
                 className={`absolute -translate-x-1/2 whitespace-nowrap text-center font-['Plus_Jakarta_Sans'] font-bold leading-none ${spoke.word.ink}`}
                 style={{
                   left: "50%",
-                  top: vw(spoke.word.top),
-                  fontSize: vw(48),
+                  top: vw(WORD_TOP),
+                  fontSize: vw(WORD_PX),
                   letterSpacing: vw(-2.4),
                   transform: `rotate(calc(-1 * var(--roll, 0deg) - ${k * WORD_TURN}deg))`,
                   transformOrigin: "center",
@@ -435,8 +461,6 @@ export default function MobileAbout() {
               </p>
               <Chapter
                 tone={spoke.tone}
-                top={spoke.top}
-                align={spoke.align}
                 title={spoke.title}
                 body={spoke.body}
                 spin={`rotate(calc(-1 * var(--roll, 0deg) - ${k * WORD_TURN}deg))`}
@@ -494,7 +518,11 @@ export default function MobileAbout() {
                 // measured from too — tie the card to the top and the two drift
                 // apart on every screen that is not 932 tall.
                 className="absolute flex flex-col text-white"
-                style={{ left: vw(27), bottom: vw(128), gap: vw(24) }}
+                // 108, which is the 128 that cleared the chat character less
+                // the 20 it was asked to come down by. Still measured off that
+                // character rather than off the screen: it sits 44 up and is 60
+                // across, so anything under 104 goes behind it.
+                style={{ left: vw(27), bottom: vw(108), gap: vw(24) }}
               >
                 <p
                   className="whitespace-pre font-['Pretendard'] font-semibold leading-none"

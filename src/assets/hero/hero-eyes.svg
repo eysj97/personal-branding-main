@@ -31,35 +31,47 @@
      which. The pupil is what says it. It costs one circle and it is the one
      feature that cannot be mistaken for a closed lid.
 
-     Both circles sit in the [data-pupil] group so the gaze carries them
-     together — see GAZE_TRAVEL in Hero.
+     Solid, with no pupil in it. A pupil was tried and taken out again: what
+     the two states have to be is *unlike*, and a filled disc against the shut
+     state's thin arc already is — one is a mass, the other a line, and that
+     reads at any size. A ring inside the disc only adds detail that is gone by
+     the time the character is 60px across.
 
-     Dark eye, light pupil, and the glasses over them are white (glasses.svg).
-     The pair is inverted from what it was; what has to hold is that the two
-     states do not look alike, and a pupil is still what says which. -->
+     Dark, under white glasses (glasses.svg). ABOUT paints the glasses back to
+     black on its yellow circle; see the note there for why that is a filter
+     rather than a second drawing. -->
 <g data-eye="open">
-  <g data-pupil="left">
-    <circle cx="161" cy="236" r="19.779" fill="#1D1C1C"/>
-    <circle cx="161" cy="236" r="8.9" fill="#FFFFFF"/>
-  </g>
-  <g data-pupil="right">
-    <circle cx="353" cy="236" r="19.779" fill="#1D1C1C"/>
-    <circle cx="353" cy="236" r="8.9" fill="#FFFFFF"/>
-  </g>
+  <g data-pupil="left"><circle cx="161" cy="236" r="19.779" fill="#1D1C1C"/></g>
+  <g data-pupil="right"><circle cx="353" cy="236" r="19.779" fill="#1D1C1C"/></g>
 </g>
-<!-- The lens tint over a shut eye. It is the frame's own path, filled instead of
+<!-- The lens tint over a shut eye. It is the frame's path filled instead of
      stroked — that path is the lens centre line, so filling it is the lens
      interior by construction and cannot drift out of register with the rim the
      way a separately drawn shape could. (It was a separate shape, and the new
      frame is not the same drawing as the old one.)
 
-     The design has no tint at all. It is kept because two things still need it:
+     The frame's path less its first subpath, and that omission is the whole
+     point. glasses.svg draws three subpaths in one `d`: the bridge, then the
+     two lens loops. The bridge is an arc — an *open* subpath, which is fine
+     while it is only ever stroked. Fill the same `d` and the renderer closes it
+     with a straight line back to its start, and the sliver between the arc and
+     that line fills solid: a black crescent sitting exactly over the nose
+     bridge, in the middle of the glasses, on every surface this tint is used.
+     Painting it black on a yellow circle is where it was impossible to miss.
+
+     So only the two closed loops are here. They are copied rather than derived
+     because there is nothing to derive from at load time — this is a static
+     file. If the frame's drawing changes, this `d` has to be re-copied from it
+     minus that first subpath; there is no third place for the two to disagree,
+     since the rim and the tint are the only readers of the shape. -->
+
+<!-- The design has no tint at all. It is kept because two things still need it:
      the shut eye is a thin white curve that wants a darker lens behind it, and
      the career section's handoff glasses is built by stripping this file down to
      this one group — see LENS_ONLY there. -->
 <g data-lens="closed">
   <g transform="translate(27.8543 153.0251) scale(0.964824)">
-    <path d="M261.872 64.2928C254.349 55.9128 228.365 47.5328 202.968 64.2928M261.872 64.2928C261.234 92.3528 277.171 147.331 307.388 163.33C324.218 174.376 385.416 190.983 417.546 158.377C441.567 134 453.5 100.864 453.5 66.9635C453.248 56.1058 453.388 44.604 447.763 34.5823C440.495 21.6353 403.394 9.82254 371.264 9.82254C331.103 9.82254 310.448 15.5362 292.089 24.6787C277.401 31.9927 263.912 53.1196 261.872 64.2928ZM202.968 64.2928C200.036 95.1464 186.138 153.807 150.567 166.758C141.769 170.569 75.5857 191.65 43.0866 155.715C24.6931 135.378 8.2199 112.316 7.51495 68.4871C7.21386 49.7679 11.5292 39.1903 14.0172 34.9671C17.4596 24.3034 56.4738 11.7295 69.4785 9.82254C92.428 6.45926 139.245 4.26126 165.866 21.6307C192.488 39.0002 200.163 58.7061 202.968 64.2928Z" fill="black" fill-opacity="0.5"/>
+    <path d="M261.872 64.2928C261.234 92.3528 277.171 147.331 307.388 163.33C324.218 174.376 385.416 190.983 417.546 158.377C441.567 134 453.5 100.864 453.5 66.9635C453.248 56.1058 453.388 44.604 447.763 34.5823C440.495 21.6353 403.394 9.82254 371.264 9.82254C331.103 9.82254 310.448 15.5362 292.089 24.6787C277.401 31.9927 263.912 53.1196 261.872 64.2928ZM202.968 64.2928C200.036 95.1464 186.138 153.807 150.567 166.758C141.769 170.569 75.5857 191.65 43.0866 155.715C24.6931 135.378 8.2199 112.316 7.51495 68.4871C7.21386 49.7679 11.5292 39.1903 14.0172 34.9671C17.4596 24.3034 56.4738 11.7295 69.4785 9.82254C92.428 6.45926 139.245 4.26126 165.866 21.6307C192.488 39.0002 200.163 58.7061 202.968 64.2928Z" fill="black" fill-opacity="0.5"/>
   </g>
 </g>
 </svg>

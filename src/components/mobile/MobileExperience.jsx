@@ -884,7 +884,7 @@ function ParkedWord({ onOpen }) {
       onClick={onOpen}
       aria-label="Snapkeep 열기"
       ref={wordRef}
-      className={`fixed z-[61] font-['Plus_Jakarta_Sans'] font-bold leading-none transition-all duration-500 ${
+      className={`fixed z-[59] font-['Plus_Jakarta_Sans'] font-bold leading-none transition-all duration-500 ${
         light ? "text-[#336bec]" : "text-white"
       }`}
       style={{

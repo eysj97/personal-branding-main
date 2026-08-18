@@ -24,9 +24,15 @@ import { vw } from "./MobileHeader";
 // screen. Same object as the cards on the project deck, at page size.
 const FOLDER = { left: 18, width: 397.61 };
 const TAB = { top: 35, width: 46.39, height: 121 };
-// Where the spread sits inside the folder — 49 from the page's left edge and
-// 381 to its right, so 31 and 34.61 in from the folder's own edges.
-const CONTENT = { left: 31, right: 34.61 };
+// Where the spread sits inside the folder. The design insets it 31 on the left
+// and 34.61 on the right — the difference is the tab hanging off that side, and
+// the tab is behind the page rather than beside its contents.
+//
+// Equal here, because on the phone the two are read as one margin: the boxes
+// stack, so every one of them shows both edges at once and a three-px
+// difference between them reads as the column being slightly askew. 31 for
+// both, which is the left's own number.
+const CONTENT = { left: 31, right: 31 };
 // The title block above the folder: 296 wide, centred, its top 104 down.
 const TITLE = { top: 104, width: 296 };
 const FOLDER_TOP = 227;

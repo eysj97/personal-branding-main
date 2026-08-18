@@ -726,17 +726,17 @@ function ArchivePanel() {
           {ARCHIVE_VIDEO ? (
             <video
               src={ARCHIVE_VIDEO}
-              // `object-cover` is what actually removes the bars. The box is
-              // the picture's aspect and the file is wider than that, so cover
-              // fits by height and throws away the overflow either side — which
-              // is exactly the black, and nothing else.
+              // `object-cover` fits the box and the scale eats the border.
               //
-              // The 1% is slack on the measurement. The bar edge was read off a
-              // 1280-wide thumbnail, so it is good to about 1.5px of the real
-              // 1920 — a quarter of a per cent. Cropping one per cent is four
-              // times that and costs three pixels of picture, which is a better
-              // trade than a hairline of black down one side.
-              className="h-full w-full max-w-none scale-[1.01] object-cover"
+              // 1.022, measured rather than estimated. The 1% this was came off
+              // a 1280-wide thumbnail and assumed the black was only down the
+              // sides; the file is 8304 x 7380 and carries black on all four
+              // edges — 65 left, 66 right, 74 top, 56 bottom. Covering the
+              // worst of those needs 1.018, so one per cent left a hairline of
+              // it showing the whole way round, which is the line that kept
+              // turning up in screenshots. 1.022 clears it with a little to
+              // spare and costs about two per cent of the picture.
+              className="h-full w-full max-w-none scale-[1.022] object-cover"
               autoPlay
               muted
               loop

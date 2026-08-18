@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { GREETING, QUICK } from "../data/chatbot";
 import { match } from "../lib/chatbotMatch";
 import { MOBILE_MAX, useIsMobile } from "../lib/viewport";
+import { HEADER_H } from "./mobile/MobileHeader";
 
 // A launcher in the corner and a panel above it. Fixed, so it rides over every
 // section without joining any of them — none of the scroll timelines on this
@@ -47,6 +48,11 @@ const PHONE_RATIO = 2 / 3;
 // and from module-level helpers, where there is no component to hold a hook,
 // and it has to be the same answer in all of them.
 const onPhone = () => document.documentElement.clientWidth <= MOBILE_MAX;
+// The panel's own side margin on a phone — the 20 in its `px-5`, named because
+// the composer below has to know it. The panel's *left* padding is the
+// character's lane and covers this one up, so anything pulling back out of that
+// lane has to stop 20 short or it lands on the edge of the screen.
+const PANEL_PAD = 20;
 const charSize = () => (onPhone() ? Math.round(CHAR_SIZE * PHONE_RATIO) : CHAR_SIZE);
 const charGap = () => (onPhone() ? Math.round(CHAR_GAP * PHONE_RATIO) : CHAR_GAP);
 // The conversation is set at 16 against the design's 12, and everything that
@@ -431,14 +437,27 @@ export default function Chatbot() {
              on a full-width panel the bubbles would otherwise be underneath it. */
           className={
             isMobile
-              ? "fixed inset-0 z-[60] flex flex-col bg-[#336bec] px-5 pb-6 pt-16"
+              ? "fixed inset-0 z-[60] flex flex-col bg-[#336bec] px-5 pb-10"
               : "fixed bottom-24 right-11 z-[60] flex w-[min(440px,calc(100vw-5.5rem))] flex-col"
           }
           // The character's lane, on the phone only. Written off the same two
           // numbers the character is placed with rather than the 112px it was,
           // which was those two numbers added up by hand and did not follow
           // when they changed.
-          style={isMobile ? { paddingLeft: char + CHAR_GAP * PHONE_RATIO } : undefined}
+          //
+          // And the top: clear of the page's fixed header, plus the 40 that
+          // header holds above her name. It was a flat 64, which is less than
+          // the header is tall — so the first row of questions started inside
+          // it and the two read as one another's mess. HEADER_H rather than a
+          // number, because the header's height moves with the window.
+          style={
+            isMobile
+              ? {
+                  paddingLeft: char + CHAR_GAP * PHONE_RATIO,
+                  paddingTop: `calc(${HEADER_H} + 40px)`,
+                }
+              : undefined
+          }
         >
           {/* Escape and the launcher both close this, but neither is visible,
               and the design has no chrome to put a control in. So: a bare X in
@@ -556,6 +575,23 @@ export default function Chatbot() {
               that side. */}
           <form
             className="relative mt-4"
+            // Pulled back out of the character's lane, on the phone only.
+            //
+            // That lane is a left padding on the whole panel, because the
+            // character walks down the side of the conversation and the bubbles
+            // have to leave it room. The composer is not part of the
+            // conversation — it is the page's own control, and a control that
+            // starts eighty px in and ends flush with the right edge reads as
+            // having slipped rather than as having been placed.
+            //
+            // Back by the lane *less the page's own margin*: the lane replaced
+            // that margin rather than adding to it, so pulling the whole lane
+            // put the field's left edge on the edge of the screen.
+            style={
+              isMobile
+                ? { marginLeft: -(char + CHAR_GAP * PHONE_RATIO - PANEL_PAD) }
+                : undefined
+            }
             onSubmit={(e) => {
               e.preventDefault();
               ask(draft);

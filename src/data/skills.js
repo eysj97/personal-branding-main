@@ -4,17 +4,22 @@
 // Only the sizes and the arrangement differ; the folders and what is on them
 // are the same board.
 
-// Three folder colours, used straight from the design (node 1303:46631, where
-// they are the `per/sub`, `per/point` and `per/point2` tokens). They are not a
-// scale — nothing about a card's colour says anything about its level, which
-// every card states in words anyway. The design bands them by row, so the colour
-// is what carries the reading order down the board.
+// Three folder colours. Two are the design's own (node 1303:46631, the
+// `per/sub` and `per/point2` tokens); the middle band is the page's blue.
 //
-// Banded gold / teal / pink, top to bottom. It was blue / gold / pink with the
-// bands in the other order; the blue went because the page's own ground is blue
-// now and a blue folder on it stops being a folder.
+// Banded gold / blue / pink, top to bottom.
+//
+// The middle band was teal for a while, and the note here said blue had gone
+// because the page's own ground was blue and a blue folder on it stops being a
+// folder. That is no longer the case: SKILLS is drawn on white in both layouts
+// now (see SkillsSection and mobile/MobileSkills), so the page's own blue is
+// the strongest of the three against it rather than the one that disappears.
+//
+// Not a scale, either way — nothing about a card's colour says anything about
+// its level, which every card states in words anyway. The design bands them by
+// row, so the colour is what carries the reading order down the board.
 export const GOLD = "#ffd527";
-export const TEAL = "#28c9a0";
+export const BLUE = "#336bec";
 export const PINK = "#f460c0";
 
 // The card is a manila folder seen face-on, and it is two shapes rather than
@@ -65,7 +70,7 @@ export const SKILLS = [
     title: "UI Design",
     desc: "화면 설계와 비주얼 디자인",
     level: "Proficient",
-    color: TEAL,
+    color: BLUE,
   },
   {
     // One line. It used to carry a hard break, because at 400 wide and 28px the
@@ -75,13 +80,13 @@ export const SKILLS = [
     title: "Interaction Design",
     desc: "화면의 움직임과 전환 설계",
     level: "Proficient",
-    color: TEAL,
+    color: BLUE,
   },
   {
     title: "FIGMA",
     desc: "디자인 시스템과 프로토타입 제작",
     level: "Proficient",
-    color: TEAL,
+    color: BLUE,
   },
   {
     title: "AI",

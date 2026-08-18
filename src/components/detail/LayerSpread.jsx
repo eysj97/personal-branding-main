@@ -53,7 +53,7 @@ function NoteCard() {
   return (
     <div className="flex w-[443px] shrink-0 items-center justify-center gap-[60px] rounded-[16px] border border-[#dddddd] bg-white py-[30px]">
       <img src={bottle} alt="" className="h-[160px] w-[65.92px] shrink-0" />
-      <div className="flex w-[142px] shrink-0 flex-col gap-[24px]">
+      <div className="flex w-[142px] shrink-0 flex-col gap-[var(--column-gap,24px)]">
         {NOTES.map(([label, keywords]) => (
           <div key={label} className="flex flex-col gap-[4px]">
             <p className="font-['Pretendard'] text-[14px] leading-[1.4] tracking-[-0.28px] text-[#1a1a1a]">
@@ -108,7 +108,13 @@ export default function LayerSpread({ stacked }) {
 
   return (
     <SpreadPalette panel="#f7f7f7" ink="#1a1a1a">
-      <SpreadFrame pad={PAD} gap={32} stacked={stacked}>
+      {/* The gutter between the columns is the same 24 the blocks are stacked
+          at, and not the 33/32 the design measures. Side by side, a horizontal
+          gap that is a third wider than the vertical one reads as the two
+          columns having drifted apart rather than as a grid — the eye compares
+          the two directions directly and nothing else on the page explains the
+          difference. */}
+      <SpreadFrame pad={PAD} gap={24} stacked={stacked}>
         {/* Column 1 — the project header floats above these two blocks. Hug
             width here, unlike the other two spreads: the design gives it no
             frame of its own (205:2624), the longest of its lines sets it. Which
@@ -154,7 +160,12 @@ export default function LayerSpread({ stacked }) {
         </HeaderColumn>
 
         {/* Column 2 */}
-        <div className={`${COLUMN} w-[475px] gap-[60px]`}>
+        {/* 24, like every other column. It was 60 — a hand-tuned number
+            whose job was to push this column’s blocks apart until its bottom
+            edge met the other two on the desktop. That buys one straight line
+            along the foot of the spread and costs a gap two and a half times
+            the others in the middle of the reading. */}
+        <div className={`${COLUMN} w-[475px] gap-[var(--column-gap,24px)]`}>
           <Block>
             <Shot height={320} sources={[{ src: magazine, style: fill({ objectFit: "contain" }) }]} />
             <Heading size={32}>Magazine Page</Heading>
@@ -182,7 +193,7 @@ export default function LayerSpread({ stacked }) {
         </div>
 
         {/* Column 3 */}
-        <div className={`${COLUMN} w-[475px] gap-[24px] pb-[60px]`}>
+        <div className={`${COLUMN} w-[475px] gap-[var(--column-gap,24px)] pb-[60px]`}>
           <Block>
             <NoteCard />
             <Heading size={32}>Detail Page</Heading>

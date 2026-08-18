@@ -79,34 +79,62 @@ const SLOT_ANGLES = [
 // track and what travels on it: a tick is part of the line, a circle stands a
 // stem clear of it.
 //
-// Two lengths, because a graduation with one length is a texture rather than a
-// scale — there is nothing in it to count. A long mark every sixteenth position
-// and fifteen short between gives the eye something to count by.
+// The whole of the spacing comes off the circles, and the rule is short:
 //
-// The count is derived from the majors rather than chosen, so the pattern
-// closes on a major instead of meeting itself mid-step. Twelve of them puts the
-// minors at a 9.7 pitch on this ring, which is the 10 the design draws.
+//   the gap from one circle to the next is the unit
+//   one longer mark sits at the exact middle of it
+//   short marks fill each half, evenly, between that mark and the stem
+//
+// Nothing is drawn at a circle's own position. Its stem is the mark there, and
+// a tick under a stem is a tick nobody can see and a stem that looks like it
+// landed in a gap.
+//
+// Both halves get the same count, so the run reads the same on either side of
+// the long mark and on either side of a stem. That symmetry is the thing being
+// bought here: struck on a pitch of its own — 10px, which does not divide the
+// 24° between circles — the marks and the beads were two rhythms laid over each
+// other and neither the long marks nor the stems landed anywhere in particular.
 const TICK = { minor: 10, major: 24, weight: 1 };
-const TICKS_PER_MAJOR = 16;
-const MAJOR_COUNT = 12;
-const TICK_COUNT = MAJOR_COUNT * TICKS_PER_MAJOR;
-const TICK_STEP_RAD = (2 * Math.PI) / TICK_COUNT;
+// How many parts each half-gap is cut into: 6, so five short marks stand between
+// a stem and the long mark, eleven to a gap.
+//
+// Not the desktop's 9, and this is the one place the two wheels are allowed to
+// differ. They are the same drawing, but a drawing at two sizes is not the same
+// number of marks: this ring is 296 to the desktop's 646, so 9 divisions put
+// the marks 6.9px apart here against 15px there. At that pitch a 1px mark and
+// the white between it and the next are each under half a device pixel on a
+// phone, and the run stops being a graduation and becomes a grey band along the
+// track. 6 puts them 10.3px apart — which is the 10 the design draws, arrived
+// at rather than imposed.
+//
+// So the rule is shared and the count is not. What both wheels hold to is the
+// part that carries the reading: the gap between circles is the unit, the long
+// mark halves it, the short ones divide each half evenly, and nothing stands
+// where a circle does.
+const TICKS_PER_HALF = 6;
+const TICKS_PER_SLOT = TICKS_PER_HALF * 2;
+const TICK_STEP_DEG = SLOT_NEAR_DEG / TICKS_PER_SLOT;
+const TICK_COUNT = Math.round(360 / TICK_STEP_DEG);
 // All the way round, not only across the visible arc: the ring turns, so ticks
 // leave through one end and have to come up through the other.
-const TICKS = Array.from({ length: TICK_COUNT }, (_, i) => {
-  const angle = i * TICK_STEP_RAD;
+const TICKS = [];
+for (let i = 0; i < TICK_COUNT; i += 1) {
+  const place = i % TICKS_PER_SLOT;
+  // A circle's own position gets nothing — its stem is the mark there.
+  if (place === 0) continue;
+  const angle = (i * TICK_STEP_DEG * Math.PI) / 180;
   const sin = Math.sin(angle);
   const cos = Math.cos(angle);
-  const length = i % TICKS_PER_MAJOR === 0 ? TICK.major : TICK.minor;
+  const length = place === TICKS_PER_HALF ? TICK.major : TICK.minor;
   const inner = RING.r - length / 2;
   const outer = RING.r + length / 2;
-  return {
+  TICKS.push({
     x1: RING.cx + inner * sin,
     y1: RING.cy - inner * cos,
     x2: RING.cx + outer * sin,
     y2: RING.cy - outer * cos,
-  };
-});
+  });
+}
 
 // One move of the wheel, and everything on it moves together: the ring turns by
 // exactly what the circles step, so a circle stays put against the ticks it is
@@ -208,6 +236,18 @@ function Ring({ turn, shown }) {
       <g
         style={{
           transform: `rotate(${turn}deg)`,
+          // `transform-box` first, and it is the whole of why the marks used to
+          // wander away from the circles.
+          //
+          // `transform-origin` on an SVG element is measured against whatever
+          // `transform-box` says, and the box that answers "214.5, 990.5" the
+          // way this code means it is the view-box. Left to the element's own
+          // bounding box — which for this group is the whole 593px circle,
+          // starting at (-81, 694) — the same two numbers point somewhere else
+          // entirely, so the ring turned about a point that was not its centre
+          // and the graduation slid along it. Every count in the source was
+          // right and every one of them landed in the wrong place.
+          transformBox: "view-box",
           transformOrigin: `${RING.cx}px ${RING.cy}px`,
           transition: `transform ${TURN_MS}ms ${EASE}`,
         }}
@@ -305,7 +345,7 @@ function Role({ role }) {
       >
         <p
           className="whitespace-nowrap font-['Plus_Jakarta_Sans'] font-bold leading-none text-[#336bec]"
-          style={{ fontSize: vw(42) }}
+          style={{ fontSize: vw(32) }}
         >
           {role.title}
         </p>

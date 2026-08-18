@@ -74,7 +74,13 @@ export default function ReviuSpread({ stacked }) {
 
   return (
     <SpreadPalette panel="#ffffff" ink="#000000">
-      <SpreadFrame pad={PAD} gap={32} stacked={stacked}>
+      {/* The gutter between the columns is the same 24 the blocks are stacked
+          at, and not the 33/32 the design measures. Side by side, a horizontal
+          gap that is a third wider than the vertical one reads as the two
+          columns having drifted apart rather than as a grid — the eye compares
+          the two directions directly and nothing else on the page explains the
+          difference. */}
+      <SpreadFrame pad={PAD} gap={24} stacked={stacked}>
         {/* Column 1 — the project header floats above these two blocks. */}
         <HeaderColumn at={{ left: 0, top: 61, width: 475 }} gap={24} header={header} stacked={stacked}>
           <Block>
@@ -101,7 +107,7 @@ export default function ReviuSpread({ stacked }) {
         </HeaderColumn>
 
         {/* Column 2 — the tallest one, so it sets the spread's overall height. */}
-        <div className={`${COLUMN} w-[475px] gap-[32px]`}>
+        <div className={`${COLUMN} w-[475px] gap-[var(--column-gap,24px)]`}>
           <Block>
             <Shot
               height={222}
@@ -149,7 +155,13 @@ export default function ReviuSpread({ stacked }) {
         </div>
 
         {/* Column 3 */}
-        <div className={`${COLUMN} w-[475px] gap-[120px] pb-[60px]`}>
+        {/* 24, like every other column. It was 120 — a hand-tuned number
+            whose job was to push this column’s blocks down until its bottom
+            edge lined up with the other two on the desktop. What that buys is
+            one straight line along the foot of the spread; what it costs is a
+            gap five times the others in the middle of the reading, which is
+            the part anyone actually looks at. */}
+        <div className={`${COLUMN} w-[475px] gap-[var(--column-gap,24px)] pb-[60px]`}>
           <Block>
             <Shot
               height={348}

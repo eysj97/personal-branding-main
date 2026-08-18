@@ -94,9 +94,9 @@ const RING_RADIUS = RING.size / 2;
 // is a hair, not a bar.
 //
 // A hairline now, and deliberately. It was 2 back when the arc was bare and had
-// to be heavy enough to be read as a track on its own. It carries 376 marks
-// today (see TICK_LENGTH), and they say what it is far better than its own
-// weight ever did, so the line can step back and let them.
+// to be heavy enough to be read as a track on its own. It carries a graduation
+// today (see RING_MARKS), and that says what it is far better than its own
+// weight ever did, so the line can step back and let it.
 //
 // Screen px, not canvas px — that is what the `/ scale` at the ring and the
 // stems' own unscaled height are for. A track that thins out with the window
@@ -177,65 +177,84 @@ const SLOT_ANGLES = [
 // says which of the two a given mark is.
 //
 // All the way round, not only across the visible arc. The whole ring turns as
-// the wheel advances (see the dots' rotation in applyRaw), so ticks leave
-// through one end of the arc and have to come up through the other. A band that
+// the wheel advances (see the dots' rotation in applyRaw), so a mark leaves
+// through one end of the arc and has to come up through the other. A band that
 // only covered what is on screen at rest would empty itself out the first time
 // it moved.
 //
-// Struck by arc length rather than by angle, and struck everywhere. They used
-// to take the slots' own 8deg step, which on a ring this size puts them 90px
-// apart — that is a handful of stray dashes at the top of a curve, not a
-// graduation — and they skipped every position a slot took, so the one rhythm
-// the eye is meant to follow had holes cut in it at the very places it was
-// looking. A dial is regular or it is not a dial: same length, same pitch, the
-// whole way round, slots included. The circles stand a SPOKE clear of the track
-// and so never had anything to collide with.
+// Two lengths on one grid, and the grid is the gap between circles. The long
+// mark halves that gap; the short ones divide each half again. Every mark on
+// the track is therefore saying something about the same interval, and the eye
+// can count by the long ones and read between them with the short ones — which
+// is the only thing a graduation is for.
 //
-// TICK_LENGTH is the mark's reach *across* the track, and the design's own:
-// measured at 643..653 against a radius of 646.5, centred on the line. The 20
-// this was is the width the beads had been, carried over from a shape that is
-// no longer being drawn.
+// This is what the old one could not do. It struck 384 short marks on a pitch
+// of its own with a longer one every sixteenth, and neither number had anything
+// to do with the 24deg between one circle and the next. Two rhythms laid over
+// each other read as neither: a long mark landed wherever the arithmetic left
+// it, sometimes almost under a stem, and there was nothing in the run to count
+// by.
 //
-// Two lengths, because a graduation with one length is a texture rather than a
-// scale: there is nothing in it to count. A long mark every sixteenth position
-// and fifteen short ones between gives the eye something to count *by*, which is
-// what a dial is for.
+// Nothing is drawn where a circle stands. Its stem is the mark at that position
+// — longer than either of these and reaching the other way, to the circle — and
+// a mark behind it would only be a thicker stem.
 //
-// All canvas units, thickness included. That last one is a departure: the ring's
-// own stroke is set in *screen* px (see its borderWidth) because a track that
-// thins out with the window stops reading as a line at all. A mark is not under
-// that obligation — there are hundreds of them and the rhythm carries the
-// reading, not any one dash — so it is simply the weight it is drawn at, and it
-// thins with everything else around it.
-const TICK_LENGTH = 10;
-// Nearly three times the short one, and it has to be: both are centred on the
-// track, so the *visible* difference is only half of it at each end. At 18 that
-// was four canvas pixels of overhang — two on screen once the canvas is scaled —
-// and a graduation whose long marks are two pixels longer than its short ones
-// has no long marks. It has 15 short ones between each of these, so if they do
-// not read as different there is nothing to count and the whole run collapses
-// into one texture.
+// MARK_DIVISIONS is the one number here chosen by eye rather than measured: how
+// many parts each half-gap is cut into. 9 puts eight short marks between a stem
+// and the long mark, seventeen to a gap — a fine graduation rather than a
+// countable one, which on a wheel this size is what it should be: at 646 radius
+// a gap is 270px of arc, and five marks across that much track read as sparse.
+//
+// A multiple of the 3 it was, on purpose. Every mark the wheel already had is
+// still at exactly the angle it was at; the new ones only fill in between. Had
+// this gone to 7 the count would have been about right and every existing mark
+// would have shifted, which is a different drawing rather than a finer one.
+//
+// The phone's wheel cuts its halves into 6 rather than 9 (TICKS_PER_HALF in
+// MobileCareer). Not a drift between the two: its ring is 296 across to this
+// one's 646, so the same division would put its marks under 7px apart and turn
+// the run into a grey band. The rule is shared — unit, halving, even division,
+// nothing on a stem — and only the count answers to the size it is drawn at.
+const MARK_DIVISIONS = 9;
+// The reach *across* the track, centred on the line: the long mark measured at
+// 643..653 against a radius of 646.5. Canvas units, thickness included — a
+// departure from the ring's own stroke, which is set in *screen* px (see its
+// borderWidth) because a track that thins out with the window stops reading as
+// a line at all. A mark is not under that obligation, so it thins with
+// everything else around it.
+//
+// The long one is nearly three times the short, and it has to be: both are
+// centred on the track, so the *visible* difference is only half of it at each
+// end. At 18 that was four canvas pixels of overhang — two on screen once the
+// canvas is scaled — and a graduation whose long marks are two pixels longer
+// than its short ones has no long marks.
+const MARK_LENGTH = 10;
 const MAJOR_TICK_LENGTH = 28;
 const TICK_THICKNESS = 1;
-// Fifteen short marks between one long one and the next, so a major step is
-// sixteen positions wide.
-const MINORS_PER_MAJOR = 15;
-const TICKS_PER_MAJOR = MINORS_PER_MAJOR + 1;
-// How many long marks go round. This is the only number chosen by eye, and
-// everything else is measured off it: 24 puts the minors at a 10.58 pitch, which
-// is within a quarter pixel of the single pitch they used to have, so the
-// texture is the one the wheel already had with a long mark added to it.
-const MAJOR_COUNT = 24;
-// The total, and it has to be whole in a way the old count did not: the pattern
-// now has to close on a *major*, not merely on a mark, or the ring would meet
-// itself mid-step. Deriving the count from the majors makes that true by
-// construction, and the pitch takes whatever rounding is left — the circle is
-// simply divided into 24 steps of 16.
-const TICK_COUNT = MAJOR_COUNT * TICKS_PER_MAJOR;
-const TICK_PITCH_EXACT = (2 * Math.PI * RING_RADIUS) / TICK_COUNT;
-// As a fraction of one pitch, which is the unit the dasharray works in once
-// pathLength has been set to the count.
-const TICK_INK = TICK_THICKNESS / TICK_PITCH_EXACT;
+
+const MARK_BOX = RING.size + MAJOR_TICK_LENGTH;
+const RING_MARKS = (() => {
+  const middle = MARK_BOX / 2;
+  const step = SLOT_NEAR_DEG / (MARK_DIVISIONS * 2);
+  const out = [];
+  for (let gap = 0; gap < 360; gap += SLOT_NEAR_DEG) {
+    for (let k = 1; k < MARK_DIVISIONS * 2; k += 1) {
+      const length = k === MARK_DIVISIONS ? MAJOR_TICK_LENGTH : MARK_LENGTH;
+      const rad = ((gap + k * step) * Math.PI) / 180;
+      const sin = Math.sin(rad);
+      const cos = Math.cos(rad);
+      const inner = RING_RADIUS - length / 2;
+      const outer = RING_RADIUS + length / 2;
+      out.push({
+        x1: middle + inner * sin,
+        y1: middle - inner * cos,
+        x2: middle + outer * sin,
+        y2: middle - outer * cos,
+      });
+    }
+  }
+  return out;
+})();
 
 /** Where the stem for the slot at `deg` meets the track. */
 function spokeFoot(deg) {
@@ -1999,8 +2018,8 @@ export default function CareerSection() {
               <svg
                 ref={dotsRef}
                 className="absolute"
-                width={RING.size + MAJOR_TICK_LENGTH}
-                height={RING.size + MAJOR_TICK_LENGTH}
+                width={MARK_BOX}
+                height={MARK_BOX}
                 style={{
                   left: RING.x - MAJOR_TICK_LENGTH / 2,
                   top: RING.y - MAJOR_TICK_LENGTH / 2,
@@ -2010,40 +2029,14 @@ export default function CareerSection() {
                   transformOrigin: "50% 50%",
                 }}
               >
-                {/* The short marks. Every position gets one, the major ones
-                    included — a minor sitting under a major is the same line at
-                    half the length and is simply not visible, and skipping them
-                    would mean a second dash pattern that has to stay in step
-                    with this one rather than being the same pattern. */}
-                <circle
-                  cx={(RING.size + MAJOR_TICK_LENGTH) / 2}
-                  cy={(RING.size + MAJOR_TICK_LENGTH) / 2}
-                  r={RING_RADIUS}
-                  fill="none"
-                  stroke="#000"
-                  strokeWidth={TICK_LENGTH}
-                  // One unit of dash = one pitch, so the ink is simply the
-                  // fraction of a pitch the mark takes and the gap is the rest.
-                  // Through pathLength rather than raw px because a px
-                  // dasharray is measured against the browser's own idea of the
-                  // circumference, and half a pixel left over where the pattern
-                  // closes is one mark that is not like the others.
-                  pathLength={TICK_COUNT}
-                  strokeDasharray={`${TICK_INK} ${1 - TICK_INK}`}
-                />
-                {/* The long ones, on the same circle and the same pathLength, so
-                    "every sixteenth" is literally one dash in sixteen units and
-                    the two patterns cannot drift apart. */}
-                <circle
-                  cx={(RING.size + MAJOR_TICK_LENGTH) / 2}
-                  cy={(RING.size + MAJOR_TICK_LENGTH) / 2}
-                  r={RING_RADIUS}
-                  fill="none"
-                  stroke="#000"
-                  strokeWidth={MAJOR_TICK_LENGTH}
-                  pathLength={TICK_COUNT}
-                  strokeDasharray={`${TICK_INK} ${TICKS_PER_MAJOR - TICK_INK}`}
-                />
+                {RING_MARKS.map((mark, i) => (
+                  <line
+                    key={i}
+                    {...mark}
+                    stroke="#000"
+                    strokeWidth={TICK_THICKNESS}
+                  />
+                ))}
               </svg>
             </div>
 

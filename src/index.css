@@ -196,6 +196,12 @@
    nothing to fix in them — this is one layout overriding another's spacing, and
    the override belongs with the layout that wants it. */
 .spread-stacked > div {
+  /* One gap for every column, whatever each was given for the desktop.
+     Two of the three carry a `gap-[24px]` of their own and the third has none,
+     so stacked they ran at 24, 24 and 22 — close enough to look like a mistake
+     and not close enough to look like anything else. The variable is what the
+     columns' own utility reads, so this sets it rather than fighting it. */
+  --column-gap: 22px;
   gap: 22px;
   padding-bottom: 0;
 }

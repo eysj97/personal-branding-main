@@ -86,7 +86,13 @@ export default function AquaplanetSpread({ stacked }) {
 
   return (
     <SpreadPalette panel="rgba(255,255,255,0.1)" ink="#ffffff">
-      <SpreadFrame pad={PAD} gap={33} stacked={stacked}>
+      {/* The gutter between the columns is the same 24 the blocks are stacked
+          at, and not the 33/32 the design measures. Side by side, a horizontal
+          gap that is a third wider than the vertical one reads as the two
+          columns having drifted apart rather than as a grid — the eye compares
+          the two directions directly and nothing else on the page explains the
+          difference. */}
+      <SpreadFrame pad={PAD} gap={24} stacked={stacked}>
         {/* Column 1 — the project header floats above these two blocks. */}
         <HeaderColumn at={{ left: 0, top: 86, width: 475 }} gap={24} header={header} stacked={stacked}>
           <Block>
@@ -132,7 +138,7 @@ export default function AquaplanetSpread({ stacked }) {
         </HeaderColumn>
 
         {/* Column 2 — 208:2727. */}
-        <div className={`${COLUMN} w-[475px] gap-[24px]`}>
+        <div className={`${COLUMN} w-[475px] gap-[var(--column-gap,24px)]`}>
           <Block>
             <Shot
               height={234}
@@ -153,7 +159,7 @@ export default function AquaplanetSpread({ stacked }) {
             </Body>
           </Block>
 
-          <Block gap={19}>
+          <Block>
             <Shot
               height={222}
               sources={[
@@ -182,7 +188,7 @@ export default function AquaplanetSpread({ stacked }) {
             is the tallest, so in Figma the two amount to the same thing, but if
             the browser wraps column 2 longer than Figma did, this one should
             stay put rather than being pushed down. */}
-        <div className={`${COLUMN} w-[475px] justify-start gap-[24px] self-stretch`}>
+        <div className={`${COLUMN} w-[475px] justify-start gap-[var(--column-gap,24px)] self-stretch`}>
           <Block>
             <Shot
               height={222}
