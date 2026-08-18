@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useGroundUnder } from "../../lib/useGround";
 import { vw } from "./MobileHeader";
 import StepDots from "./StepDots";
+import { pinPage } from "../../lib/pinPage";
 import SafariWindow, { WINDOW } from "../experience/SafariWindow";
 import SnapkeepSpread from "../detail/SnapkeepSpread";
 
@@ -934,10 +935,13 @@ export default function MobileExperience() {
     };
   }, []);
 
+  // Pinned, because a press inside a scroll container makes the browser scroll
+  // that container into view on both axes — and the one that actually moves is
+  // the page. See lib/pinPage.
   const goTo = (index) => {
     const track = trackRef.current;
     const at = Math.min(LAST, Math.max(0, index));
-    track.scrollTo({ left: at * track.clientWidth, behavior: "smooth" });
+    pinPage(() => track.scrollTo({ left: at * track.clientWidth, behavior: "smooth" }));
   };
 
   // A tap on the left half goes back, on the right half goes on — the two

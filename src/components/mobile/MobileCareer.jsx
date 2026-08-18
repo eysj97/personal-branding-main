@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { vw } from "./MobileHeader";
 import StepDots from "./StepDots";
+import { pinPage } from "../../lib/pinPage";
 import { ROLES } from "../../data/roles";
 
 /*  CAREER — the "every role" wheel, on a phone.
@@ -377,10 +378,13 @@ export default function MobileCareer() {
     };
   }, []);
 
+  // Pinned, because a press inside a scroll container makes the browser scroll
+  // that container into view on both axes — and the one that actually moves is
+  // the page. See lib/pinPage.
   const goTo = (index) => {
     const rail = trackRef.current;
     const at = Math.min(LAST, Math.max(0, index));
-    rail.scrollTo({ left: at * rail.clientWidth, behavior: "smooth" });
+    pinPage(() => rail.scrollTo({ left: at * rail.clientWidth, behavior: "smooth" }));
   };
 
   const onPointerDown = (event) => {

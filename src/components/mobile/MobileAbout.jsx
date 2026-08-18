@@ -56,7 +56,15 @@ const PANELS = [
   {
     key: "contact",
     ground: "dark",
-    circle: { cx: 215, cy: 466, size: 322, fill: "#ffffff" },
+    // Up by the same 117 the card under it came up by.
+    //
+    // The design centres this on the canvas at 466 with the card starting at
+    // 721 — 255 below it. The card is anchored to the bottom now so it clears
+    // the chat character, which moved it up about 117, and the circle has to
+    // come with it or the two stop being one composition: a disc centred on a
+    // page whose copy has shuffled up is a disc sitting slightly low, and it
+    // reads as a mistake rather than as a layout.
+    circle: { cx: 215, cy: 349, size: 322, fill: "#ffffff" },
   },
 ];
 
@@ -465,8 +473,19 @@ export default function MobileAbout() {
 
             {p.key === "contact" && (
               <div
+                // Anchored to the bottom rather than dropped at the design's
+                // 721, and measured off the chat character rather than guessed:
+                // it sits 44 up from the bottom and is 60 across, so 128 clears
+                // its top by a comfortable 24. At 721 the card ran to the foot
+                // of the screen and the last two lines went under the
+                // character, which is a fixed thing that does not move out of
+                // the way.
+                //
+                // From the bottom, because that is the edge the character is
+                // measured from too — tie the card to the top and the two drift
+                // apart on every screen that is not 932 tall.
                 className="absolute flex flex-col text-white"
-                style={{ left: vw(27), top: vw(721), gap: vw(24) }}
+                style={{ left: vw(27), bottom: vw(128), gap: vw(24) }}
               >
                 <p
                   className="whitespace-pre font-['Pretendard'] font-semibold leading-none"

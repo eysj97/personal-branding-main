@@ -7,6 +7,7 @@ import ReviuSpread from "../detail/ReviuSpread";
 import MobileCaseStudy from "./MobileCaseStudy";
 import { HEADER_H, vw } from "./MobileHeader";
 import SectionSeam from "../SectionSeam";
+import { pinPage } from "../../lib/pinPage";
 
 // The project section, on a phone. Figma 349:3201, drawn at 430 x 932.
 //
@@ -379,10 +380,14 @@ export default function MobileProject() {
                 // hand and then open the case study of whatever happened to
                 // land under the finger. The two gestures are separate: drag
                 // moves the hand, a tap opens what you tapped.
-                onSelect={() => {
-                  if (swiped.current) return;
-                  setOpenCard(card);
-                }}
+                // Wrapped for the reason in lib/pinPage: focusing a card
+                // inside the deck's own scroller moves the page under it.
+                onSelect={() =>
+                  pinPage(() => {
+                    if (swiped.current) return;
+                    setOpenCard(card);
+                  })
+                }
               />
             );
           })}
