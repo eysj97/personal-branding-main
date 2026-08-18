@@ -75,21 +75,22 @@ const LAST = 7;
 // centred means centred, which is how all eight frames are drawn.
 const DROP = 0;
 
+// A run of type set on white, the way the design draws its highlights.
+//
+// Two things are wrong with a plain `bg-white` on a span and both show. A
+// background on an *inline* box is drawn over the font's whole content area —
+// ascender to descender, near enough 1.25em on this face — so at 42px the block
+// stands about 10px taller than the capitals it is supposed to be hugging.
+// `inline-block` makes the box the line box instead, and 0.8 of an em is the
+// cap height with a hair either side.
+//
+// The other is the space. `<span> Needed</span>` paints the space too, which is
+// a quarter of an em of white before the word starts and reads as the block
+// being off to the left. The space belongs to the line, not to the run.
+const MARKED = "inline-block bg-white text-black leading-[0.8]";
+
 // Body copy, everywhere. See the note above on why this one is not in vw.
 const BODY = "font-['Pretendard'] font-medium text-[16px] leading-none text-white";
-
-/** A white block behind a run of type — the design's own highlight, which is a
- *  rectangle under the text rather than anything the type does. Absolute, so it
- *  sits outside the column's gaps and moves nothing. */
-function Highlight({ left, top, width, height }) {
-  return (
-    <div
-      aria-hidden
-      className="absolute bg-white"
-      style={{ left: vw(left), top: vw(top), width: vw(width), height: vw(height) }}
-    />
-  );
-}
 
 /** One of the loose marks scribbled over a screen.
  *
@@ -352,7 +353,7 @@ function Archive({ active }) {
               headline having slid off to one side. */}
           <div
             className="flex flex-col items-center text-center font-['Plus_Jakarta_Sans'] font-bold text-white"
-            style={{ gap: vw(4), fontSize: vw(32), ...reveal(active) }}
+            style={{ gap: vw(4), fontSize: vw(42), ...reveal(active) }}
           >
             <p className="whitespace-nowrap leading-none">The Archive You&rsquo;ve</p>
             <p className="whitespace-nowrap leading-none">
@@ -366,7 +367,8 @@ function Archive({ active }) {
                   Centre the lines and that stops being true — the word moves
                   and the bar does not. A highlight that is part of the run it
                   highlights cannot come apart from it. */}
-              <span className="bg-white text-black"> Needed</span>
+              {" "}
+              <span className={MARKED}>Needed</span>
             </p>
           </div>
           <p className={`${BODY} text-center`}>
@@ -546,17 +548,17 @@ function Saved({ active }) {
 function ProblemA({ active }) {
   return (
     <div className="relative flex flex-col" style={{ width: vw(380), gap: vw(12) }}>
-      {/* Behind "The problem", which the design sets in black on white. */}
-      <Highlight left={-2} top={2} width={253.133} height={43} />
       <div
         className="relative flex flex-col items-end"
         style={{ width: vw(377), ...reveal(active) }}
       >
+        {/* The white block is the word's own background here too — the last
+            measured rectangle in this file has gone with the others. */}
         <p
-          className="w-full text-left font-['Pretendard'] font-bold leading-none text-black"
+          className="w-full text-left font-['Pretendard'] font-bold leading-none"
           style={{ fontSize: vw(42) }}
         >
-          The problem
+          <span className={MARKED}>The problem</span>
         </p>
         <p
           className="whitespace-nowrap text-right font-['Pretendard'] font-bold leading-none text-white"
@@ -666,17 +668,25 @@ function Solutions({ active }) {
         style={{ paddingInline: vw(20), ...reveal(active, 0) }}
       >
         <div className="relative flex flex-col items-center" style={{ gap: vw(20) }}>
-          <Highlight left={0} top={4} width={172} height={40} />
+      {/* The white block is the word's own background, not a rectangle placed
+          at a measured x.
+
+          It was a rectangle, because that is how the design draws it — and a
+          rectangle is a size and a position worked out for one type size. These
+          headlines are 42 now where the frame set them at 36, and every one of
+          those rectangles was suddenly the wrong length in the wrong place. A
+          highlight that is part of the run it highlights cannot come apart from
+          it, whatever size the run is set at. */}
           <div
             className="relative flex flex-col items-end font-['Plus_Jakarta_Sans'] font-bold text-white"
             style={{ width: vw(394), gap: vw(4), letterSpacing: vw(-0.72) }}
           >
-            <p className="w-full text-left leading-none" style={{ fontSize: vw(36) }}>
-              <span className="text-black">AI tagging</span> instead
+            <p className="w-full text-left leading-none" style={{ fontSize: vw(42) }}>
+              <span className={MARKED}>AI tagging</span> instead
             </p>
             <p
               className="whitespace-nowrap text-right leading-none"
-              style={{ fontSize: vw(36) }}
+              style={{ fontSize: vw(42) }}
             >
               of folders
             </p>
@@ -702,16 +712,15 @@ function Solutions({ active }) {
         style={{ paddingInline: vw(20), ...reveal(active, 1) }}
       >
         <div className="relative flex flex-col items-center" style={{ width: vw(390), gap: vw(24) }}>
-          <Highlight left={111} top={40} width={279} height={44} />
           <div
             className="relative flex w-full flex-col items-start font-['Plus_Jakarta_Sans'] font-bold"
             style={{ gap: vw(4), letterSpacing: vw(-0.72) }}
           >
-            <p className="w-full text-left leading-none text-white" style={{ fontSize: vw(36) }}>
+            <p className="w-full text-left leading-none text-white" style={{ fontSize: vw(42) }}>
               Search in
             </p>
-            <p className="w-full text-right leading-none text-black" style={{ fontSize: vw(36) }}>
-              design language
+            <p className="w-full text-right leading-none" style={{ fontSize: vw(42) }}>
+              <span className={MARKED}>design language</span>
             </p>
             {/* inset[27.63% 52.21% 38.16% 40.26%] of the 390 x 76 title block,
                 resolved. The design stretches this one slightly wider than it
@@ -733,18 +742,11 @@ function Solutions({ active }) {
         className="relative flex flex-col items-center"
         style={{ gap: vw(24), ...reveal(active, 2) }}
       >
-        {/* 5, not the 20 it was. The design writes this row as one grid cell
-            with three things in it at their own margins — the headline at
-            mt-0, the white block at mt-5, the marks at mt-15 — all measured
-            from the group's top, and the group's top is the headline's. At 20
-            the block cleared the type entirely and read as an empty white bar
-            under it. */}
-        <Highlight left={26.77} top={5} width={282.592} height={39} />
         <p
-          className="relative whitespace-nowrap text-right font-['Plus_Jakarta_Sans'] font-bold leading-none text-black"
-          style={{ fontSize: vw(36), letterSpacing: vw(-0.72) }}
+          className="relative whitespace-nowrap text-right font-['Plus_Jakarta_Sans'] font-bold leading-none"
+          style={{ fontSize: vw(42), letterSpacing: vw(-0.72) }}
         >
-          Layout structure
+          <span className={MARKED}>Layout structure</span>
         </p>
         <p
           className="whitespace-nowrap text-right font-['Plus_Jakarta_Sans'] text-[16px] font-medium leading-none text-white tracking-[-0.32px]"
@@ -912,6 +914,9 @@ export default function MobileExperience() {
   // gets the full-screen window the project deck uses.
   const [appOpen, setAppOpen] = useState(false);
   const trackRef = useRef(null);
+  // Which screen the strip is on, kept off React so the resize handler can
+  // read it without being re-created every time it changes.
+  const stepRef = useRef(0);
   // Where a press went down, so a drag that ends on the glass is not read as a
   // tap. A scroll container usually swallows the click after a real swipe, but
   // "usually" is doing work across browsers, and a swipe that also steps a
@@ -924,18 +929,36 @@ export default function MobileExperience() {
   // so a `step` of its own would be a second answer to the same question and
   // the two would disagree the moment someone swipes. This only mirrors it, for
   // the dots and for working out where a tap should go next.
+  // The strip is re-pinned whenever the window changes size, and that is what
+  // stops it drifting.
+  //
+  // A phone's viewport height is not a constant: the URL bar shows and hides as
+  // you scroll, and `100svh` sections re-layout when it does. A mandatory snap
+  // container that re-lays-out mid-scroll re-snaps, and re-snapping from a
+  // scrollLeft that is a fraction of a pixel off a boundary lands it on the
+  // *other* boundary — which is the shake. Putting it back on the screen it was
+  // already on, exactly, leaves it nothing to re-decide.
+  //
+  // `scrollLeft` rather than scrollTo: this is a correction, not a move, and it
+  // must not animate.
   useEffect(() => {
     const track = trackRef.current;
     const read = () => {
       const at = Math.round(track.scrollLeft / track.clientWidth);
-      setStep(Math.min(LAST, Math.max(0, at)));
+      const next = Math.min(LAST, Math.max(0, at));
+      stepRef.current = next;
+      setStep(next);
+    };
+    const repin = () => {
+      track.scrollLeft = stepRef.current * track.clientWidth;
+      read();
     };
     read();
     track.addEventListener("scroll", read, { passive: true });
-    window.addEventListener("resize", read);
+    window.addEventListener("resize", repin);
     return () => {
       track.removeEventListener("scroll", read);
-      window.removeEventListener("resize", read);
+      window.removeEventListener("resize", repin);
     };
   }, []);
 
@@ -1002,7 +1025,7 @@ export default function MobileExperience() {
         ref={trackRef}
         onPointerDown={onPointerDown}
         onClick={onClick}
-        className="absolute inset-0 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
+        className="absolute inset-0 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [overflow-anchor:none]"
       >
         {SCREENS.map((Screen, i) => (
           <div

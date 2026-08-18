@@ -14,7 +14,17 @@ import { useGroundUnder } from "../../lib/useGround";
 // hero's black wash fading into it is meant to happen *behind* the name — a
 // solid bar here would cut a rectangle out of that.
 export const DESIGN_W = 430;
-export const vw = (px) => `${((px / DESIGN_W) * 100).toFixed(3)}vw`;
+
+// A design px, as a share of the window.
+//
+// `calc`, and not a vw figure worked out here and rounded. Three decimal places
+// sounds like plenty and is not: 60 design px came out as 13.953vw, which on a
+// 430-wide screen is 59.9979px — near enough to look right and not the number,
+// and the sizes on this page are quoted and compared against the design in
+// whole px. Handing CSS the division instead means every measurement is exact
+// at 430 and exact at every other width too, which is the whole point of
+// writing them in design px in the first place.
+export const vw = (px) => `calc(${px} / ${DESIGN_W} * 100vw)`;
 
 // What the header occupies, so sections can hold their composition clear of it:
 // 40px of padding top and bottom off the design, plus the name's own line.

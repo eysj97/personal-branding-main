@@ -324,6 +324,9 @@ const LAST = STEPS - 1;
 export default function MobileCareer() {
   const [step, setStep] = useState(0);
   const trackRef = useRef(null);
+  // Which screen the strip is on, kept off React so the resize handler can
+  // read it without being re-created every time it changes.
+  const stepRef = useRef(0);
   const sectionRef = useRef(null);
   // Whether the section below has begun to show. Its circle takes over there —
   // grown straight off the scroll from the size this one hands it over at — so
@@ -336,18 +339,36 @@ export default function MobileCareer() {
   // Which screen is in frame, read off the scroll position rather than held as
   // the truth — a finger can put the track anywhere, and a `step` of its own
   // would be a second answer that disagrees the moment someone swipes.
+  // The strip is re-pinned whenever the window changes size, and that is what
+  // stops it drifting.
+  //
+  // A phone's viewport height is not a constant: the URL bar shows and hides as
+  // you scroll, and `100svh` sections re-layout when it does. A mandatory snap
+  // container that re-lays-out mid-scroll re-snaps, and re-snapping from a
+  // scrollLeft that is a fraction of a pixel off a boundary lands it on the
+  // *other* boundary — which is the shake. Putting it back on the screen it was
+  // already on, exactly, leaves it nothing to re-decide.
+  //
+  // `scrollLeft` rather than scrollTo: this is a correction, not a move, and it
+  // must not animate.
   useEffect(() => {
     const rail = trackRef.current;
     const read = () => {
       const at = Math.round(rail.scrollLeft / rail.clientWidth);
-      setStep(Math.min(LAST, Math.max(0, at)));
+      const next = Math.min(LAST, Math.max(0, at));
+      stepRef.current = next;
+      setStep(next);
+    };
+    const repin = () => {
+      rail.scrollLeft = stepRef.current * rail.clientWidth;
+      read();
     };
     read();
     rail.addEventListener("scroll", read, { passive: true });
-    window.addEventListener("resize", read);
+    window.addEventListener("resize", repin);
     return () => {
       rail.removeEventListener("scroll", read);
-      window.removeEventListener("resize", read);
+      window.removeEventListener("resize", repin);
     };
   }, []);
 
@@ -518,7 +539,7 @@ export default function MobileCareer() {
           ref={trackRef}
           onPointerDown={onPointerDown}
           onClick={onClick}
-          className="absolute inset-0 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain"
+          className="absolute inset-0 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain [overflow-anchor:none]"
         >
           <div className="relative w-full shrink-0 snap-center">
             {/* The design centres the title block on the canvas' middle, less

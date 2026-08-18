@@ -50,16 +50,25 @@ export default function StepDots({ count, at, tone = "light" }) {
       {Array.from({ length: count }, (_, i) => (
         <span
           key={i}
-          className={`block rounded-full transition-all duration-300 ${ink}`}
+          // `width` and `opacity`, not `transition-all`.
+          //
+          // `all` puts every animatable property on the clock, `border-radius`
+          // included — and a 9999px radius interpolating against a box whose
+          // width is also moving is where the black nick beside the pill came
+          // from on iOS: for a few frames the corner is not where the fill
+          // thinks it is. Naming the two things that actually change leaves the
+          // radius alone.
+          //
+          // The hairline ring that was here has gone with it. It was there to
+          // give a white dot an edge on the blue, which the dots no longer need
+          // now that they are solid white, and on the black ones it was one
+          // more thing for the compositor to round.
+          className={`block rounded-full ${ink}`}
           style={{
             width: vw(i === at ? PILL : DOT),
             height: vw(DOT),
             opacity: i === at ? 1 : rest,
-            // A hairline of the ground under each one. On the blue the dots are
-            // white on a mid blue and the shadow is what gives them an edge; on
-            // the white they are black and it does nothing. Cheaper than a
-            // second element and it cannot fall out of step with the dot.
-            boxShadow: "0 0 0 1px rgba(0,0,0,0.06)",
+            transition: "width 300ms ease-out, opacity 300ms ease-out",
           }}
         />
       ))}

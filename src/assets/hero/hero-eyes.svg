@@ -19,12 +19,33 @@
      are the design's, untouched; only the placement moved, and it moved to the
      one place that makes the handover invisible. -->
 <g data-eye="closed">
-  <path d="M134.71,230.90 C140.99,242.00 175.24,245.37 187.30,234.28" stroke="#FFFFFF" stroke-width="9.648" stroke-linecap="round"/>
-  <path d="M326.71,230.90 C332.98,242.00 367.23,245.37 379.29,234.28" stroke="#FFFFFF" stroke-width="9.648" stroke-linecap="round"/>
+  <path d="M134.71,230.90 C140.99,242.00 175.24,245.37 187.30,234.28" stroke="#1D1C1C" stroke-width="9.648" stroke-linecap="round"/>
+  <path d="M326.71,230.90 C332.98,242.00 367.23,245.37 379.29,234.28" stroke="#1D1C1C" stroke-width="9.648" stroke-linecap="round"/>
 </g>
+<!-- Open: a white eye with a dark pupil in it, not a plain white dot.
+
+     A dot was what this was, and at the size the character actually spends most
+     of its life — 60px in the corner of a phone, where the whole eye is about
+     two px — a white dot and the white lash-line of the shut state are the same
+     mark: two small pale smudges. There was nothing in the drawing that said
+     which. The pupil is what says it. It costs one circle and it is the one
+     feature that cannot be mistaken for a closed lid.
+
+     Both circles sit in the [data-pupil] group so the gaze carries them
+     together — see GAZE_TRAVEL in Hero.
+
+     Dark eye, light pupil, and the glasses over them are white (glasses.svg).
+     The pair is inverted from what it was; what has to hold is that the two
+     states do not look alike, and a pupil is still what says which. -->
 <g data-eye="open">
-  <g data-pupil="left"><circle cx="161" cy="236" r="19.779" fill="#FFFFFF"/></g>
-  <g data-pupil="right"><circle cx="353" cy="236" r="19.779" fill="#FFFFFF"/></g>
+  <g data-pupil="left">
+    <circle cx="161" cy="236" r="19.779" fill="#1D1C1C"/>
+    <circle cx="161" cy="236" r="8.9" fill="#FFFFFF"/>
+  </g>
+  <g data-pupil="right">
+    <circle cx="353" cy="236" r="19.779" fill="#1D1C1C"/>
+    <circle cx="353" cy="236" r="8.9" fill="#FFFFFF"/>
+  </g>
 </g>
 <!-- The lens tint over a shut eye. It is the frame's own path, filled instead of
      stroked — that path is the lens centre line, so filling it is the lens
