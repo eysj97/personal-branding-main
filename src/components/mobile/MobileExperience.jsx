@@ -232,17 +232,25 @@ function DrawnMark({ raw, left, top, width, height, turn, active, duration = 700
 // its own weight. `order` is its place in the queue rather than a delay in ms —
 // the pacing is one number, and a block only says where it is in the line.
 //
-// A fifth rather than nothing, and that is the point of it: the line is legibly
-// there before it arrives, so what you watch is a sentence coming into focus
-// rather than a sentence appearing out of an empty screen. It rewinds when the
-// screen leaves, so swiping back plays it again.
+// A fifth rather than nothing for the headlines, and that is the point of them:
+// the line is legibly there before it arrives, so what you watch is a sentence
+// coming into focus rather than a sentence appearing out of an empty screen. It
+// rewinds when the screen leaves, so swiping back plays it again.
+//
+// `rest` is that fifth, and it is a parameter because the solutions want zero.
+// One headline fading up from a fifth is a sentence sharpening; three of them
+// stacked at a fifth are three grey lines already on the screen, and what
+// arrives afterwards is not an entrance, it is a brightness change on a list
+// that was already there. A list that comes in one item at a time has to start
+// with no items.
 const REVEAL_MS = 520;
 const REVEAL_STAGGER = 170;
 const REVEAL_FROM = -34;
-const reveal = (active, order = 0) => {
+const REVEAL_REST = 0.2;
+const reveal = (active, order = 0, rest = REVEAL_REST) => {
   const delay = active ? order * REVEAL_STAGGER : 0;
   return {
-    opacity: active ? 1 : 0.2,
+    opacity: active ? 1 : rest,
     transform: active ? "none" : `translateX(${vw(REVEAL_FROM)})`,
     transition: `opacity ${REVEAL_MS}ms ease-out ${delay}ms, transform ${REVEAL_MS}ms cubic-bezier(0.16, 1, 0.3, 1) ${delay}ms`,
   };
@@ -665,7 +673,7 @@ function Solutions({ active }) {
           all at once is a picture of a list. */}
       <div
         className="flex w-full items-center"
-        style={{ paddingInline: vw(20), ...reveal(active, 0) }}
+        style={{ paddingInline: vw(20), ...reveal(active, 0, 0) }}
       >
         <div className="relative flex flex-col items-center" style={{ gap: vw(20) }}>
       {/* The white block is the word's own background, not a rectangle placed
@@ -709,7 +717,7 @@ function Solutions({ active }) {
       {/* Row 2 — search. */}
       <div
         className="flex w-full items-center"
-        style={{ paddingInline: vw(20), ...reveal(active, 1) }}
+        style={{ paddingInline: vw(20), ...reveal(active, 1, 0) }}
       >
         <div className="relative flex flex-col items-center" style={{ width: vw(390), gap: vw(24) }}>
           <div
@@ -740,7 +748,7 @@ function Solutions({ active }) {
           rectangles in the design, not the folder icons the desktop uses. */}
       <div
         className="relative flex flex-col items-center"
-        style={{ gap: vw(24), ...reveal(active, 2) }}
+        style={{ gap: vw(24), ...reveal(active, 2, 0) }}
       >
         <p
           className="relative whitespace-nowrap text-right font-['Plus_Jakarta_Sans'] font-bold leading-none"
@@ -888,13 +896,35 @@ function ParkedWord({ onOpen }) {
         light ? "text-[#336bec]" : "text-white"
       }`}
       style={{
-        right: CHAT_INSET,
+        // Centred over the circle, not right-aligned with it.
+        //
+        // It was `right: CHAT_INSET` — the circle's own inset — which lines the
+        // word's right edge up with the circle's right edge. That is only the
+        // same thing as centring it if the two are the same width, and they are
+        // not: "Snapkeep" at 18px runs about 88px against a 60px circle, so
+        // right-aligning them hangs the word a good 14px off to the left and it
+        // reads as a label belonging to something further along.
+        //
+        // The circle's centre is CHAT_SIZE / 2 in from its own inset, so the
+        // word's right edge goes there and the `translateX(50%)` below pushes
+        // it back out by half its own width — whatever that turns out to be.
+        // A percentage rather than a measured half-width on purpose: the word
+        // is set in a webfont, and any number written here would be a guess at
+        // its metrics that goes stale the moment the face or the size changes.
+        right: CHAT_INSET + CHAT_SIZE / 2,
         bottom: CHAT_INSET + CHAT_SIZE + WORD_GAP,
         fontSize: 18,
         letterSpacing: "-0.02em",
         opacity: shown ? 1 : 0,
         // Up into place rather than simply on. It arrives from where it was.
-        transform: shown ? "none" : "translateY(10px)",
+        //
+        // The translateX is the centring above and is on in both states; only
+        // the Y is the arrival. Written together because one `transform` is one
+        // property — dropping the X in either state would slide the word
+        // sideways as it appears.
+        transform: shown
+          ? "translateX(50%)"
+          : "translateX(50%) translateY(10px)",
         pointerEvents: shown ? "auto" : "none",
       }}
     >

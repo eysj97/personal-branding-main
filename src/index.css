@@ -1200,3 +1200,53 @@ div:has(> header .font-serif) .snapkeep-analysis-basis {
     animation: none;
   }
 }
+
+/* The phone's page settles on a section instead of sliding past it.
+
+   Every mobile section is a screen with something to read on it, and several of
+   them are tapped or swiped through rather than scrolled — EXPERIENCE and the
+   CAREER wheel both hold still while you work across them sideways. Scrolled
+   freely, a flick that starts on one of those lands halfway into the next
+   section, and the reader arrives at a composition already half off the top of
+   the screen. Snapping is the pause: the scroll ends on a section edge.
+
+   `proximity`, and not `mandatory`. Mandatory snaps to the nearest point
+   whatever you are doing, and the hero is 300dvh with one snap point at its
+   top — stop two-thirds of the way through its intro and mandatory would drag
+   you to whichever end is closer, which is the intro playing backwards. It
+   would do the same to every scroll-driven section here. Proximity only acts
+   when the scroll comes to rest *near* an edge, which is exactly the case this
+   is here to fix, and leaves a deliberate stop mid-section alone.
+
+   `scroll-snap-stop: always` is what makes it a stop rather than a suggestion.
+   Proximity on its own only decides where a scroll comes to *rest*, and a flick
+   on a phone does not rest anywhere near where it started — it carries through
+   two or three sections and settles at the far end, having passed every snap
+   point on the way without acknowledging one. `always` forbids passing over a
+   snap position at all, so one gesture moves one section however hard it is
+   thrown. That is the part that reads as stopping.
+
+   On `html` because that is the scrolling element for the page; the horizontal
+   strips inside EXPERIENCE and CAREER are their own scroll containers with
+   their own `snap-x` and are untouched by an axis they do not scroll on.
+
+   No `scroll-padding-top` for the fixed header. The sections that need to clear
+   it carry their own spacer of exactly HEADER_H (see MobileLearn, MobileSkills)
+   and the rest are full-bleed by design, so padding here would push all of them
+   down by a header they have already accounted for. */
+@media (max-width: 767px) {
+  html {
+    scroll-snap-type: y proximity;
+  }
+
+  .section-mobile-hero,
+  .section-mobile-experience,
+  .section-mobile-project,
+  .section-mobile-learn,
+  .section-mobile-skills,
+  .section-mobile-career,
+  .section-mobile-about {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+}

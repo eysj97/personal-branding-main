@@ -1872,17 +1872,27 @@ export default function ExperienceSection() {
     // than the size it is currently wearing — hence offsetWidth, which a
     // transform does not touch. Measured off the front copy, since the wrapper
     // holds nothing but absolutely positioned children and has no size at all.
+    // Read in the loop's own read phase, every frame, rather than captured here.
+    //
+    // It was captured — once at mount, again on `fonts.ready` and on resize —
+    // and the whole centring hangs off it: the word is laid down at
+    // `x - naturalW * scale / 2`, so the instant the number stops matching what
+    // the element actually measures, the box the loop centres and the ink the
+    // reader sees are two different boxes and the word sits off to one side of
+    // the circle. Three re-measure hooks is three guesses at when the width
+    // changes, and the answer is that a webfont's metrics can land at any point
+    // — a late face swap, a second face for the same family, a cache miss on a
+    // reload — none of which fire a resize and not all of which land before
+    // `fonts.ready` resolves.
+    //
+    // Reading it every frame costs nothing here. The loop already calls
+    // getBoundingClientRect twice in the same phase, so layout is being flushed
+    // regardless, and offsetWidth is a layout read like any other — it is only
+    // expensive when it is interleaved with writes, and every write in this
+    // loop happens after all of the reads. Same principle the positions are
+    // already on: read live, keep no second copy to fall out of step.
     let naturalW = 0;
     let naturalH = 0;
-    function measure() {
-      naturalW = layers[0]?.offsetWidth ?? 0;
-      naturalH = layers[0]?.offsetHeight ?? 0;
-    }
-    measure();
-    // The word is the widest thing this measures and it is set in a webfont, so
-    // a cold load has it at fallback metrics until the real face lands.
-    document.fonts?.ready.then(measure);
-    window.addEventListener("resize", measure);
 
     // Written only when it changes. The two are a handover rather than a fade:
     // at the first frame of travel the copy is laid exactly on the word it
@@ -1968,6 +1978,9 @@ export default function ExperienceSection() {
           paintColours();
         }
       }
+
+      naturalW = layers[0]?.offsetWidth ?? 0;
+      naturalH = layers[0]?.offsetHeight ?? 0;
 
       if (moving && naturalW > 0) {
         // Eased, so the word neither sets off abruptly nor slams into the
@@ -2077,10 +2090,7 @@ export default function ExperienceSection() {
     }
 
     frameId = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", measure);
-    };
+    return () => cancelAnimationFrame(frameId);
   }, []);
 
   useEffect(() => {

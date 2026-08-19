@@ -134,6 +134,11 @@ const smoothstep = (from, to, x) => {
 // place the whole timeline's length is set.
 const TIMELINE_END = 0.9;
 
+// Where the eye stops being shut and starts being open, as a fraction of the
+// eye timeline. Two numbers for one crossing — see the note at the cut.
+const EYE_OPEN_AT = 0.76;
+const EYE_SHUT_AT = 0.7;
+
 export default function Hero() {
   const sectionRef = useRef(null);
   const overlayRef = useRef(null);
@@ -199,6 +204,9 @@ export default function Hero() {
     // what the scroll hold below waits for. Read, not assumed: the render lags
     // the scroll slightly, so "we are past TIMELINE_END" and "the last frame
     // has been painted" are not the same moment.
+    // Which drawing of the eye is showing. Held across frames because the
+    // crossing has hysteresis and so needs to know where it already was.
+    let eyesOpen = false;
     let timelineDone = false;
 
     function render(raw) {
@@ -212,16 +220,24 @@ export default function Hero() {
       const eyeProgress = clamp01(progress / 0.6);
       overlay.style.opacity = Math.pow(1 - eyeProgress, 1.5);
 
-      // Shut, then open — one handover rather than two. The band is kept to
-      // roughly the width each of the old pair had: an eyelid travels, it does
-      // not fade, and a long cross-fade between two drawings of an eye just
-      // reads as a ghost. Stretching this one across everything the three
-      // states used to cover would be exactly that fade, so the shut eye holds
-      // instead, gives way over a short eased band, and is open with a beat to
-      // spare before the copy comes up behind it.
-      const toOpen = smoothstep(0.6, 0.85, eyeProgress);
-      const openOp = toOpen;
-      const closedOp = 1 - toOpen;
+      // Shut or open, and never both. A blink is a cut, not a dissolve.
+      //
+      // This was a cross-fade across a band of the scroll, and on a scrubbed
+      // timeline a band is somewhere the reader can *stop*. Stop in it and the
+      // shut eye's curve is sitting on top of the open eye's filled disc, half
+      // strength each, which reads as neither eye — a dark blob with a line
+      // through it. It is not a glitch that flashes past; it is a resting state
+      // the page will happily hold for as long as you leave it there.
+      //
+      // Two thresholds rather than one, because a single one on a scrubbed
+      // value flickers: a hair of scroll jitter at the boundary flips it back
+      // and forth every frame. Below OPEN_AT it shuts, above it opens, and it
+      // stays as it is in between — so crossing needs real movement, and
+      // hovering on the edge leaves it wherever it last committed.
+      if (eyeProgress >= EYE_OPEN_AT) eyesOpen = true;
+      else if (eyeProgress <= EYE_SHUT_AT) eyesOpen = false;
+      const openOp = eyesOpen ? 1 : 0;
+      const closedOp = eyesOpen ? 0 : 1;
       for (const el of closedEye) el.style.opacity = closedOp;
       for (const el of openEye) el.style.opacity = openOp;
 
