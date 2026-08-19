@@ -23,7 +23,11 @@ import ai2 from "../../assets/project/detail/layer/ai-2.avif";
 const PAD = { top: 40, bottom: 40, left: 95, right: 195 };
 
 // Every body on this page is set at the same size, so it is stated once.
-const BODY = { size: 18, tracking: "-0.36px" };
+// 16, and the tracking with it. `Heading` works its own letterfit out from its
+// size (size * -0.02); `Body` is handed one, so the two only stay the same
+// typeface setting if this moves when the size does — -0.36 was 18 * -0.02 and
+// would have been a fifth too loose at 16.
+const BODY = { size: 16, tracking: "-0.32px" };
 
 // The header's own line breaks (205:2626, 205:2627) — see AquaplanetSpread for
 // why they are authored rather than left to the browser. This header needs them
@@ -138,7 +142,7 @@ export default function LayerSpread({ stacked }) {
                 },
               ]}
             />
-            <Heading size={32}>AI Implementaion</Heading>
+            <Heading size={28}>AI Implementaion</Heading>
             <Body {...BODY}>
               {[
                 "[카테고리] 전달받은 디자인이 실제 데이터와 맞지 않아, 디자인은 그대로 두고 내용을 데이터에 맞게 고쳤습니다.",
@@ -149,7 +153,7 @@ export default function LayerSpread({ stacked }) {
 
           <Block>
             <Shot height={220} sources={[{ src: ai2, style: fill({ objectFit: "contain" }) }]} />
-            <Heading size={32}>AI Implementaion</Heading>
+            <Heading size={28}>AI Implementaion</Heading>
             <Body {...BODY}>
               {[
                 "상세페이지의 향수 이미지는 AI로 생성했습니다. 분위기를 통일해야 해서 향수마다 세 장으로 제한했습니다.",
@@ -168,7 +172,7 @@ export default function LayerSpread({ stacked }) {
         <div className={`${COLUMN} w-[475px] gap-[var(--column-gap,24px)]`}>
           <Block>
             <Shot height={320} sources={[{ src: magazine, style: fill({ objectFit: "contain" }) }]} />
-            <Heading size={32}>Magazine Page</Heading>
+            <Heading size={28}>Magazine Page</Heading>
             <Body {...BODY}>
               {[
                 "향수 상식과 트렌드를 다루는 공간입니다. 입문자는 지식을, 애호가는 트렌드를 얻습니다.",
@@ -182,7 +186,7 @@ export default function LayerSpread({ stacked }) {
 
           <Block>
             <Shot height={294} sources={[{ src: survey, style: fill({ objectFit: "cover" }) }]} />
-            <Heading size={32}>Survey</Heading>
+            <Heading size={28}>Survey</Heading>
             <Body {...BODY}>
               {[
                 "향수 사용자 50명에게 물으니, 가장 어려운 점은 나에게 맞는 향을 찾는 일이었습니다. 90%가 맞춤 추천을 원했습니다.",
@@ -196,7 +200,7 @@ export default function LayerSpread({ stacked }) {
         <div className={`${COLUMN} w-[475px] gap-[var(--column-gap,24px)] pb-[60px]`}>
           <Block>
             <NoteCard />
-            <Heading size={32}>Detail Page</Heading>
+            <Heading size={28}>Detail Page</Heading>
             <Body {...BODY}>
               {[
                 "상세페이지는 한눈에 파악되는 것이 가장 중요하다고 봤습니다. 병에 탑·미들·베이스 노트를 색으로 나누고 함유량만큼 채웠습니다.",
@@ -212,7 +216,7 @@ export default function LayerSpread({ stacked }) {
                 { src: retrospect, style: fill({ objectFit: "cover", objectPosition: "bottom" }) },
               ]}
             />
-            <Heading size={32}>Retrospect</Heading>
+            <Heading size={28}>Retrospect</Heading>
             <Body {...BODY}>
               {[
                 "이 프로젝트에서 가장 크게 남은 건, 참고할 것이 없을 때 스스로 답을 만든 경험입니다.",

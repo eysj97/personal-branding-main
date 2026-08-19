@@ -26,7 +26,11 @@ const PAD = { top: 50, bottom: 50, left: 95, right: 195 };
 const HAIRLINE = "#d9d9d9";
 
 // Every body on this page is set at the same size, so it is stated once.
-const BODY = { size: 18, tracking: "-0.36px" };
+// 16, and the tracking with it. `Heading` works its own letterfit out from its
+// size (size * -0.02); `Body` is handed one, so the two only stay the same
+// typeface setting if this moves when the size does — -0.36 was 18 * -0.02 and
+// would have been a fifth too loose at 16.
+const BODY = { size: 16, tracking: "-0.32px" };
 
 // The header's own line breaks (204:2189) — see AquaplanetSpread for why they
 // are authored rather than left to the browser.
@@ -85,7 +89,7 @@ export default function ReviuSpread({ stacked }) {
         <HeaderColumn at={{ left: 0, top: 61, width: 475 }} gap={24} header={header} stacked={stacked}>
           <Block>
             <Shot height={222} sources={[{ src: problem, style: fill({ objectFit: "cover" }) }]} />
-            <Heading size={32}>Problem</Heading>
+            <Heading size={28}>Problem</Heading>
             <Body {...BODY}>
               {[
                 "공부의 어려움은 이해만이 아닙니다. 언제 복습해야 하는지, 무엇을 놓쳤는지는 스스로 알기 어렵습니다.",
@@ -96,7 +100,7 @@ export default function ReviuSpread({ stacked }) {
 
           <Block>
             <Shot height={312} sources={[{ src: cornell, style: fill({ objectFit: "contain" }) }]} />
-            <Heading size={32}>Cornell Notes</Heading>
+            <Heading size={28}>Cornell Notes</Heading>
             <Body {...BODY}>
               {[
                 "코넬 노트는 따로 익히지 않아도 쓸 수 있고, 핵심·설명·요약 구조로 복습 효과가 검증된 방식입니다.",
@@ -114,7 +118,7 @@ export default function ReviuSpread({ stacked }) {
               border={HAIRLINE}
               sources={[{ src: solution, style: fill({ objectFit: "cover" }) }]}
             />
-            <Heading size={32}>Solution</Heading>
+            <Heading size={28}>Solution</Heading>
             <Body {...BODY}>
               {[
                 "필기를 촬영하면 AI가 코넬 노트로 구조화하고 문제를 만들어, 퀴즈로 학습하다 복습할 때가 되면 알려줍니다.",
@@ -128,7 +132,7 @@ export default function ReviuSpread({ stacked }) {
               border={HAIRLINE}
               sources={[{ src: notification, style: fill({ objectFit: "contain" }) }]}
             />
-            <Heading size={32}>Notification</Heading>
+            <Heading size={28}>Notification</Heading>
             <Body {...BODY}>
               {[
                 "학습 알림은 압박이 되기 쉬워 톤을 최대한 부드럽게 설계했습니다.",
@@ -144,7 +148,7 @@ export default function ReviuSpread({ stacked }) {
                 { src: retrospect, style: fill({ objectFit: "cover", objectPosition: "bottom" }) },
               ]}
             />
-            <Heading size={32}>Retrospect</Heading>
+            <Heading size={28}>Retrospect</Heading>
             <Body {...BODY}>
               {[
                 "기획·디자인·웹퍼블리싱까지 혼자 전 과정을 수행한 첫 프로젝트입니다.",
@@ -168,7 +172,7 @@ export default function ReviuSpread({ stacked }) {
               border={HAIRLINE}
               sources={[{ src: reviewTiming, style: fill({ objectFit: "contain" }) }]}
             />
-            <Heading size={32}>Review timing</Heading>
+            <Heading size={28}>Review timing</Heading>
             <Body {...BODY}>
               {[
                 '복습 시점을 정하는 일이 가장 어렵습니다. 그래서 "복습 타이밍은 시스템이 정해준다"를 핵심 기능으로 삼았습니다.',
@@ -189,7 +193,7 @@ export default function ReviuSpread({ stacked }) {
                 },
               ]}
             />
-            <Heading size={32}>AI Implementaion</Heading>
+            <Heading size={28}>AI Implementaion</Heading>
             <Body {...BODY}>
               {[
                 "모든 화면을 AI로 생성하고 직접 검토·수정하며 퍼블리싱했습니다. 다만 섹션마다 클래스명이 제각각이라 공통 요소를 재사용할 수 없었습니다.",

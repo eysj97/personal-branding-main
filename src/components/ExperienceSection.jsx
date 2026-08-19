@@ -246,11 +246,20 @@ const DURATIONS = {
   popup: 560,
   pop: 640,
   type: 650,
-  // Longer than the rest on purpose: this one is meant to be watched being
-  // made, and at the others' pace the stroke is over before you find it. These
-  // are big marks — the arrow crosses 440px — so even a second reads as the
-  // line appearing rather than as a pen travelling along it.
-  draw: 1500,
+  // In among the rest now rather than above them, and that is the third value
+  // this has had. It was 1500, on the argument that a mark meant to be watched
+  // being made needs longer than a sweep — true of the reading, wrong about the
+  // number. Past about a second a stroke stops reading as a pen travelling and
+  // starts reading as a line taking its time, and on a panel the strip is
+  // carrying you through there is no guarantee you are still looking when it
+  // lands. 800 fixed the worst of that; 500 is where it actually sits with the
+  // rest of the section instead of trailing it.
+  //
+  // Still the slowest thing here, and it should be: these are big marks — the
+  // arrow crosses 440px — and the whole point is that the line arrives from one
+  // end rather than appearing. Much under this and it is a flash, at which
+  // point the dash offset is doing work nobody can see.
+  draw: 500,
 };
 
 /** A line drawing that draws itself. The SVG source is inlined so its paths are
@@ -570,7 +579,17 @@ function IntroPanel() {
             authored size then keeps the same letterfit instead of a tracking
             that has quietly become a tenth of what it should be. */}
         <p
-          className={`font-['Plus_Jakarta_Sans'] text-[120px] font-semibold tracking-[-0.02em] ${SWEEP_BOX}`}
+          // `leading-none`, and that is what actually makes this gap 24.
+          //
+          // A flex gap is measured between boxes, and this column carries
+          // `leading-[1.2]` — so the heading's box was 144 tall for 120 of
+          // type, with 12 of half-leading under the last glyph before the gap
+          // even started. Same `gap-[24px]` as every other section, 12px more
+          // air than any of them. The other four headings are all
+          // `leading-none`, which is the only line height at which the box and
+          // the type are the same thing; the caption below keeps the column's
+          // 1.2, where leading is doing a job.
+          className={`font-['Plus_Jakarta_Sans'] text-[120px] font-semibold leading-none tracking-[-0.02em] ${SWEEP_BOX}`}
           data-anim="sweep"
           data-stop={STOP.intro}
           data-delay={0}
@@ -1026,11 +1045,19 @@ function ProblemPanel() {
       {/* What used to be a drawn wave under the first headline is now a plain
           block struck through it. Ahead of the headline in the panel so the
           type sits on top, and wiped open left to right the way the wave was.
-          White and the full height of the 80px line, so "The problem" reads as
+          White and the full height of the line, so "The problem" reads as
           printed on it rather than crossed out by it — hence the black span on
-          those two words and only those. */}
+          those two words and only those.
+
+          Every number here is the headline's, scaled with it. The line went
+          from 80 to 70, so the block did too: it is the width of the words
+          "The problem" set at that size and no wider, and a highlight left at
+          the old width is a white bar running on past the text it is meant to
+          be under. Same for the 6px it leads and drops by — the bleed reads as
+          a bleed because it is proportional to the type, not because it is
+          six. */}
       <div
-        className="absolute left-[301px] top-[407px] h-[83px] w-[486px] bg-white"
+        className="absolute left-[302px] top-[406px] h-[73px] w-[425px] bg-white"
         data-anim="wipe"
         data-stop={STOP.problemA}
         data-delay={0}
@@ -1046,14 +1073,14 @@ function ProblemPanel() {
           wide the headline actually renders.
 
           The gap is box to box, which is the only measurable thing here: the
-          headline is `leading-none`, so its box is exactly the 80px em box and
+          headline is `leading-none`, so its box is exactly the 70px em box and
           the descender on "saving" hangs below it. The ink is therefore nearer
           than 20px and always will be — closing that instead would mean moving
           the caption on a number that changes with every word in the line. */}
       <div className="absolute left-[307px] top-[401px] flex flex-col items-end gap-[20px]">
         {/* No sweep on the <p>: each half carries its own, because they do not
             arrive together. */}
-        <p className="text-right font-['Pretendard'] text-[80px] font-bold leading-none whitespace-nowrap">
+        <p className="text-right font-['Pretendard'] text-[70px] font-bold leading-none whitespace-nowrap">
           <Half stop={STOP.problemA} after={LEAD_MARK}>
             The problem
           </Half>{" "}
@@ -1154,18 +1181,22 @@ function ProblemPanel() {
       {/* Relayed: the shaft is drawn, and only then does the head go on the
           end of it.
 
-          Quicker than the shared `draw` time, which is set for a mark that is
-          made in one pass. This one is two, so at that pace the whole gesture
-          ran on for well over a second and the head — the point of the arrow —
-          did not arrive until the reader had stopped watching. The shaft still
-          gets about two thirds of this, the head the rest. */}
+          On the shared `draw` time now, with no override. It carried 950 back
+          when that shared time was 1500 — the point being that this mark is two
+          passes rather than one, so at the full length the whole gesture ran
+          well over a second and the head, which is the point of an arrow, did
+          not arrive until the reader had stopped watching. The shared time is
+          800 now, which is shorter than the exception was; keeping 950 would
+          have quietly made the arrow the slowest mark on the page, which is the
+          opposite of what the number was ever for. The shaft still takes about
+          two thirds of it and the head the rest, since a relay splits by
+          length. */}
       <DrawnMark
         raw={problemArrow}
         className="left-[1818px] top-[429px] size-[439.666px]"
         stop={STOP.problemB}
         delay={HIGHLIGHT_AFTER}
         relay
-        duration={950}
       />
     </div>
   );
@@ -1245,7 +1276,7 @@ function SolutionPanel() {
           it centred on the headline rather than hung off either end. */}
       <div className="absolute left-[372px] top-[442px] flex flex-col items-center gap-[16px]">
         <p
-          className={`text-right font-['Pretendard'] text-[100px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
+          className={`text-right font-['Pretendard'] text-[120px] font-bold leading-none text-white whitespace-nowrap ${SWEEP_BOX}`}
           data-anim="sweep"
           data-stop={STOP.solutionLead}
           // Held until the panel has finished sliding in. Armed at zero, the
@@ -1270,9 +1301,24 @@ function SolutionPanel() {
           now, so carrying it still would hold this mark back for over a second
           after the panel had settled — long enough to be scrolled past
           unseen. */}
+      {/* Every number in this box is the headline's, put through the same
+          change the headline was. The burst belongs to one glyph — the "3" in
+          the middle of the line — so it is not at a position of its own: it is
+          at a position *in the type*, and the type is anchored at the group's
+          own 372 / 442 and grows right and down from there. Take the headline
+          from 100 to 120 and every advance in it moves by 1.2 about that
+          corner, the "3" included, so the burst is moved and scaled by 1.2
+          about the same corner and lands back over the same glyph.
+
+          It grew as well as moved, and had to. A burst that keeps its old size
+          over a numeral a fifth larger is not the drawing any more — it reads
+          as five small ticks that happen to be near a big 3.
+
+          Was left-734 top-326 170x203 at 100px. If the size changes again the
+          arithmetic is the same: scale about (372, 442) by the ratio. */}
       <DrawnMark
         raw={solutionSparkle}
-        className="left-[734px] top-[326px] h-[203px] w-[170px]"
+        className="left-[806px] top-[303px] h-[244px] w-[204px]"
         stop={STOP.solutionLead}
         delay={HIGHLIGHT_AFTER}
       />
@@ -1579,10 +1625,20 @@ function SnapkeepPanel({ onOpen }) {
 
               pointer-events-none on both: they are inside the button and would
               be hovered *instead* of it otherwise, and group-hover keys off the
-              button. Nothing here is a target of its own. */}
+              button. Nothing here is a target of its own.
+
+              And shown outright where there is no pointer to hover with.
+              Tailwind v4 wraps every hover variant in `@media (hover: hover)`,
+              so on a touch screen these two rules simply do not exist — which
+              left the one thing telling the reader this picture can be opened
+              visible only to people who were never going to need telling. The
+              desktop composition runs from 768px up, and plenty of what is up
+              there is a tablet. The `(hover: none)` pair is the same end state
+              the hover reaches, held on permanently: on a touch device the
+              label is simply part of the picture. */}
           <span
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
+            className="pointer-events-none absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100 [@media(hover:none)]:opacity-100"
           />
           <span
             aria-hidden="true"
@@ -1596,7 +1652,7 @@ function SnapkeepPanel({ onOpen }) {
                 Rises a little as it arrives rather than simply appearing, so it
                 reads as a thing being offered rather than as a flash. The lime
                 and the black on it are the chips this section already uses. */}
-            <span className="translate-y-[10px] rounded-full bg-[#ffd527] px-[20px] py-[16px] font-['Plus_Jakarta_Sans'] text-[22px] font-bold leading-none tracking-[0.06em] text-black opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
+            <span className="translate-y-[10px] rounded-full bg-[#ffd527] px-[20px] py-[16px] font-['Plus_Jakarta_Sans'] text-[22px] font-bold leading-none tracking-[0.06em] text-black opacity-0 transition-[opacity,transform] duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
               CLICK
             </span>
           </span>

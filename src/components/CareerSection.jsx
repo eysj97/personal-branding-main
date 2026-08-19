@@ -319,7 +319,12 @@ const TEXT_BOX = {
 // The title has its own box in the design (node 154:3770) rather than sharing
 // the role photo's — it sits higher and narrower than the photo does, so that
 // the START circle below it still lands on the wheel's CENTER slot.
-const START_TITLE_BOX = { x: centredX(560), y: 481, width: 560 };
+// 800 rather than the 560 it was, because the heading inside it went from 84 to
+// 120. `centredX` re-centres it from the width, so widening the box moves
+// nothing — it only stops "EVERY ROLE" hanging out of both sides of its own
+// column, which it would do by about 108px at the larger size. The line under it
+// is centred in here too and is nowhere near either edge at any of these widths.
+const START_TITLE_BOX = { x: centredX(800), y: 481, width: 800 };
 const START_FADE_WINDOW = 0.35;
 
 // Where role 5's circle goes once it stops being a wheel slot and becomes the
@@ -483,7 +488,13 @@ const CHANGE_CHAPTER = CHAPTERS.find((c) => c.ridesWipe);
 // the paging are gone. The box is sized to the copy and asserts it: it is
 // measured off the line count below, so trimming or adding a line resizes it
 // on its own.
-const CHANGE_PARA_LINE_HEIGHT = 24 * 1.3;
+// 22 and 1.3 are the paragraph's own `text-[22px]` and `leading-[1.3]`, written
+// out again because a Tailwind class has to be a literal string for the scanner
+// to find it and so cannot be built from a constant. They are the one pair here
+// that has to be kept in step by hand: the window is `overflow-hidden`, so a
+// line height smaller than the text's clips the last line, and larger leaves a
+// band of empty box under it. If the class above changes, change this with it.
+const CHANGE_PARA_LINE_HEIGHT = 22 * 1.3;
 const CHANGE_PARA_LINES = CHANGE_CHAPTER.paragraph.split("\n").length;
 const CHANGE_PARA_WINDOW_HEIGHT = CHANGE_PARA_LINE_HEIGHT * CHANGE_PARA_LINES;
 
@@ -627,7 +638,7 @@ function ChangeCopy({ wordTone, titleTone, copyTone, paraRef, subtitleRef, chars
       >
         <p
           ref={subtitleRef}
-          className={`font-['Pretendard'] font-bold text-[50px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${titleTone}`}
+          className={`font-['Pretendard'] font-bold text-[42px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${titleTone}`}
           style={SUBTITLE_MASK_STYLE}
         >
           {CHANGE_CHAPTER.title}
@@ -640,7 +651,7 @@ function ChangeCopy({ wordTone, titleTone, copyTone, paraRef, subtitleRef, chars
             text={CHANGE_CHAPTER.paragraph}
             pRef={paraRef}
             charsRef={charsRef}
-            className={`font-['Pretendard'] text-[24px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${copyTone}`}
+            className={`font-['Pretendard'] text-[22px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${copyTone}`}
           />
         </div>
       </div>
@@ -2049,11 +2060,22 @@ export default function CareerSection() {
                 width: START_TITLE_BOX.width,
               }}
             >
-              <div className="flex items-start gap-[20px] font-['Plus_Jakarta_Sans'] font-bold text-[#336bec] text-[84px] whitespace-nowrap">
+              {/* 120, which is what every other section sets its heading at —
+                  EXPERIENCE, PROJECT, LEARN, SKILLS, and the "Role / Led me to
+                  a career" title further down this same section. This one was
+                  84 and was the only one that was, so the section the wheel
+                  opens on read as a smaller heading than the one it closes
+                  with. */}
+              <div className="flex items-start gap-[20px] font-['Plus_Jakarta_Sans'] font-bold text-[#336bec] text-[120px] whitespace-nowrap">
                 <p>EVERY</p>
                 <p className="text-right">ROLE</p>
               </div>
-              <p className="font-['Pretendard'] font-medium text-black text-[24px] text-center">
+              {/* And 16 under it, which is the size the line under a heading is
+                  everywhere else on the page (PROJECT and LEARN both set theirs
+                  at 16 for a 1920 canvas). At 24 it was half again as big as
+                  the same sentence anywhere else, which reads as a second
+                  heading rather than as a caption. */}
+              <p className="font-['Pretendard'] font-medium text-black text-[16px] text-center">
                 제가 맡고 있는 역할로 저를 소개합니다
               </p>
             </div>
@@ -2283,7 +2305,7 @@ export default function CareerSection() {
                       ref={(el) => {
                         subtitleRefs.current[i] = el;
                       }}
-                      className={`font-['Pretendard'] font-bold text-[50px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${chapter.titleTone}`}
+                      className={`font-['Pretendard'] font-bold text-[42px] tracking-[-0.02em] leading-[1.2] whitespace-nowrap ${chapter.titleTone}`}
                       style={SUBTITLE_MASK_STYLE}
                     >
                       {chapter.title}
@@ -2291,7 +2313,7 @@ export default function CareerSection() {
                     <TypedParagraph
                       text={chapter.paragraph}
                       charsRef={paraCharRefs.current[i]}
-                      className={`font-['Pretendard'] text-[24px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${chapter.bodyTone}`}
+                      className={`font-['Pretendard'] text-[22px] tracking-[-0.02em] leading-[1.3] whitespace-pre-line [word-break:keep-all] ${chapter.bodyTone}`}
                     />
                   </div>
                 </div>

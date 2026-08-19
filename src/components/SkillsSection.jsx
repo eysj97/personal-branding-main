@@ -389,7 +389,12 @@ export default function SkillsSection() {
               scaled a second time and drift off the design. */}
           <div
             ref={headingRef}
-            className="absolute flex flex-col items-center justify-center gap-[10px]"
+            // 24, which is the gap between a heading and the line under it in
+            // every other section on the page. It was 10, and a caption that
+            // sits half as far from its heading as the same pair does two
+            // sections up reads as belonging to the heading rather than
+            // following it.
+            className="absolute flex flex-col items-center justify-center gap-[24px]"
             style={{
               left: HEADING_LEFT,
               top: HEADING_TOP,

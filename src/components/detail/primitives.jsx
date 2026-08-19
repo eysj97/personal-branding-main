@@ -19,23 +19,31 @@ export function SpreadPalette({ panel, ink, children }) {
 /**
  * A content block: panel, image well on top, then heading and body.
  *
- * `minHeight` is for the handful of blocks the design draws taller than their
- * own content (Figma gives them a fixed height and centres what is inside).
- * It is a *minimum* rather than the design's literal height because the browser
- * wraps Korean text at slightly different points than Figma does — a hard
- * height would clip the block the first time a line ran long.
+ * It is exactly as tall as what is in it, plus its padding — 16 on three sides
+ * and 22 at the foot. There is no height to pass and no way to pass one.
+ *
+ * The odd one out is deliberate. Every block ends on a line of Korean body copy
+ * and starts on the top edge of a screenshot, and those two are not the same
+ * kind of edge: the image runs to its own boundary, while a line of type stops
+ * at the ink and leaves the rest of the line box as air. Padded equally the
+ * block reads as bottom-light, which is the one asymmetry the eye notices in a
+ * grid of panels.
+ *
+ * There was: `minHeight`, for the handful of blocks Figma draws taller than
+ * their content and centres the content inside. That was a copy of a number
+ * from a canvas where the type was 32 over 18 — it is 28 over 16 now — and a
+ * height written for one type size is wrong at the next one and wrong again
+ * after that. What it bought was a band of empty panel above and below the
+ * copy; what it cost was a block whose padding was 16 on two sides and
+ * whatever-was-left on the other two. Hugging is the only rule here that keeps
+ * saying the same thing when the type changes.
  */
-export function Block({ gap = 12, minHeight, children }) {
+export function Block({ gap = 12, children }) {
   const { panel } = useContext(Palette);
   return (
     <div
-      className="flex flex-col rounded-[8px] p-[16px]"
-      style={{
-        gap,
-        backgroundColor: panel,
-        minHeight,
-        justifyContent: minHeight ? "center" : undefined,
-      }}
+      className="flex flex-col rounded-[8px] p-[16px] pb-[22px]"
+      style={{ gap, backgroundColor: panel }}
     >
       {children}
     </div>

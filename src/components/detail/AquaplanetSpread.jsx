@@ -28,7 +28,11 @@ const PAD = { top: 40, bottom: 52, left: 96, right: 194 };
 // frame ran some blocks at 24 and others at 18, which read as two different
 // kinds of copy when they are the same kind; the tracking is the -0.02em the
 // other two spreads use at this size.
-const BODY = { size: 18, tracking: "-0.36px" };
+// 16, and the tracking with it. `Heading` works its own letterfit out from its
+// size (size * -0.02); `Body` is handed one, so the two only stay the same
+// typeface setting if this moves when the size does — -0.36 was 18 * -0.02 and
+// would have been a fifth too loose at 16.
+const BODY = { size: 16, tracking: "-0.32px" };
 
 // The header's own line breaks (154:4077). Authored, not wrapped: the block is
 // right-aligned against nothing, so where it turns is a decision — and left to
@@ -105,7 +109,7 @@ export default function AquaplanetSpread({ stacked }) {
                 },
               ]}
             />
-            <Heading size={32}>Visual</Heading>
+            <Heading size={28}>Visual</Heading>
             <Body {...BODY}>
               {[
                 "티켓 페이지는 요금을 확인하는 화면이지만, 아쿠아리움은 가고 싶게 만드는 것이 목적이라고 생각했습니다.",
@@ -127,7 +131,7 @@ export default function AquaplanetSpread({ stacked }) {
                 },
               ]}
             />
-            <Heading size={32}>AI Implementaion</Heading>
+            <Heading size={28}>AI Implementaion</Heading>
             <Body {...BODY}>
               {[
                 "화면은 AI로 코드를 생성하고 검토·수정하며 구현했습니다. 비눗방울 위치가 하나도 맞지 않아 좌표를 직접 조정했습니다.",
@@ -149,7 +153,7 @@ export default function AquaplanetSpread({ stacked }) {
                 },
               ]}
             />
-            <Heading size={26}>Ticket Page</Heading>
+            <Heading size={28}>Ticket Page</Heading>
             <Body {...BODY}>
               {[
                 "티켓 페이지를 맡고 가장 먼저 마주한 건 정보가 흩어져 있다는 것이었습니다. 프로모션, 기획상품, 제휴 혜택 같은 할인 정보가 페이지 곳곳에 제각각 놓여 있어, 저부터도 어떤 할인이 있는지 한눈에 파악하기 어려웠습니다. 그래서 흩어진 할인 정보를 모두 찾아 성격별로 정리하는 것부터 시작했습니다.",
@@ -170,7 +174,7 @@ export default function AquaplanetSpread({ stacked }) {
               ]}
             />
             <div className="flex flex-col gap-[3px]">
-              <Heading size={26}>Problem</Heading>
+              <Heading size={28}>Problem</Heading>
               <Body {...BODY}>
                 {[
                   "처음엔 '4개 지점이 하나로 이어지지 않는다' 하나뿐이라, 어느 방향으로 정리해도 같은 말로 돌아왔습니다. 사이트를 다시 보며 문제를 셋으로 넓혔습니다.",
@@ -199,7 +203,7 @@ export default function AquaplanetSpread({ stacked }) {
                 },
               ]}
             />
-            <Heading size={32}>Retrospect</Heading>
+            <Heading size={28}>Retrospect</Heading>
             <Body {...BODY}>
               {[
                 "처음으로 팀과 작업하며 제 기획과 디자인이 선택받지 못하는 경험을 여러 번 했습니다.",
@@ -208,8 +212,11 @@ export default function AquaplanetSpread({ stacked }) {
             </Body>
           </Block>
 
-          {/* Drawn taller than its content and centred inside — 380:166. */}
-          <Block minHeight={694}>
+          {/* 380:166 draws this one taller than its content with the content
+              centred in it. Hugging like the rest instead: the design's height
+              was written against 32/18 type and this is 28/16, so honouring it
+              now would just be a band of empty panel. */}
+          <Block>
             <Shot
               height={497}
               sources={[
@@ -219,7 +226,7 @@ export default function AquaplanetSpread({ stacked }) {
                 },
               ]}
             />
-            <Heading size={26}>Planning Participation</Heading>
+            <Heading size={28}>Planning Participation</Heading>
             <Body {...BODY}>
               {[
                 "팀의 리뉴얼 방향을 문제 정의·리서치·인사이트로 구조화하는 기획 문서를 작성했고, 그중 제가 맡은 화면이 티켓 예매 페이지입니다.",
