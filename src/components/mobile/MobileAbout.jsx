@@ -156,6 +156,22 @@ const HANDOVER_TO = PANELS[0].circle.size;
 // on the arc. Two circles in two places, which is what a peek buys. Past a
 // tenth of a screen the section above is plainly leaving and there is only one.
 const ENTRY_DEAD = 0.1;
+
+/** How much of the arrival counts as having arrived.
+ *
+ *  Not 1, which is what it was, and the two per cent is not a fudge — it is the
+ *  difference between a comparison that is true on a desk and one that is true
+ *  on a phone. `entry` reaches exactly 1 only when the section's top sits
+ *  exactly on the window's top, and at the stop this section snaps to it never
+ *  does: a phone's viewport height is fractional and moves with the URL bar, so
+ *  the section's top lands a fraction of a pixel below zero and `entry` reads
+ *  0.999. Everything gated on having arrived — the circle taking its panel
+ *  position, and the glasses — then stays off on the one screen drawn wearing
+ *  them, which is what "it stops before the glasses appear" was.
+ *
+ *  Two per cent of the arrival is about 18px of scroll, which is inside the
+ *  distance the snap itself settles over. */
+const ARRIVED = 0.98;
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 
@@ -276,7 +292,7 @@ export default function MobileAbout() {
       }
 
       const panel = PANELS[index].circle;
-      const arriving = entry < 1;
+      const arriving = entry < ARRIVED;
       const size = arriving ? lerp(HANDOVER_FROM, HANDOVER_TO, entry) : panel.size;
       const cx = arriving ? CANVAS.width / 2 : panel.cx;
       const cy = arriving ? CANVAS.height / 2 : panel.cy;
@@ -476,7 +492,21 @@ export default function MobileAbout() {
           <div
             key={p.key}
             data-index={i}
-            className="relative h-[100svh] w-full overflow-hidden"
+            // `mobile-snap-panel` is what gives each of these its own stop —
+            // see the snapping block in index.css. The section is five screens
+            // in one box, so a snap point on the section alone put one at the
+            // top of ROLE and none at the four after it.
+            //
+            // ROLE — the first one — has to keep its stop even though it was
+            // asked to lose it. Taking it off does not make the scroll glide
+            // past: it makes the screen unreachable. Measured with it off, any
+            // position on ROLE resolves away from it (7519 -> 6588 back to
+            // CAREER, 7700 -> 8451 on to the next panel), and CAREER becomes a
+            // dead end because the gap to the next stop is then two screens and
+            // one flick cannot cross it — a hard flick from CAREER came back to
+            // CAREER. Under mandatory a screen with no snap position is a
+            // screen you cannot stop on at all.
+            className="mobile-snap-panel relative h-[100svh] w-full overflow-hidden"
           >
             {p.key === "role" && (
               // The line the circle arrives under. The design centres the whole

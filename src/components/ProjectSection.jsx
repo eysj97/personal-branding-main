@@ -110,7 +110,7 @@ const CARD_LEAN = 8;
 // radius to 2.3 leaves 35.6deg — 1.43 card widths, six times the gap, not twice.
 // 1.365 is the ratio that lands the leftover on 0.45 card widths instead.
 const RADIUS_RATIO = 1.365;
-const CARD_RADIUS = "clamp(125.8px,16.38vw,312.6px)";
+const CARD_RADIUS = "312.6px";
 // How far in front of the screen the eye sits. A near camera on purpose: the
 // front folder projecting much larger than the ones behind it *is* the effect —
 // it is what makes the ring read as coming towards you and turning away rather
@@ -730,7 +730,7 @@ export default function ProjectSection() {
       >
         {/* 120 at 1920, like every other section heading — 120/1920 = 6.25vw,
             and the tracking follows it at the same -0.1em the design uses. */}
-        <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none whitespace-nowrap text-[clamp(40px,6.25vw,120px)] tracking-[clamp(-4px,-0.625vw,-12px)] text-[#336bec]">
+        <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none whitespace-nowrap text-[120px] tracking-[-4px] text-[#336bec]">
           PROJECT
         </p>
         {/* text-center, not just the parent's items-center — that only
@@ -739,7 +739,7 @@ export default function ProjectSection() {
         {/* 16px at the 1920 design width, and the vw term is scaled by the same
             22->16 ratio so it keeps shrinking with the heading rather than
             standing still while everything around it gets smaller. */}
-        <p className="font-['Pretendard'] leading-[1.2] whitespace-nowrap text-center text-[clamp(11px,0.833vw,16px)] tracking-[-0.44px] text-black">
+        <p className="font-['Pretendard'] leading-[1.2] whitespace-nowrap text-center text-[15.99px] tracking-[-0.44px] text-black">
           경험해 보신 것 처럼, 저는 이런 방식으로 만들어 갑니다
           <br />
           다른 프로젝트들도 보여드릴게요
@@ -773,7 +773,7 @@ export default function ProjectSection() {
               // radius below has to come down with it or the cards fly apart:
               // it is stated as a multiple of the width for exactly that
               // reason, and the bend is derived from the same ratio.
-              className="relative w-[clamp(92.16px,12vw,229px)] h-[clamp(138.24px,18vw,348px)] [transform-style:preserve-3d] will-change-transform"
+              className="relative w-[229px] h-[345.6px] [transform-style:preserve-3d] will-change-transform"
             >
               {CARDS.map((card, i) => {
                 const { angle, hover, mockup } = card;

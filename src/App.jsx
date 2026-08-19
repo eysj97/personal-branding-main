@@ -10,7 +10,9 @@ import ReviuSpread from './components/detail/ReviuSpread'
 import AquaplanetSpread from './components/detail/AquaplanetSpread'
 import Chatbot from './components/Chatbot'
 import MobileNotice from './components/MobileNotice'
+import MobileSnapkeep from './components/mobile/MobileSnapkeep'
 import { useIsMobile } from './lib/viewport'
+import { useRoute, goBack } from './lib/route'
 
 // The three case-study spreads, by the hash that shows one on its own.
 // Each spread with the page colour it is drawn to be read on — the same one
@@ -29,6 +31,10 @@ export default function App() {
   // files. When the mobile designs arrive, the mobile branch grows sections of
   // its own and the desktop branch is untouched.
   const isMobile = useIsMobile()
+  // Read through a subscription rather than off `window.location`, so a route
+  // pushed without a reload re-renders. See lib/route — it is what lets
+  // Snapkeep be a page you can leave with the back button.
+  const route = useRoute()
 
   // A spread on its own, at #layer / #reviu / #aquaplanet. The case studies are
   // otherwise only reachable by opening a folder on the project drum, which
@@ -36,10 +42,10 @@ export default function App() {
   // back — is to scroll most of the site and hit a moving target. Same idea as
   // the Snapkeep route below, and the same cost: a hash nobody arrives at by
   // accident.
-  const spread = SPREADS[window.location.hash.slice(1)]
+  const spread = SPREADS[route.hash.slice(1)]
 
   const showSnapkeepOnly =
-    window.location.pathname === '/snapkeep' || window.location.hash === '#snapkeep'
+    route.pathname === '/snapkeep' || route.hash === '#snapkeep'
 
   if (spread) {
     const { Spread, page } = spread
@@ -51,6 +57,19 @@ export default function App() {
         <Spread />
       </main>
     )
+  }
+
+  // Snapkeep on its own, and on a phone it is a page rather than an overlay.
+  //
+  // The desktop block below centres a fixed-width spread and lets the window
+  // scroll around it, which is right on a desktop and unusable on a phone —
+  // `min-w-max` on a 430 screen is a page you scroll sideways to read. So the
+  // phone gets its own layout of the same app (Figma 1303:48311), reading the
+  // same library off the same storage keys — see components/mobile/
+  // MobileSnapkeep. `onClose` is the way out for anyone without a back gesture;
+  // the gesture itself works because this is a route rather than a state flag.
+  if (showSnapkeepOnly && isMobile) {
+    return <MobileSnapkeep onClose={goBack} />
   }
 
   if (showSnapkeepOnly) {

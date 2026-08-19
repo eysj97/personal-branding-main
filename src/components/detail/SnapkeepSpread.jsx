@@ -1,38 +1,22 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-// Snapkeep's own reference library — src/assets/snapkeep/ exists purely for
-// these, so swapping a sample out never touches the project cards' artwork.
-// They are thumbnails: the card shows them ~420px wide, so these are sized for
-// that at 2x rather than being full-resolution card art.
-//
-// To add one: drop the file in that folder, import it here, and point a
-// REFERENCES entry's `image` at it. An entry with `image: null` renders the
-// built-in wireframe placeholder instead, which is what the last two do.
-// The wide desktop captures are 1400px; the phone ones keep the library's
-// original 840. A 1400x670 screenshot is fewer pixels than an 840x1800 one, so
-// the wider file is not the heavier file — and the detail panel shows a
-// screenshot at the panel's full width, where a landscape shot is the one that
-// runs out of resolution first.
-import aquaPlanet from "../../assets/snapkeep/aqua-planet.avif";
-import followArtHero from "../../assets/snapkeep/follow-art-hero.avif";
-import followArtTestimonials from "../../assets/snapkeep/follow-art-testimonials.avif";
-import mosbysFiles from "../../assets/snapkeep/mosbys-files.avif";
-import duolingoQuiz from "../../assets/snapkeep/duolingo-quiz.avif";
-import duolingoResult from "../../assets/snapkeep/duolingo-result.avif";
-import zeroJelly from "../../assets/snapkeep/zero-jelly.avif";
-import groceryHome from "../../assets/snapkeep/grocery-home.avif";
-// A fully documented reference: the screen itself, its wireframe, and each
-// component in both states. `structure` and `components` are optional — an
-// entry without them falls back to the drawn wireframe and colour swatches.
-import activityOriginal from "../../assets/snapkeep/activity-original.avif";
-import activityStructure from "../../assets/snapkeep/activity-structure.avif";
-import activityChipDefault from "../../assets/snapkeep/activity-chip-default.avif";
-import activityChipSelected from "../../assets/snapkeep/activity-chip-selected.avif";
-import activityLabelDefault from "../../assets/snapkeep/activity-label-default.avif";
-import activityLabelSelected from "../../assets/snapkeep/activity-label-selected.avif";
 import bookmarkIcon from "../../assets/bookmark.svg";
-import { REFERENCE_ASPECTS, REFERENCE_LAYOUTS } from "./snapkeepLayouts";
-import { REFERENCE_COMPONENTS } from "./snapkeepComponents";
 import { measureType, withMeasuredType } from "./measureType";
+import { scanReference, useReferenceFile } from "./snapkeepAnalyze";
+// The library itself, and everything that reads it, now that the phone runs the
+// same app off the same references — see snapkeepLibrary.
+import {
+  DETAIL_TABS,
+  FILTERS,
+  OPTIONS_BY_GROUP,
+  REFERENCES,
+  STORAGE,
+  VIEWS,
+  readJSON,
+  searchTextFor,
+  tagGroupsFor,
+  usePersisted,
+  writeJSON,
+} from "./snapkeepLibrary";
 
 // The whole screen is styled from index.css with structural selectors
 // (`div:has(> header .font-serif) > main > div[class~="mt-[21px]"] > button`,
@@ -40,131 +24,6 @@ import { measureType, withMeasuredType } from "./measureType";
 // class names below are load-bearing: they are what the design hangs off.
 // Behaviour lives here in state; only the markup shape is fixed.
 
-const REFERENCES = [
-  {
-    id: "ref-activity",
-    title: "Activity picker",
-    image: activityOriginal,
-    structure: activityStructure,
-    // Each component carries both of its states; the labels come baked into
-    // the artwork, so nothing is captioned again here.
-    components: [
-      // 태그는 FILTERS의 "UI 요소" 값만 씁니다 — 여기 붙은 태그도 필터로
-      // 그대로 되찾을 수 있어야 하므로, 자유 문구를 두지 않습니다.
-      { name: "활동 칩", tags: ["칩", "아이콘"], default: activityChipDefault, selected: activityChipSelected },
-      { name: "라벨", tags: ["라벨"], default: activityLabelDefault, selected: activityLabelSelected },
-    ],
-    platform: "모바일 앱",
-    service: "헬스케어",
-    screen: "홈",
-    elements: ["리스트", "칩", "버튼"],
-    mood: "미니멀",
-    accent: "#e879c7",
-    note: "운동 종류를 곡선 캐러셀로 훑어 고르는 화면. 선택된 항목만 색과 외곽선을 얻어, 나머지가 흐려진 자리에서 하나만 또렷하게 읽힙니다.",
-  },
-  { id: "ref-aqua", title: "Aqua Planet", image: aquaPlanet, platform: "웹(데스크톱)", service: "여행·이동", screen: "랜딩·히어로", elements: ["헤더", "버튼"], mood: "사진 중심", accent: "#2686e7", note: "유리질 해양 생물이 수면 위로 떠오르는 히어로. 내비게이션과 티켓 버튼만 남기고 첫 화면 전체를 이미지에 내줬습니다." },
-  { id: "ref-followart-hero", title: "FOLLOW.ART", image: followArtHero, platform: "웹(데스크톱)", service: "소셜", screen: "랜딩·히어로", elements: ["헤더", "카드", "버튼"], mood: "비비드", accent: "#ef6c2c", note: "화면을 가득 채운 글자 위로 카드가 지나가는 히어로. 배경 타이포를 카드가 가리게 두어 깊이를 만듭니다." },
-  { id: "ref-followart-voices", title: "FOLLOW.ART Testimonials", image: followArtTestimonials, platform: "웹(데스크톱)", service: "소셜", screen: "상세", elements: ["카드", "버튼"], mood: "라이트", accent: "#8f9cb0", note: "후기 카드를 흩뿌려 두고 가운데 한 장만 정면으로 세운 섹션. 읽을 것과 배경을 각도로 구분합니다." },
-  { id: "ref-mosbys", title: "Mosby's Files", image: mosbysFiles, platform: "웹(데스크톱)", service: "콘텐츠·미디어", screen: "홈", elements: ["헤더", "리스트", "라벨"], mood: "다크", accent: "#2c6ef2", note: "분류를 색이 다른 폴더 탭으로 쌓아 올린 아카이브 홈. 탭 하나를 열면 그 아래 목록이 드러납니다." },
-  { id: "ref-duolingo-quiz", title: "Duolingo 학습", image: duolingoQuiz, platform: "모바일 앱", service: "콘텐츠·미디어", screen: "상세", elements: ["버튼", "칩", "라벨"], mood: "비비드", accent: "#58cc02", note: "문장을 단어 조각으로 맞추는 학습 화면. 정답 피드백이 하단에서 올라와 다음 버튼과 한 덩어리로 붙습니다." },
-  { id: "ref-duolingo-result", title: "Duolingo 레슨 결과", image: duolingoResult, platform: "모바일 앱", service: "콘텐츠·미디어", screen: "대시보드", elements: ["카드", "버튼"], mood: "라이트", accent: "#1cb0f6", note: "레슨을 마친 뒤 성과를 카드 세 장으로 요약한 화면. 캐릭터·칭찬 문구·수치 순으로 위에서 아래로 읽힙니다." },
-  { id: "ref-zero-jelly", title: "제로 젤리 체험단", image: zeroJelly, platform: "웹(모바일)", service: "커머스", screen: "상세", elements: ["카드", "라벨"], mood: "비비드", accent: "#00a9e8", note: "체험단 후기를 말풍선 카드로 엮은 상세 구간. 계정 이름을 노란 라벨로 카드 밖에 띄워 출처를 붙였습니다." },
-  { id: "ref-grocery", title: "Grocery home", image: groceryHome, platform: "모바일 앱", service: "커머스", screen: "홈", elements: ["탭바", "카드", "리스트", "검색바"], mood: "미니멀", accent: "#3f6b3a", note: "카테고리를 세로 탭으로 세운 장보기 홈. 대표 상품은 큰 카드로, 인기 상품은 리스트로 훑는 밀도를 달리했습니다." },
-  // Attached here rather than written into each entry above: the structure data
-  // is thirty lines of coordinates per reference and would bury the one line
-  // that says what the reference actually is. Activity picker matches neither
-  // table and gets neither field, which is right — it has real structure
-  // artwork, and that wins over a redrawing of it either way.
-].map((reference) => ({
-  ...reference,
-  layout: REFERENCE_LAYOUTS[reference.id],
-  aspect: REFERENCE_ASPECTS[reference.id],
-  pieces: REFERENCE_COMPONENTS[reference.id],
-}));
-
-// [그룹 이름, 선택지, 레퍼런스에서 이 그룹의 값을 담고 있는 필드]
-// 필터 값과 카드 태그가 같은 목록에서 나오므로, 화면에 보이는 태그는 전부
-// 필터로 되찾을 수 있습니다 (폼·스텝퍼·토글도 포함).
-const FILTERS = [
-  ["플랫폼", ["모바일 앱", "웹(데스크톱)", "웹(모바일)", "태블릿"], "platform"],
-  ["서비스 유형", ["커머스", "핀테크", "콘텐츠·미디어", "여행·이동", "헬스케어", "소셜"], "service"],
-  ["화면 유형", ["홈", "상세", "랜딩·히어로", "대시보드", "결제·주문", "프로필·설정"], "screen"],
-  // 아이콘·라벨은 컴포넌트 탭의 태그가 쓰는 값입니다. 컴포넌트 태그도 이
-  // 목록에서 나와야 같은 규칙이 지켜지므로 여기에 함께 둡니다.
-  ["UI 요소", ["헤더", "탭바", "카드", "리스트", "칩", "검색바", "버튼", "폼", "스텝퍼", "토글", "아이콘", "라벨"], "elements"],
-  ["무드", ["미니멀", "다크", "라이트", "파스텔", "비비드", "사진 중심"], "mood"],
-];
-
-// 그룹 이름으로 그 그룹의 선택지를 바로 찾기 위한 표 — 상세 패널의 태그
-// 추가 버튼이 "이 그룹에 어떤 값이 있는지"를 보여줄 때 씁니다.
-const OPTIONS_BY_GROUP = Object.fromEntries(
-  FILTERS.map(([label, options]) => [label, options]),
-);
-
-const VIEWS = [["original", "원본"], ["structure", "구조"], ["component", "컴포넌트"]];
-const DETAIL_TABS = [["original", "원본"], ["structure", "구조"], ["component", "컴포넌트"]];
-
-// Bumping a key abandons whatever was stored under the old one — the browser
-// keeps it, the app stops reading it. `uploads` went to v3 to drop test
-// screenshots that had been scanned in during development and then sat in the
-// library looking like part of it: they live in localStorage, so no amount of
-// reloading the page removes them, and only the browser that made them ever saw
-// them.
-//
-// `deleted` went to v3 for the mirror image of that problem: references deleted
-// while trying the app out stayed deleted forever, so the library a visitor
-// opens was whatever the last person happened to leave behind. The built-in
-// nine are the case study — they are not the visitor's to lose permanently, and
-// there is no way back to them from inside the app.
-//
-// The rest stay at v2 because saved marks and tag edits are worth keeping.
-const STORAGE = {
-  uploads: "snapkeep-uploads-v3",
-  deleted: "snapkeep-deleted-v3",
-  saved: "snapkeep-saved-v2",
-  tags: "snapkeep-tags-v2",
-  recents: "snapkeep-recents-v2",
-  queries: "snapkeep-queries-v2",
-};
-
-const readJSON = (key, fallback) => {
-  try {
-    const stored = window.localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : fallback;
-  } catch {
-    return fallback;
-  }
-};
-
-const writeJSON = (key, value) => {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-    return true;
-  } catch {
-    return false;
-  }
-};
-
-function usePersisted(key, fallback) {
-  const [value, setValue] = useState(() => readJSON(key, fallback));
-  useEffect(() => {
-    writeJSON(key, value);
-  }, [key, value]);
-  return [value, setValue];
-}
-
-/** A reference's tags, with any edit the user has made in the detail panel applied on top. */
-function tagGroupsFor(reference, overrides) {
-  const override = overrides[reference.id] ?? {};
-  return FILTERS.map(([label, , field]) => {
-    if (override[label]) return { label, tags: override[label] };
-    const value = reference[field];
-    return { label, tags: Array.isArray(value) ? value : value ? [value] : [] };
-  });
-}
-
-const searchTextFor = (reference, groups) =>
-  [reference.title, reference.note, ...groups.flatMap((group) => group.tags)].join(" ").toLowerCase();
 
 /** Shows one analysed component by cropping it out of the screenshot it came
  *  from, rather than redrawing it.
@@ -198,186 +57,6 @@ const cropAspect = (part, aspect) => {
   // hairline is not worth one 20 screens tall.
   return Math.min(6, Math.max(0.6, ratio));
 };
-
-// ---------------------------------------------------------------------------
-// Upload analysis, in two stages.
-//
-// 1. Locally: downscale the screenshot (this is what keeps a few uploads from
-//    blowing past the localStorage quota) and measure aspect ratio, brightness,
-//    and colour.
-// 2. Remotely: POST that image to /api/analyze, which the Vite dev server
-//    answers by calling Claude (see vite.config.js — the key lives in .env and
-//    never reaches the browser).
-//
-// If the endpoint isn't there — a static build, no API key, offline — the local
-// measurements become the tags on their own. Which path ran is recorded on the
-// reference, so the detail panel can say so rather than implying a model call
-// that never happened.
-// ---------------------------------------------------------------------------
-const ANALYSIS_MAX_WIDTH = 960;
-
-const FILENAME_HINTS = [
-  [/home|main|홈|메인/i, { screen: "홈" }],
-  [/detail|상세/i, { screen: "상세" }],
-  [/pay|checkout|order|결제|주문/i, { screen: "결제·주문", service: "핀테크" }],
-  [/profile|setting|mypage|프로필|설정|마이/i, { screen: "프로필·설정" }],
-  [/dash|board|대시보드/i, { screen: "대시보드" }],
-  [/land|hero|랜딩|히어로/i, { screen: "랜딩·히어로" }],
-  [/shop|store|commerce|커머스|쇼핑/i, { service: "커머스" }],
-  [/bank|finance|금융|핀테크/i, { service: "핀테크" }],
-  [/health|fitness|헬스|건강|운동/i, { service: "헬스케어" }],
-  [/travel|trip|map|여행|지도/i, { service: "여행·이동" }],
-  [/social|feed|chat|소셜|피드|채팅/i, { service: "소셜" }],
-  [/media|video|music|콘텐츠|미디어/i, { service: "콘텐츠·미디어" }],
-];
-
-const SCREEN_ELEMENTS = {
-  "홈": ["헤더", "탭바", "카드"],
-  "상세": ["헤더", "카드", "버튼"],
-  "랜딩·히어로": ["헤더", "카드", "버튼"],
-  "대시보드": ["리스트", "칩", "카드"],
-  "결제·주문": ["폼", "버튼", "스텝퍼"],
-  "프로필·설정": ["헤더", "리스트", "칩"],
-};
-
-const toHex = ([r, g, b]) => `#${[r, g, b].map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
-
-/** Average brightness + the most vivid colour, from a sparse sample of the pixels. */
-function readTone(context, canvas) {
-  const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
-  let luma = 0;
-  let saturation = 0;
-  let samples = 0;
-  let vividScore = 0;
-  let vivid = null;
-
-  // 148 is a multiple of 4, so the stride stays aligned to pixel boundaries.
-  for (let i = 0; i < data.length; i += 148) {
-    const [r, g, b] = [data[i], data[i + 1], data[i + 2]];
-    const max = Math.max(r, g, b);
-    const pixelSaturation = max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
-    luma += 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    saturation += pixelSaturation;
-    samples += 1;
-
-    const score = pixelSaturation * (max / 255);
-    if (score > vividScore) {
-      vividScore = score;
-      vivid = [r, g, b];
-    }
-  }
-
-  if (!samples) return { luma: 128, saturation: 0, accent: "#017c6e" };
-  return {
-    luma: luma / samples,
-    saturation: saturation / samples,
-    accent: vividScore > 0.12 && vivid ? toHex(vivid) : "#017c6e",
-  };
-}
-
-function analyzeImage(dataUrl) {
-  return new Promise((resolve) => {
-    const image = new Image();
-    image.addEventListener("load", () => {
-      const scale = Math.min(1, ANALYSIS_MAX_WIDTH / image.width);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, Math.round(image.width * scale));
-      canvas.height = Math.max(1, Math.round(image.height * scale));
-
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-      let tone;
-      try {
-        tone = readTone(context, canvas);
-      } catch {
-        tone = { luma: 128, saturation: 0.3, accent: "#017c6e" };
-      }
-
-      let pixels = null;
-      try {
-        pixels = context.getImageData(0, 0, canvas.width, canvas.height);
-      } catch {
-        pixels = null;
-      }
-      resolve({
-        image: canvas.toDataURL("image/jpeg", 0.82),
-        ratio: image.width / image.height,
-        // Held for the type measuring, which needs the analysis's blocks and so
-        // cannot run until the model has answered. Dropped before the reference
-        // is stored — pixels do not belong in localStorage.
-        pixels,
-        ...tone,
-      });
-    });
-    image.addEventListener("error", () => resolve(null));
-    image.src = dataUrl;
-  });
-}
-
-function describeUpload(fileName, analysis) {
-  const { ratio, luma, saturation, accent } = analysis;
-
-  const platform =
-    ratio < 0.62 ? "모바일 앱" : ratio < 1 ? "웹(모바일)" : ratio < 1.45 ? "태블릿" : "웹(데스크톱)";
-
-  const mood =
-    luma < 72 ? "다크"
-      : saturation > 0.55 ? "비비드"
-        : saturation < 0.12 ? "미니멀"
-          : luma > 205 ? "라이트"
-            : saturation < 0.32 ? "파스텔"
-              : "사진 중심";
-
-  const hinted = FILENAME_HINTS.reduce(
-    (result, [pattern, values]) => (pattern.test(fileName) ? { ...result, ...values } : result),
-    {},
-  );
-  const screen = hinted.screen ?? (platform === "웹(데스크톱)" ? "랜딩·히어로" : "홈");
-  const service = hinted.service ?? "콘텐츠·미디어";
-
-  return {
-    platform,
-    service,
-    screen,
-    mood,
-    accent,
-    elements: SCREEN_ELEMENTS[screen] ?? ["헤더", "카드", "버튼"],
-    note: `가로세로 비율(${ratio.toFixed(2)}:1)과 색 분포를 읽어 ${platform} · ${screen} 화면으로 추정했어요. 아래 태그를 고치면 검색과 필터에 바로 반영됩니다.`,
-    basis: `비율 ${ratio.toFixed(2)}:1, 평균 밝기 ${Math.round(luma)}/255, 평균 채도 ${Math.round(saturation * 100)}%를 계산했습니다.`,
-  };
-}
-
-/**
- * Ask the dev-server endpoint to run the image through Claude. On any failure
- * returns `{ ok: false, reason }` — the caller falls back to the local
- * measurements and keeps the reason in the reference's analysis record.
- */
-async function requestRemoteAnalysis(dataUrl, fileName) {
-  const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
-  if (!match) return { ok: false, reason: "이미지를 전송할 수 없는 형식이었습니다." };
-
-  const [, mediaType, image] = match;
-  try {
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ image, mediaType, fileName }),
-    });
-
-    // A static build has no /api/analyze — the SPA fallback answers with HTML,
-    // which fails to parse below and lands in the catch.
-    const payload = await response.json();
-    if (!response.ok) return { ok: false, reason: payload?.error ?? `AI 분석 요청이 실패했습니다 (${response.status}).` };
-    if (!payload?.analysis) return { ok: false, reason: "AI 분석 응답이 비어 있었습니다." };
-
-    return { ok: true, analysis: payload.analysis, model: payload.model };
-  } catch {
-    return { ok: false, reason: "AI 분석 서버에 연결하지 못했습니다. npm run dev로 실행 중인지 확인해 주세요." };
-  }
-}
-
-// ---------------------------------------------------------------------------
 
 function Icon({ children }) {
   return <span className="grid size-[22px] place-items-center text-[22px] leading-none">{children}</span>;
@@ -784,7 +463,8 @@ const stateWidth = (aspect) => (Number(aspect) < 0.9 ? "33%" : "100%");
  * the card and its full width. Left to fill the width, the grocery rail at
  * 34:142 would be four cards tall on its own.
  */
-function PieceCard({ piece, compact }) {
+// Exported for the phone: the component tab there places these directly.
+export function PieceCard({ piece, compact }) {
   // A nav bar is 32:1. Held to a third of the row it comes back as a thread,
   // so anything this wide takes the whole row instead and keeps a height you
   // can read the spacing off.
@@ -1075,7 +755,7 @@ function WireBlock({
     Drawn as SVG rather than positioned divs because `preserveAspectRatio`
     letterboxes the whole drawing to whatever box it is given. Percentage
     divs would stretch a 9:19.5 phone layout flat across a wide panel. */
-export function LayoutWireframe({ layout, aspect, compact, paper = true }) {
+export function LayoutWireframe({ layout, aspect, compact, paper = true, fill = false }) {
   const inkPerEm = useGlyphInk();
   const svgRef = useRef(null);
 
@@ -1150,7 +830,12 @@ export function LayoutWireframe({ layout, aspect, compact, paper = true }) {
     <svg
       ref={svgRef}
       viewBox={`0 0 ${width} ${height}`}
-      preserveAspectRatio="xMidYMid meet"
+      // `slice` is cover and `meet` is contain. A card in the phone's grid
+      // asks for cover, because the 원본 beside it is an <img> with
+      // object-cover object-top and a 구조 that letterboxes into grey bands
+      // instead reads as a different kind of card rather than the same card
+      // in a different view. Top-aligned for the same reason.
+      preserveAspectRatio={fill ? "xMidYMin slice" : "xMidYMid meet"}
       // On a card the well is a fixed 1.43:1 box, so the drawing letterboxes
       // itself into it. In the detail panel the well has no height of its own,
       // so `h-full` would resolve to nothing and the height comes from the
@@ -1347,7 +1032,8 @@ function useMeasuredLayout(reference) {
   return measured ?? reference?.layout;
 }
 
-function ReferencePreview({ reference, view, compact }) {
+// Exported for the phone, which draws the same three views in its own layout.
+export function ReferencePreview({ reference, view, compact, fill }) {
   const layout = useMeasuredLayout(reference);
   if (view === "structure") {
     // Hand-made artwork wins; then a wireframe drawn from this screenshot's
@@ -1360,7 +1046,7 @@ function ReferencePreview({ reference, view, compact }) {
       return <img src={reference.structure} alt="" className="h-full w-full object-cover object-top" />;
     }
     if (layout?.length) {
-      return <LayoutWireframe layout={layout} aspect={reference.aspect} compact={compact} />;
+      return <LayoutWireframe layout={layout} aspect={reference.aspect} compact={compact} fill={fill} />;
     }
     return <Wireframe accent={reference.accent} />;
   }
@@ -1703,40 +1389,9 @@ function DetailPanel({ reference, groups, initialTab, onAddTag, onRemoveTag, onC
 }
 
 function ScanModal({ onClose, onSubmit, isAnalyzing }) {
-  const [fileName, setFileName] = useState("");
-  const [error, setError] = useState("");
-
-  const readFile = (file) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setError("PNG, JPG, WEBP 이미지만 넣을 수 있어요.");
-      return;
-    }
-
-    setError("");
-    setFileName(file.name);
-
-    const reader = new FileReader();
-    reader.addEventListener("load", async () => {
-      // Resolves to a message when the analysis fails; on success this modal is
-      // already unmounted by the time the promise settles.
-      const failure = await onSubmit({ fileName: file.name, dataUrl: reader.result });
-      if (failure) setError(failure);
-    });
-    reader.addEventListener("error", () => setError("파일을 읽지 못했어요. 다시 시도해 주세요."));
-    reader.readAsDataURL(file);
-  };
-
-  const selectFile = (event) => {
-    readFile(event.target.files?.[0]);
-    // Lets the same file be picked twice in a row.
-    event.target.value = "";
-  };
-
-  const dropFile = (event) => {
-    event.preventDefault();
-    readFile(event.dataTransfer.files?.[0]);
-  };
+  // The picking and reading are shared with the phone's own dropzone, which is
+  // a sheet rather than a modal — see useReferenceFile.
+  const { fileName, error, selectFile, dropFile } = useReferenceFile(onSubmit);
 
   const hint = error
     || (isAnalyzing ? "화면 유형, UI 요소, 분위기를 정리하고 있어요" : "PNG, JPG, WEBP 이미지를 넣어주세요");
@@ -1984,55 +1639,11 @@ export default function SnapkeepSpread() {
 
   const submitScan = async ({ fileName, dataUrl }) => {
     setUploading(true);
-
-    const run = async () => {
-      const measured = await analyzeImage(dataUrl);
-      if (!measured) return null;
-      return { measured, remote: await requestRemoteAnalysis(measured.image, fileName) };
-    };
-
-    // The local-only path can finish faster than the "분석 중" state is
-    // readable, so hold it for a beat.
-    const [outcome] = await Promise.all([run(), new Promise((resolve) => window.setTimeout(resolve, 400))]);
-
-    if (!outcome) {
+    const { reference, error } = await scanReference({ fileName, dataUrl });
+    if (error) {
       setUploading(false);
-      return "이미지를 분석하지 못했어요. 다른 파일로 시도해 주세요.";
+      return error;
     }
-
-    const { measured, remote } = outcome;
-    const { basis, ...described } = remote.ok ? remote.analysis : describeUpload(fileName, measured);
-
-    // The model said where the text is; the pixels say how big it is. Measured
-    // here rather than asked for, and measured by the same code that measured
-    // the references shipped with the app — otherwise the built-in eight would
-    // be the only screens whose type was ever right, and an uploaded one would
-    // be stuck with a guess for ever.
-    if (described.layout?.length && measured.pixels) {
-      described.layout = withMeasuredType(
-        described.layout,
-        measureType(measured.pixels, described.layout),
-      );
-    }
-
-    const reference = {
-      id: `upload-${Date.now()}`,
-      title: fileName.replace(/\.[^/.]+$/, "") || "새 레퍼런스",
-      image: measured.image,
-      ...described,
-      // After the spread, so the measured value always wins: this is the
-      // screenshot's real shape, and it is what keeps the structure view's
-      // wireframe in the original's proportions.
-      aspect: measured.ratio,
-      // The analysis record: what ran, when, and on what evidence.
-      analysis: {
-        source: remote.ok ? "claude" : "local",
-        model: remote.ok ? remote.model : null,
-        analyzedAt: new Date().toISOString(),
-        basis,
-        fallbackReason: remote.ok ? null : remote.reason,
-      },
-    };
 
     setUploadedReferences((current) => [reference, ...current]);
     setScanOpen(false);

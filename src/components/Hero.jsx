@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { driveWithScroll } from "../lib/scrollDriver";
 import { holdInside, releaseScrollHold } from "../lib/scrollHold";
@@ -65,7 +65,7 @@ const EYES_ONLY = (() => {
 // then rides inside the hero's stage instead of the viewport and leaves upward
 // with the section, which is not a bug you find by reading the class list.
 const heroBoxClass =
-  "w-[clamp(150px,24.25vw,465.6px)] [&_svg]:absolute [&_svg]:inset-0 [&_svg]:h-full [&_svg]:w-full";
+  "w-[465.6px] [&_svg]:absolute [&_svg]:inset-0 [&_svg]:h-full [&_svg]:w-full";
 
 
 // The bottom-left copy — see the note on the grid that stacks the two
@@ -75,10 +75,10 @@ const heroBoxClass =
 // weight rather than the same number.
 const heroLeadBase = "font-semibold leading-[1.2] tracking-[-0.02em]";
 const heroBodyBase = "leading-[1.2]";
-const heroLeadEnClass = `${heroLeadBase} text-[clamp(22px,2.4vw,36px)]`;
-const heroBodyEnClass = `${heroBodyBase} text-[clamp(14px,1.6vw,16px)]`;
-const heroLeadKoClass = `${heroLeadBase} text-[clamp(20px,2.133vw,32px)]`;
-const heroBodyKoClass = `${heroBodyBase} text-[clamp(13px,1.5vw,15px)]`;
+const heroLeadEnClass = `${heroLeadBase} text-[36px]`;
+const heroBodyEnClass = `${heroBodyBase} text-[16px]`;
+const heroLeadKoClass = `${heroLeadBase} text-[32px]`;
+const heroBodyKoClass = `${heroBodyBase} text-[15px]`;
 
 // `null` means the very top of the page; the others are the section each label
 // should land on. ABOUT is the career section — that is where the "about me"
@@ -143,6 +143,9 @@ export default function Hero() {
   const sectionRef = useRef(null);
   const overlayRef = useRef(null);
   const navRef = useRef(null);
+  // Only the narrow nav uses this — above 872 the three labels are always out,
+  // so there is nothing to open or close.
+  const [menuOpen, setMenuOpen] = useState(false);
   const textEnRef = useRef(null);
   const textKoRef = useRef(null);
   // The glasses. It travels out of the hero to the corner and parks on the chat
@@ -566,7 +569,7 @@ export default function Hero() {
           className="absolute inset-0 bg-black opacity-100 pointer-events-none"
         />
 
-        <div className="absolute top-0 left-0 px-5 flex items-center gap-[12px] font-['Plus_Jakarta_Sans'] font-semibold leading-none whitespace-nowrap text-[clamp(48px,8vw,150px)] tracking-[clamp(-8px,-0.8vw,-15px)]">
+        <div className="absolute top-0 left-0 px-5 flex items-center gap-[12px] font-['Plus_Jakarta_Sans'] font-semibold leading-none whitespace-nowrap text-[150px] max-[1280px]:text-[100px] max-[811px]:text-[calc(11.88px+8.399vw)] tracking-[-8px] max-[1280px]:tracking-[-5.33px] max-[811px]:tracking-[-0.0533em]">
           <p>YUN</p>
           <p>SU</p>
           <p>JEONG</p>
@@ -579,16 +582,57 @@ export default function Hero() {
           ref={navRef}
           className="font-['Plus_Jakarta_Sans'] absolute top-0 right-0 z-20 pt-3 pr-7 flex flex-col items-end gap-2 font-normal leading-none text-[16px] opacity-0"
         >
-          {NAV.map(({ label, target }) => (
+          {/* Wide enough for the three labels: they stand open, as before.
+              `max-[872px]` is Tailwind v4's `width < 872px`, so 872 itself still
+              gets the open list and anything narrower gets the button. */}
+          <div className="flex flex-col items-end gap-2 max-[872px]:hidden">
+            {NAV.map(({ label, target }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => goTo(target)}
+                className="transition-opacity hover:opacity-60"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Narrower: the same three, behind a hamburger. Drawn rather than
+              exported — three rules of the type's own colour, so it stays with
+              the nav through the intro's fade instead of needing a second
+              asset that knows about it. */}
+          <div className="hidden flex-col items-end gap-3 max-[872px]:flex">
             <button
-              key={label}
               type="button"
-              onClick={() => goTo(target)}
-              className="transition-opacity hover:opacity-60"
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-expanded={menuOpen}
+              aria-label={menuOpen ? "메뉴 닫기" : "메뉴 열기"}
+              className="flex flex-col items-end gap-[5px] py-[6px] transition-opacity hover:opacity-60"
             >
-              {label}
+              <span className="block h-[2px] w-[24px] bg-current" />
+              <span className="block h-[2px] w-[24px] bg-current" />
+              <span className="block h-[2px] w-[24px] bg-current" />
             </button>
-          ))}
+
+            {menuOpen && (
+              <div className="flex flex-col items-end gap-2">
+                {NAV.map(({ label, target }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      goTo(target);
+                    }}
+                    className="transition-opacity hover:opacity-60"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </nav>
 
         {/* The design does not sit the pair dead centre — the group's middle is

@@ -344,10 +344,10 @@ export default function ProjectDetailOverlay({ card, originRect, onClose }) {
             once the spread has bloomed the folder layer is faded out entirely,
             and there is nothing left for this to be behind. */}
         <div className="relative z-0 flex w-full flex-col items-center gap-[24px]">
-          <p className="whitespace-nowrap font-['Plus_Jakarta_Sans'] text-[clamp(48px,8vw,150px)] font-semibold leading-none tracking-[clamp(-8px,-0.8vw,-15px)] text-[#336bec]">
+          <p className="whitespace-nowrap font-['Plus_Jakarta_Sans'] text-[150px] font-semibold leading-none tracking-[-8px] text-[#336bec]">
             PROJECT
           </p>
-          <p className="whitespace-nowrap text-center font-['Pretendard'] text-[clamp(11px,0.833vw,16px)] leading-[1.2] tracking-[-0.44px] text-black">
+          <p className="whitespace-nowrap text-center font-['Pretendard'] text-[15.99px] leading-[1.2] tracking-[-0.44px] text-black">
             경험해 보신 것 처럼, 저는 이런 방식으로 만들어 갑니다
             <br />
             다른 프로젝트들도 보여드릴게요

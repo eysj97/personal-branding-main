@@ -30,7 +30,18 @@ export const vw = (px) => `calc(${px} / ${DESIGN_W} * 100vw)`;
 // 40px of padding top and bottom off the design, plus the name's own line.
 // Written as one expression because the name scales with the viewport and the
 // padding does not, so the height is neither pure px nor pure vw.
-export const HEADER_H = `calc(80px + ${vw(48)})`;
+/** The name's size, and the one thing on this page that is not in design px.
+ *
+ *  It runs 80px at 811 down to 48px at 430 — the line calc(11.88px + 8.399vw) —
+ *  because the desktop hero above 767 runs the same line, and the two have to
+ *  meet where one layout hands over to the other. `vw(48)` did not: it is 48 at
+ *  430 as designed, but 85.6 by 767, so the name grew as the window shrank and
+ *  then dropped 26px the moment the desktop hero took over at 768.
+ *
+ *  At 430 it is still exactly 48, so the design's own size is untouched. */
+export const NAME_SIZE = "calc(11.88px + 8.399vw)";
+
+export const HEADER_H = `calc(80px + ${NAME_SIZE})`;
 
 // `menuRef` is handed straight through to the hamburger and on to the hero,
 // which fades it in on its own timeline — see MenuButton. The name is not on
@@ -65,7 +76,7 @@ export default function MobileHeader({ onMenu, menuRef, menuOpen }) {
         className={`flex items-center whitespace-nowrap px-[5px] py-[40px] font-['Plus_Jakarta_Sans'] font-semibold leading-none transition-colors ${
           dark ? "text-black" : "text-white"
         }`}
-        style={{ fontSize: vw(48), letterSpacing: vw(-4.8), gap: vw(10) }}
+        style={{ fontSize: NAME_SIZE, letterSpacing: "-0.1em", gap: vw(10) }}
       >
         {(reversed ? ["JEONG", "SU", "YUN"] : ["YUN", "SU", "JEONG"]).map((part) => (
           <p key={part}>{part}</p>

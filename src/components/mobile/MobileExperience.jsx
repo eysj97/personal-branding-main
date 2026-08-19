@@ -4,8 +4,8 @@ import { useGroundUnder } from "../../lib/useGround";
 import { vw } from "./MobileHeader";
 import StepDots from "./StepDots";
 import { pinPage } from "../../lib/pinPage";
+import { navigate } from "../../lib/route";
 import SafariWindow, { WINDOW } from "../experience/SafariWindow";
-import SnapkeepSpread from "../detail/SnapkeepSpread";
 
 // The monitor the saved-references screen is shown in — the same asset the
 // desktop strip and the project cards use.
@@ -394,94 +394,6 @@ function Archive({ active }) {
 }
 
 /** The library capture, at the size both screens that use it draw it. */
-/** Snapkeep itself, running where its picture was.
- *
- *  It used to open in ProjectAppWindow — the full-screen box the project deck
- *  uses — and there was nothing that window did for it. That window exists to
- *  give an app the whole screen; this app was already being shown at a quarter
- *  size inside it, because 1440px of app has to be scaled to fit a phone
- *  whether it is floating over the page or sitting in it. So the window was
- *  costing a scrim, a layer, and the distinct impression of having been sent
- *  somewhere else, and buying nothing: the same pixels, at the same size, one
- *  step further away.
- *
- *  Here the picture of the app is simply replaced by the app. Same box, same
- *  place on the screen, same scale.
- *
- *  `data-interactive` for two reasons. The sections claim gestures to drive
- *  themselves and leave anything inside one of these alone — and the strip this
- *  sits in turns the page on a tap, which without this would fire on every tap
- *  landing anywhere in the app that is not itself a button.
- */
-function LiveApp({ onClose }) {
-  const holderRef = useRef(null);
-  const appRef = useRef(null);
-  // The app is authored at a fixed 1440 and has to be scaled to the box. Its
-  // height follows from that rather than being set, so the box is whatever the
-  // app comes to — measured, because the app's own height depends on how its
-  // content lays out.
-  const [fit, setFit] = useState({ scale: 0, height: 0 });
-
-  useLayoutEffect(() => {
-    const holder = holderRef.current;
-    const app = appRef.current;
-    const measure = () => {
-      // offsetWidth/Height are read off the untransformed layout, so this is
-      // safe while the element is already mid-scale.
-      const natural = app.offsetWidth;
-      if (!natural) return;
-      const scale = holder.clientWidth / natural;
-      setFit({ scale, height: app.offsetHeight * scale });
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(app);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
-
-  return (
-    <div data-interactive className="relative" style={{ width: vw(385) }}>
-      <div
-        ref={holderRef}
-        className="overflow-hidden bg-white"
-        style={{ height: fit.height || undefined, borderRadius: vw(6) }}
-      >
-        <div
-          ref={appRef}
-          className="w-max origin-top-left"
-          style={{
-            transform: `scale(${fit.scale || 1})`,
-            // Hidden until measured, so a full-size 1440px app is never painted
-            // at its own size for a frame.
-            visibility: fit.scale ? "visible" : "hidden",
-          }}
-        >
-          <SnapkeepSpread />
-        </div>
-      </div>
-
-      {/* The way back to the picture. Outside the app's own chrome — index.css
-          hides Snapkeep's header button, and this is not that button anyway:
-          it closes the demo, not anything inside it. */}
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Snapkeep 데모 닫기"
-        className="absolute grid place-items-center rounded-full bg-black/60 text-white"
-        style={{ right: vw(8), top: vw(8), width: vw(28), height: vw(28) }}
-      >
-        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" style={{ width: vw(14), height: vw(14) }}>
-          <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-        </svg>
-      </button>
-    </div>
-  );
-}
-
 function Capture({ onClick }) {
   const Tag = onClick ? "button" : "div";
   return (
@@ -786,11 +698,6 @@ function Solutions({ active }) {
 
 /** 8 — the payoff: the invitation, and the app behind it. Figma 1317:685. */
 function Snapkeep({ active }) {
-  // Whether the picture has been swapped for the running app. The screen's own
-  // state, not the section's: nothing outside this screen has anything to do
-  // with it now that there is no window to put over the page.
-  const [live, setLive] = useState(false);
-
   return (
     // The tag hangs off this box, not off the line of type inside it. The
     // design pins it 50 from the left of the block that holds *both* the words
@@ -820,7 +727,14 @@ function Snapkeep({ active }) {
       <Badge left={50} top={-11}>
         Try
       </Badge>
-      {live ? <LiveApp onClose={() => setLive(false)} /> : <Capture onClick={() => setLive(true)} />}
+      {/* The picture opens the app's own phone layout at /snapkeep, the same
+          place the corner word goes. It used to swap itself for the desktop
+          spread scaled into this 385-wide box — 1440px of app at about a
+          quarter size, which was the best that could be done before there was
+          a phone layout to send anyone to. There is one now, so the picture
+          sends you to it: same app, drawn for the screen it is on, and with a
+          URL the back gesture can close. */}
+      <Capture onClick={() => navigate("/snapkeep")} />
     </div>
   );
 }
@@ -938,11 +852,18 @@ function ParkedWord({ onOpen }) {
 
 export default function MobileExperience() {
   const [step, setStep] = useState(0);
-  // Whether the corner word has opened the app. Only that word uses this: the
-  // screen inside the strip runs Snapkeep in place, where its picture is (see
-  // LiveApp). Pressed from the corner there is no picture to run it in, so it
-  // gets the full-screen window the project deck uses.
-  const [appOpen, setAppOpen] = useState(false);
+  // Snapkeep opens as its own page — see the /snapkeep branch in App. It used
+  // to be a boolean here and a full-screen overlay next to the section, which
+  // looked the same and behaved differently in the one way that matters on a
+  // phone: the back button did nothing, because there was nothing in history to
+  // go back to. A route has an entry, so closing it and pressing back are the
+  // same movement.
+  //
+  // Both ways in go there: the corner word, and the capture on the last screen
+  // of the strip. The capture used to run the desktop spread in place instead,
+  // scaled into its own box, which is what /snapkeep on a phone now does
+  // properly.
+
   const trackRef = useRef(null);
   // Which screen the strip is on, kept off React so the resize handler can
   // read it without being re-created every time it changes.
@@ -1106,13 +1027,7 @@ export default function MobileExperience() {
 
       {/* Outside the section, so it survives the section scrolling away —
           which is the whole point of it. */}
-      <ParkedWord onOpen={() => setAppOpen(true)} />
-      {appOpen && (
-        <ProjectAppWindow
-          card={{ detail: SnapkeepSpread }}
-          onClose={() => setAppOpen(false)}
-        />
-      )}
+      <ParkedWord onOpen={() => navigate("/snapkeep")} />
     </>
   );
 }

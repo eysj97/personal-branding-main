@@ -83,6 +83,82 @@ import folderIconTeal from "../assets/experience/doodle/folder-teal.svg";
 // it up on the next build with no code change. A glob rather than a plain
 // import so that the build does not break while the file is not there yet;
 // until then the panel shows the still frame Figma did give us.
+// Where the picture actually is inside the video file, measured off decoded
+// frames rather than read off a thumbnail: the recording sits at (358, 4) and
+// runs 1204 x 1076 in a 1920 x 1080 frame, with black either side of it and a
+// four-pixel strip along the top. Sampled at five points across the clip, all
+// five agree.
+//
+// This is the third attempt at that line along the edge of the video, and the
+// first with the file in front of it. The first fitted a scale by eye. The
+// second measured carefully — the wrong file, archive-capture.png, which is a
+// still of an older recording at a different size. The number it produced, 356
+// per side, is a hair under the truth, so `object-cover` on a box cut to that
+// aspect left about one pixel of black showing down each edge: exactly a line,
+// and exactly as wide as a line.
+//
+// So the box is not cut to an aspect any more and nothing is scaled to cover
+// it. The frame is given a size and a corner, worked out so the *picture's*
+// centre lands on the box's centre with 1.5% of overscan — which puts the
+// nearest black 5.6px outside the clip on the sides and 4.8 above. Measured
+// input, arithmetic in the open, and no step that depends on two aspect ratios
+// happening to agree.
+const ARCHIVE_SRC = { width: 1920, height: 1080 };
+const ARCHIVE_BARS = { left: 358, right: 358, top: 4, bottom: 0 };
+const ARCHIVE_BOX = { width: 710, height: 635 };
+// Enough to swallow the anti-aliased pixel at the edge of the recording without
+// eating anything anyone is looking at — the picture is a tall app window and
+// this trims about eight of its own pixels off each side.
+const ARCHIVE_OVERSCAN = 1.015;
+const ARCHIVE_FRAME = (() => {
+  const picture = {
+    width: ARCHIVE_SRC.width - ARCHIVE_BARS.left - ARCHIVE_BARS.right,
+    height: ARCHIVE_SRC.height - ARCHIVE_BARS.top - ARCHIVE_BARS.bottom,
+  };
+  const scale =
+    Math.max(
+      ARCHIVE_BOX.width / picture.width,
+      ARCHIVE_BOX.height / picture.height,
+    ) * ARCHIVE_OVERSCAN;
+  return {
+    width: ARCHIVE_SRC.width * scale,
+    height: ARCHIVE_SRC.height * scale,
+    left: ARCHIVE_BOX.width / 2 - (ARCHIVE_BARS.left + picture.width / 2) * scale,
+    top: ARCHIVE_BOX.height / 2 - (ARCHIVE_BARS.top + picture.height / 2) * scale,
+  };
+})();
+
+// The edge is softened rather than cut, by two pixels.
+//
+// What it is fixing: the recording is of this site, so at the moments the app
+// window is not filling the frame what surrounds it is this section's own blue
+// — and the box is meant to be invisible there. It is not quite. Sampled off
+// decoded frames the video's blue comes back rgb(49, 105, 233) against the
+// panel's #336bec, rgb(51, 107, 236). That is lossy 4:2:0 encoding, not a
+// mistagged colour range (checked: read as full-range it is further off, not
+// nearer), and it cannot be corrected away — the value is not even constant,
+// it wanders about four either way with the compression noise. Two per cent is
+// nothing as a colour and a line as an edge, which is the whole complaint.
+//
+// One, and it was twelve when this was first written. The app window *does*
+// fill the frame for much of the clip, and over a screenshot a fade is not an
+// invisible join — it is the picture dissolving into blue along its own edge,
+// a band you can point at, which is worse than the line it replaced. Twelve was
+// plainly a band; three still read as one. One is the antialiasing the rounded
+// corner already has and nothing more.
+//
+// One pixel is enough because of what is actually being fixed. The step is
+// three values out of 255. It does not need to be spread over a distance — it
+// needs to stop being a step, and a single ramped pixel is no longer an edge
+// for the eye to find. Anything wider is spending picture on a problem that was
+// only ever one pixel wide.
+//
+// One gradient per axis, intersected; the webkit line is the same mask for
+// Chrome before `mask-composite` was unprefixed.
+const ARCHIVE_FADE_PX = 1;
+const ARCHIVE_FADE = (towards) =>
+  `linear-gradient(to ${towards}, transparent, #000 ${ARCHIVE_FADE_PX}px, #000 calc(100% - ${ARCHIVE_FADE_PX}px), transparent)`;
+
 const ARCHIVE_VIDEO =
   Object.values(
     import.meta.glob("../assets/experience/archive-capture.{mp4,webm,mov}", {
@@ -736,26 +812,34 @@ function ArchivePanel() {
             difference is black. The width is the column the copy above and
             below sits in and cannot move, so the height is what gives. */}
         <div
-          className="h-[635px] w-[710px] overflow-hidden rounded-[8px]"
+          className="relative h-[635px] w-[710px] overflow-hidden rounded-[8px]"
+          style={{
+            opacity: 0,
+            maskImage: `${ARCHIVE_FADE("right")}, ${ARCHIVE_FADE("bottom")}`,
+            WebkitMaskImage: `${ARCHIVE_FADE("right")}, ${ARCHIVE_FADE("bottom")}`,
+            maskComposite: "intersect",
+            WebkitMaskComposite: "source-in",
+          }}
           data-anim="popup"
           data-stop={STOP.archive}
           data-delay={1000}
-          style={{ opacity: 0 }}
         >
           {ARCHIVE_VIDEO ? (
             <video
               src={ARCHIVE_VIDEO}
-              // `object-cover` fits the box and the scale eats the border.
-              //
-              // 1.022, measured rather than estimated. The 1% this was came off
-              // a 1280-wide thumbnail and assumed the black was only down the
-              // sides; the file is 8304 x 7380 and carries black on all four
-              // edges — 65 left, 66 right, 74 top, 56 bottom. Covering the
-              // worst of those needs 1.018, so one per cent left a hairline of
-              // it showing the whole way round, which is the line that kept
-              // turning up in screenshots. 1.022 clears it with a little to
-              // spare and costs about two per cent of the picture.
-              className="h-full w-full max-w-none scale-[1.022] object-cover"
+              // Placed, not fitted. See ARCHIVE_FRAME: the whole 1920 x 1080
+              // frame is laid down at a size and an offset that put the
+              // recording inside it over the box, so the black is simply
+              // outside the clip. No object-fit, and no transform — both were
+              // ways of saying "cover this box and then a bit more", and a bit
+              // more is not a measurement.
+              className="absolute max-w-none"
+              style={{
+                width: ARCHIVE_FRAME.width,
+                height: ARCHIVE_FRAME.height,
+                left: ARCHIVE_FRAME.left,
+                top: ARCHIVE_FRAME.top,
+              }}
               autoPlay
               muted
               loop
@@ -784,7 +868,7 @@ function ArchivePanel() {
         </div>
 
         <TypedText
-          lines={["스냅킵을 만들기까지의 과정입니다"]}
+          lines={["SNAPKEEP을 만들기까지의 과정입니다"]}
           className="text-center font-['Pretendard'] text-[22px] font-medium leading-none text-white whitespace-nowrap"
           stop={STOP.archive}
           delay={1100}

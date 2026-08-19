@@ -25,7 +25,7 @@ const smoothstep = (from, to, x) => {
 // 0.8x what it was (29vw -> 23.2vw). Smaller cards also mean the fanned-out
 // row takes up less of the screen, which is what stops the far ones running off
 // the edges.
-const CARD_WIDTH = "clamp(176px,23.2vw,443px)";
+const CARD_WIDTH = "443px";
 // Gap between each stacked card, as a fraction of the card width. One number,
 // held for the whole run: the deck keeps the spacing it starts with and simply
 // travels.
@@ -155,10 +155,10 @@ export default function LearnSection() {
           ref={textRef}
           className="absolute top-1/2 -translate-y-1/2 left-5 flex flex-col gap-[24px]"
         >
-          <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-[#336bec] whitespace-nowrap text-[clamp(40px,6.25vw,120px)] tracking-[clamp(-4px,-0.6vw,-12px)]">
+          <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-[#336bec] whitespace-nowrap text-[120px] tracking-[-4px]">
             LEARN
           </p>
-          <p className="font-['Pretendard'] text-black text-[clamp(11px,0.833vw,16px)] tracking-[-0.05em] leading-[1.2]">
+          <p className="font-['Pretendard'] text-black text-[15.99px] tracking-[-0.05em] leading-[1.2]">
             이 결과물들이 나오기까지,
             <br />
             계속 배우고 만들어봤습니다

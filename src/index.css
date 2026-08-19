@@ -56,6 +56,45 @@
   background-color: #336bec;
 }
 
+/* And the sections overlap by a pixel, which is what actually closes the seam.
+ *
+ * Painting #root only hides it while the two sections either side are the
+ * colour #root is. That was true when the page was blue nearly all the way
+ * down; it is not any more — PROJECT, LEARN, SKILLS and CAREER are all white
+ * now, and between two white sections what shows through the seam is a hairline
+ * of blue. Flipping #root to white would only move the problem to the seams
+ * that are still blue on both sides, where a white line is worse.
+ *
+ * So: no colour assumption. Each section is pulled up a pixel into the one
+ * above it, and the boundary pixel is painted by whichever section is *below*
+ * — with its own background, whatever that is. A whole CSS pixel of overlap
+ * covers any sub-pixel gap the fractional geometry can produce, and it works
+ * the same for white on white, blue on blue, and the one real change of colour
+ * on the page.
+ *
+ * The page comes out five pixels shorter. Nothing reads that: every scroll
+ * timeline here measures its own section live with getBoundingClientRect, so a
+ * pixel off a 150vh section is not a number any of them hold.
+ *
+ * Not on the seam between EXPERIENCE and PROJECT, which is a drawn one — see
+ * SectionSeam. That lives *inside* ProjectSection as its first child, so it is
+ * carried down with the section and nothing here overlaps it. */
+.section-hero,
+.section-experience,
+.section-project,
+.section-learn,
+.section-skills,
+.section-career,
+.section-mobile-hero,
+.section-mobile-experience,
+.section-mobile-project,
+.section-mobile-learn,
+.section-mobile-skills,
+.section-mobile-career,
+.section-mobile-about {
+  margin-bottom: -1px;
+}
+
 /* The three stars in the Experience section's sparkle cluster
    (archive-sparkles.svg — each one a <g data-twinkle>). They go out and come
    back rather than merely brightening: these are thin line drawings on a dark
@@ -886,6 +925,58 @@ div:has(> header .font-serif) .snapkeep-piece-foot {
   gap: 6px;
 }
 
+/* The same three slots on the phone (Figma 1303:49068). PieceCard is shared
+   between the two layouts and leaves these to CSS, and the rules above are
+   scoped to the desktop spread's root — which the phone's Snapkeep page is
+   deliberately not inside, so they have to be stated again here.
+
+   Two of them differ from the desktop on purpose, because the design draws
+   them differently: the foot closes up from 6 to 4, and the role tag is a
+   filled #e5e4e1 chip at 10px rather than the outlined white pill at 11px.
+   The argument above for the outlined one still stands on a 465-wide panel —
+   it is the app's one tag shape — but at 192 the outline and the card's own
+   border sit four px apart and read as a double rule. */
+.snapkeep-phone .snapkeep-piece-state {
+  font-size: 12px;
+  line-height: 1;
+  letter-spacing: -0.24px;
+  color: #000;
+}
+
+.snapkeep-phone .snapkeep-piece-spec {
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.2px;
+  text-align: center;
+  color: #1d1c1c;
+}
+
+.snapkeep-phone .snapkeep-piece-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  border-radius: 50px;
+  background: #e5e4e1;
+  padding: 6px 12px;
+  color: #1d1c1c;
+  font-family: Pretendard, sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+
+.snapkeep-phone .snapkeep-piece-foot {
+  margin-top: auto;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
 div:has(> header .font-serif) aside:not([class*="snapkeep-filter-in"]) > div[class*="space-y"] p + p {
   font-size: 15px;
 }
@@ -1210,21 +1301,32 @@ div:has(> header .font-serif) .snapkeep-analysis-basis {
    section, and the reader arrives at a composition already half off the top of
    the screen. Snapping is the pause: the scroll ends on a section edge.
 
-   `proximity`, and not `mandatory`. Mandatory snaps to the nearest point
-   whatever you are doing, and the hero is 300dvh with one snap point at its
-   top — stop two-thirds of the way through its intro and mandatory would drag
-   you to whichever end is closer, which is the intro playing backwards. It
-   would do the same to every scroll-driven section here. Proximity only acts
-   when the scroll comes to rest *near* an edge, which is exactly the case this
-   is here to fix, and leaves a deliberate stop mid-section alone.
+   `mandatory`, and it used to be `proximity` with `scroll-snap-stop: always`.
+   That pair does not snap this page at all. Measured at 430x932 by flicking
+   from each section's top and reading where the scroll came to rest: with
+   proximity, five out of five flicks landed mid-section — 335px into PROJECT,
+   427px into CAREER — because proximity only acts when a scroll happens to
+   *rest* near a snap point, and a flick rests wherever its momentum runs out.
+   `scroll-snap-stop: always` was there to fix exactly that and does not: it
+   governs snap positions a snapping scroll passes over, and a proximity scroll
+   that is not snapping passes over nothing. With it on, the same five flicks
+   went 2/5 and moved around between runs; with it off, 3/5 and stable. So it
+   is gone too.
 
-   `scroll-snap-stop: always` is what makes it a stop rather than a suggestion.
-   Proximity on its own only decides where a scroll comes to *rest*, and a flick
-   on a phone does not rest anywhere near where it started — it carries through
-   two or three sections and settles at the far end, having passed every snap
-   point on the way without acknowledging one. `always` forbids passing over a
-   snap position at all, so one gesture moves one section however hard it is
-   thrown. That is the part that reads as stopping.
+   The reason it was proximity — that mandatory would drag you out of the
+   hero's 300dvh intro, or out of ABOUT, both of which are several screens with
+   one snap point at the top — turns out not to happen. A scroll container may
+   not use mandatory snapping to make content unreachable, so inside a section
+   taller than the window the browser leaves the scroll alone: measured, a stop
+   1400px into the hero stays at 1400, and one 1500px into ABOUT stays there.
+   Mandatory only bites where the sections are a screen each, which is where the
+   snapping was wanted in the first place.
+
+   What still does not land exactly is SKILLS, which is about 70px taller than
+   the window: the scroll stops at its bottom edge rather than at the next
+   section's top, because that last 70px has to stay reachable. That is the
+   section's height, not the snapping — it is the one section that does not fit
+   a screen.
 
    On `html` because that is the scrolling element for the page; the horizontal
    strips inside EXPERIENCE and CAREER are their own scroll containers with
@@ -1236,17 +1338,29 @@ div:has(> header .font-serif) .snapkeep-analysis-basis {
    down by a header they have already accounted for. */
 @media (max-width: 767px) {
   html {
-    scroll-snap-type: y proximity;
+    scroll-snap-type: y mandatory;
   }
 
+  /* The hero is in this list but is not a stop, and it has to stay in it.
+     It is 300dvh — three screens — so `start` gives it a snap *range* the
+     length of the section rather than a point, and under mandatory that range
+     is what leaves the intro alone: measured, flicks inside it move freely
+     (0 -> 585 -> 985 -> 1485) and only the flick that reaches the end lands on
+     EXPERIENCE. Take the hero out of this list and it has no snap area at all,
+     at which point mandatory has nowhere inside it to rest and throws the
+     reader straight to EXPERIENCE — measured too: every scroll position in the
+     hero, including 0, resolves to 2795 and the intro becomes unreachable. */
   .section-mobile-hero,
   .section-mobile-experience,
   .section-mobile-project,
   .section-mobile-learn,
   .section-mobile-skills,
   .section-mobile-career,
-  .section-mobile-about {
+  .section-mobile-about,
+  /* ABOUT is five screens in one section, so a snap point on the section is a
+     stop at the top of ROLE and nothing for the four panels after it. Each
+     panel is exactly 100svh and carries this class itself — see MobileAbout. */
+  .mobile-snap-panel {
     scroll-snap-align: start;
-    scroll-snap-stop: always;
   }
 }
