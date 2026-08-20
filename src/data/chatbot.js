@@ -632,10 +632,19 @@ export const ANSWERS = [
     id: "metrics",
     // Not "지표" — that belongs to `data-driven`, which is about how she works
     // rather than what the numbers were.
-    keys: ["성과", "수치", "숫자로", "정량적", "결과가어"],
+    // The award keys live here rather than on an answer of their own: it is the
+    // one award there is, and someone asking about it is asking the same
+    // question as someone asking what the numbers were.
+    // "수상경력" as well as "수상": on its own the short one ties `career`'s
+    // "경력" at four points, and that answer is written first — so "수상 경력
+    // 있으세요?" came back with how many years she has worked.
+    keys: [
+      "성과", "수치", "숫자로", "정량적", "결과가어",
+      "수상", "수상경력", "우수상", "상받", "상탄",
+    ],
     text:
-      "휴리스틱 평가 점수가 있어요. 개인 프로젝트인 리뷰는 4.22점, 팀 프로젝트는 4점대를 받았어요. " +
-      "실사용 트래픽 같은 정량 지표는 아직 없고, 실무에서 꼭 다뤄보고 싶은 부분이에요.",
+      "휴리스틱 평가 점수가 있어요. 개인 프로젝트인 리뷰가 4.22점, 팀 프로젝트가 각각 4.2점과 4점이었고요. " +
+      "학원 팀 프로젝트로는 우수상을 받았어요. 실사용 트래픽 같은 정량 지표는 아직 없고, 실무에서 꼭 다뤄보고 싶은 부분이에요.",
   },
 
   // — 배움과 관심 —

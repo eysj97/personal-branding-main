@@ -1,7 +1,44 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useGroundUnder } from "../../lib/useGround";
-import { vw } from "./MobileHeader";
+import { DESIGN_W, SECTION_TITLE } from "./MobileHeader";
+
+// A design px, as a share of the window — but of a window treated as no wider
+// than the cap below.
+//
+// MobileHeader's vw() has no ceiling, and this section is drawn on a 430 canvas:
+// at 766, the last width before the desktop layout takes over, every measurement
+// is 1.78x the design and a 42px headline is set at 75.
+//
+// Capping the width the canvas is measured against is the only way to stop that
+// which does not break something else. The headlines are not free-standing type
+// — they sit in vw() boxes at vw() coordinates (see Saved, whose two lines are
+// absolutely placed 42.44 apart inside a 320x96 block) — so freezing a font size
+// while its box and its offsets keep growing pulls the composition apart. Stop
+// the canvas and every proportion inside it holds.
+//
+// 10750/21 px is 430 x 25/21: the width at which the design's 42px headline is
+// exactly 50. Written as the fraction rather than 511.9 for the reason vw() is
+// written as a division — 511.9 makes that headline 49.9997.
+const CANVAS_MAX = "calc(10750px / 21)";
+const vw = (px) => `calc(${px} * min(100vw, ${CANVAS_MAX}) / ${DESIGN_W})`;
+
+// The full-width picture slot — the library capture and the iMac both sit in it.
+//
+// Not vw(385). The cap above stops the canvas at about 512, which would leave
+// this at 60% of a 766 screen with a band of ground either side; the picture is
+// the one thing here that should keep filling the width as the screen grows. So
+// it is a share of the window directly, and the only measurement in this file
+// that does not come off the canvas.
+//
+// The design's 385 of 430 is 89.5%. 75 is a good deal narrower than that at
+// every width, the 430 the design is drawn at included — where the picture comes
+// out 323 rather than 385.
+const PICTURE_W = "75vw";
+const picture = (designW, designH) => ({
+  width: PICTURE_W,
+  height: `calc(${PICTURE_W} * ${designH} / ${designW})`,
+});
 import StepDots from "./StepDots";
 import { pinPage } from "../../lib/pinPage";
 import { navigate } from "../../lib/route";
@@ -333,7 +370,10 @@ function Intro({ active }) {
     <div className="flex flex-col items-center" style={{ gap: vw(12) }}>
       <p
         className="whitespace-nowrap font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] text-white"
-        style={{ fontSize: vw(60), letterSpacing: vw(-1.2), ...reveal(active) }}
+        // Capped at 90 — see SECTION_TITLE. The tracking goes with it as an em
+        // rather than vw(-1.2): -1.2 on the design's 60px *is* -0.02em, and left
+        // in vw it would keep opening up after the size had stopped.
+        style={{ fontSize: SECTION_TITLE, letterSpacing: "-0.02em", ...reveal(active) }}
       >
         Experience it
       </p>
@@ -401,7 +441,7 @@ function Capture({ onClick }) {
       type={onClick ? "button" : undefined}
       onClick={onClick}
       className="block overflow-hidden"
-      style={{ width: vw(385), height: vw(343), borderRadius: vw(6) }}
+      style={{ ...picture(385, 343), borderRadius: vw(6) }}
     >
       <img
         src={snapkeepGrid}
@@ -450,7 +490,7 @@ function Saved({ active }) {
         </p>
       </div>
 
-      <div className="relative" style={{ width: vw(385), height: vw(325) }}>
+      <div className="relative" style={picture(385, 325)}>
         <img src={imacFrame} alt="" className="block size-full object-cover" />
         <GlassWindow url="khazifire.com">
           <img
@@ -699,34 +739,49 @@ function Solutions({ active }) {
 /** 8 — the payoff: the invitation, and the app behind it. Figma 1317:685. */
 function Snapkeep({ active }) {
   return (
-    // The tag hangs off this box, not off the line of type inside it. The
-    // design pins it 50 from the left of the block that holds *both* the words
-    // and the capture, and that block is the capture's own 385 wide — measure
-    // it from the narrower text block instead and 50 lands a good forty px
-    // further right, which is on top of the S it is supposed to sit beside.
     <div className="relative flex flex-col items-center" style={{ gap: vw(32) }}>
       <div className="flex flex-col items-center" style={{ gap: vw(12) }}>
-        {/* The design writes the headline as eight leading spaces and a word,
-            to hold the tag's room open. Padding instead — the spaces are a
-            Figma habit and survive neither a copy-paste nor a screen reader —
-            and 94 is what those eight come to at this size. */}
-        <p
-          className="whitespace-nowrap font-['Plus_Jakarta_Sans'] font-bold leading-none text-white"
-          // 74, where the design's eight leading spaces come to 94. The tag is
-          // pinned beside this word and set at an angle, and at the design's
-          // own spacing the two read as a tag and a heading that happen to be
-          // near each other rather than as one thing.
-          style={{ fontSize: vw(42), paddingLeft: vw(74), ...reveal(active) }}
-        >
-          Snapkeep
-        </p>
+        {/* The tag is pinned to the headline, not to the block around it.
+            
+            It used to hang off that outer block at a fixed 50 — which worked
+            only while the block's width was the capture's own 385, because 50
+            of 385 happens to land just left of the S. The capture is a share of
+            the window now (see PICTURE_W) and the type is capped, so the two no
+            longer move together: past about 555 the block is narrower than the
+            capped type, the centred headline reaches further left than 50, and
+            the tag ends up on top of the S it is supposed to sit beside.
+            
+            Anchored to the word instead, it cannot come apart from it at any
+            width. This wrapper is what carries the position — a Badge is a div
+            and a <p> may not contain one, so it cannot go inside the line
+            itself; the wrapper is a flex child of the same centred column, so
+            it is exactly the headline's width and in exactly its place. */}
+        <div className="relative">
+          {/* The design writes the headline as eight leading spaces and a word,
+              to hold the tag's room open. Padding instead — the spaces are a
+              Figma habit and survive neither a copy-paste nor a screen reader —
+              and 94 is what those eight come to at this size. */}
+          <p
+            className="whitespace-nowrap font-['Plus_Jakarta_Sans'] font-bold leading-none text-white"
+            // 74, where the design's eight leading spaces come to 94. The tag is
+            // pinned beside this word and set at an angle, and at the design's
+            // own spacing the two read as a tag and a heading that happen to be
+            // near each other rather than as one thing.
+            style={{ fontSize: vw(42), paddingLeft: vw(74), ...reveal(active) }}
+          >
+            Snapkeep
+          </p>
+          {/* 0 — the near edge of the room the padding above is holding open.
+              The tag is about 65 wide at the design's scale, so what is left of
+              the 74 is the gap between it and the S. */}
+          <Badge left={0} top={-11}>
+            Try
+          </Badge>
+        </div>
         <p className={`${BODY} text-center`}>
           완성된 서비스 경험 클릭해서 직접 체험해보세요
         </p>
       </div>
-      <Badge left={50} top={-11}>
-        Try
-      </Badge>
       {/* The picture opens the app's own phone layout at /snapkeep, the same
           place the corner word goes. It used to swap itself for the desktop
           spread scaled into this 385-wide box — 1440px of app at about a

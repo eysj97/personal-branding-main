@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { vw } from "./MobileHeader";
+import { SECTION_TITLE, vw } from "./MobileHeader";
 
 // A case study, on a phone. Figma 355:153, drawn at 430 x 932.
 //
@@ -112,8 +112,12 @@ export default function MobileCaseStudy({ card, onClose }) {
       >
         <p
           // The page's blue, the same as the section this is the inside of.
-          className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px] text-[#336bec]"
-          style={{ fontSize: vw(60) }}
+          className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] text-[#336bec]"
+          // Capped at 90 — see SECTION_TITLE, so this lands where Experience's
+          // title does instead of running on to 107 by the 767 handover.
+          // The tracking moves into the style with it: -1.2px on the design's 60
+          // *is* -0.02em, and pinned as a px it reads looser the bigger this gets.
+          style={{ fontSize: SECTION_TITLE, letterSpacing: "-0.02em" }}
         >
           PROJECT
         </p>

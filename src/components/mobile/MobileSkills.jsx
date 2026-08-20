@@ -7,7 +7,7 @@ import {
   SKILLS,
   bodyTopFor,
 } from "../../data/skills";
-import { HEADER_H, vw } from "./MobileHeader";
+import { HEADER_H, SECTION_TITLE, vw } from "./MobileHeader";
 
 // The SKILLS board, on a phone. Figma 350:3433, drawn at 430 x 932.
 //
@@ -208,8 +208,12 @@ export default function MobileSkills() {
             // wherever the ground is white — LEARN, SKILLS and the desktop's
             // PROJECT all do it, and the phone's CAREER design draws "Every
             // Role" the same way. Only the line under it is black.
-            className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] tracking-[-1.2px] text-[#336bec]"
-            style={{ fontSize: vw(60) }}
+            className="font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] text-[#336bec]"
+            // Capped at 90 — see SECTION_TITLE, so this lands where Experience's
+            // title does instead of running on to 107 by the 767 handover.
+            // The tracking moves into the style with it: -1.2px on the design's 60
+            // *is* -0.02em, and pinned as a px it reads looser the bigger this gets.
+            style={{ fontSize: SECTION_TITLE, letterSpacing: "-0.02em" }}
           >
             Skill
           </p>

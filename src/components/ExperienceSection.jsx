@@ -192,44 +192,29 @@ const backOut = (v, overshoot = 1.70158) => {
 
 // The Figma frame is one continuous strip of four 1080px-tall panels laid out
 // left to right. Everything below is positioned in those literal design px and
-// the whole strip is then scaled to the viewport height, so the composition
-// stays pixel-identical to the design at any screen size — the same approach
-// SkillsSection and CareerSection use for their canvases.
+// drawn at exactly that size — 42px type is 42px on screen, and the strip is
+// 1080 tall whatever the window is.
 const DESIGN_HEIGHT = 1080;
 const SCREEN = 1920;
 
 /** How big the strip is drawn, and where it sits vertically in its stage.
  *
- *  Desktop fits it to the viewport's *height*: the strip is one 1080-tall band
- *  and all its travel is sideways, so height is the dimension that has to
- *  match, and the width follows from the design's own ratio. On anything close
- *  to 16:9 that also lands a panel at about a screen wide, which is what makes
- *  a stop frame one panel.
+ *  It is drawn at 1:1 and not fitted to anything. The scale it used to carry is
+ *  gone by request — the design's px are the px on screen now.
  *
- *  A phone breaks that. At 430 x 932 the height rule gives a scale of 0.86 and a
- *  panel 1657px wide, so a quarter of one is on screen at a time and the strip
- *  reads as a wall being panned past rather than as panels arriving. Fitting to
- *  the *width* instead puts one whole panel on the screen again — which is the
- *  only thing that changes down here. Same composition, same travel, same
- *  sequencing; it is simply smaller, and the copy is small with it. That is the
- *  deliberate trade: this section has no mobile design of its own, and showing
- *  all of it small is nearer the truth than showing a quarter of it large.
+ *  The cost is real and worth knowing: the stage is one viewport tall with
+ *  `overflow-hidden`, so on any window shorter than 1080 the bottom of every
+ *  panel is cut off rather than shrunk to fit. A laptop's viewport is usually
+ *  800–900 after browser chrome, which is 180–280px of each panel gone. Nothing
+ *  reflows to compensate — the panels are absolute positions on a fixed canvas.
  *
- *  `offsetY` centres what is left over. It is exactly 0 on the desktop branch —
- *  the strip is the viewport's height there, so there is nothing to centre — so
- *  one formula covers both and the desktop composition is untouched.
+ *  Kept as a function returning the same shape rather than deleted outright:
+ *  `metrics()` and `measureStops()` both divide measured screen px by this
+ *  scale to get design px, and a 1 there is the identity they need. It is also
+ *  the one place to put a scale back if the clipping turns out to matter.
  */
 function fitStrip() {
-  // clientWidth, not innerWidth: see the note in metrics() below.
-  const viewportWidth = document.documentElement.clientWidth;
-  const scale =
-    viewportWidth <= MOBILE_MAX
-      ? viewportWidth / SCREEN
-      : window.innerHeight / DESIGN_HEIGHT;
-  return {
-    scale,
-    offsetY: Math.max(0, (window.innerHeight - DESIGN_HEIGHT * scale) / 2),
-  };
+  return { scale: 1, offsetY: 0 };
 }
 // `stops` defaults to how many screens wide the panel is, which is the fewest
 // that can frame all of it. A panel whose content sits in more groups than
@@ -1933,19 +1918,19 @@ export default function ExperienceSection() {
   // changes. One re-render on landing is cheaper than a control that works
   // until something unrelated happens.
   const [flyLanded, setFlyLanded] = useState(false);
-  const [{ scale, offsetY }, setFit] = useState({ scale: 1, offsetY: 0 });
   // Snapkeep opens over the whole page rather than inside the strip, so it
   // lives here and not in the panel that launches it.
   const [appOpen, setAppOpen] = useState(false);
 
-  // See fitStrip: height on the desktop, width on a phone, and the leftover
-  // centred either way.
-  useEffect(() => {
-    const fit = () => setFit(fitStrip());
-    fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
-  }, []);
+  // There was a `fit` state here, and a resize listener that recomputed it. Both
+  // are gone with the scale: the state's only consumer was the strip's
+  // transform, and re-rendering on resize to write a transform that no longer
+  // exists is work for nothing.
+  //
+  // Nothing else needed the re-render. The strip's horizontal position is
+  // recomputed from `metrics()` inside the scroll driver's own loop, which reads
+  // the viewport width live on every frame — so a resize still re-centres the
+  // stop it is parked on without React being told anything.
 
   // The word's travel out of the last panel and onto the chat character.
   //
@@ -2624,17 +2609,13 @@ export default function ExperienceSection() {
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         <div ref={trackRef} className="h-full will-change-transform">
+          {/* No transform. The strip is laid out at its design size and drawn at
+              it — see fitStrip, which is the identity now. A `scale(1)` here
+              would be a no-op that still promotes this to its own compositing
+              layer, so it is left off entirely rather than written out. */}
           <div
             className="origin-top-left"
-            style={{
-              width: TOTAL_WIDTH,
-              height: DESIGN_HEIGHT,
-              // Scale first, then drop the result into the middle of the stage.
-              // Written in this order the translate is *not* multiplied by the
-              // scale, so offsetY is the screen px it says it is. It is 0 on the
-              // desktop, where the strip already fills the height.
-              transform: `translateY(${offsetY}px) scale(${scale})`,
-            }}
+            style={{ width: TOTAL_WIDTH, height: DESIGN_HEIGHT }}
           >
             <div className="flex h-full">
               <IntroPanel />

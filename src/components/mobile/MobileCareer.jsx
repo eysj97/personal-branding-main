@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { vw } from "./MobileHeader";
+import { SECTION_TITLE, vw } from "./MobileHeader";
 import StepDots from "./StepDots";
 import { pinPage } from "../../lib/pinPage";
 import { ROLES } from "../../data/roles";
@@ -296,7 +296,11 @@ function Title() {
     >
       <p
         className="whitespace-nowrap font-['Plus_Jakarta_Sans'] font-semibold leading-[1.2] text-[#336bec]"
-        style={{ fontSize: vw(60), letterSpacing: vw(-1.2) }}
+        // Capped at 90 — see SECTION_TITLE, so this lands where Experience's
+        // title does instead of running on to 107 by the 767 handover.
+        // The tracking moves to em for the same reason: in vw it would have gone
+        // on opening up after the size itself had stopped.
+        style={{ fontSize: SECTION_TITLE, letterSpacing: "-0.02em" }}
       >
         Every Role
       </p>
