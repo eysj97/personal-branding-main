@@ -16,6 +16,14 @@ import { b, t, componentsFromLayout, REFERENCE_LAYOUTS, REFERENCE_ASPECTS, REFER
  * wrong in exactly the same way, which is the only honest relationship the two
  * views can have.
  *
+ * An uploaded screen goes the same way. Its layout is read off a screenshot
+ * rather than assembled from components, so the model marks which blocks make
+ * one up and `withComponentMarkers` puts the markers in; from there it is this
+ * same function on the same array. An upload used to skip all of it and show
+ * crops of its own screenshot instead — the structure tab a drawing, the
+ * component tab a photograph of the thing the drawing was of, with nothing
+ * holding the two together.
+ *
  * What is still written here is what cannot be measured off a screenshot — what
  * to call the thing, and the two entries not yet placed as components.
  */
@@ -33,6 +41,45 @@ const TAGS = {
   "후기 카드": ["카드"],
   "페이지 이동": ["버튼", "아이콘"],
   "상품 리스트 카드": ["카드", "리스트"],
+};
+
+/**
+ * The same judgement, for a component this file has never seen the name of.
+ *
+ * An upload names its own components, so the table above cannot cover them.
+ * The analysis states their tags alongside — the same judgement made in the
+ * same vocabulary, just made about a screen nobody had seen before — and this
+ * is what is left when even that is missing: the notation itself. A block
+ * already says it is a chip or a card or a button, and that is the same word
+ * the filter drawer uses. Only roles that are also "UI 요소" values in
+ * FILTERS are mapped — a tag that cannot be filtered back is a tag that lies
+ * about being one.
+ */
+const ROLE_TAGS = {
+  "헤더": "헤더",
+  "탭바": "탭바",
+  "검색바": "검색바",
+  "카드": "카드",
+  "리스트": "리스트",
+  "버튼": "버튼",
+  "칩": "칩",
+  "아이콘": "아이콘",
+  "텍스트": "라벨",
+  "입력": "폼",
+};
+
+// Outermost part first, so a button with a label on it is tagged 버튼 before
+// 라벨. Two is where the built-in table stops and the card’s foot has room
+// for.
+const tagsFor = (name, layout, stated) => {
+  if (stated?.[name]?.length) return stated[name].slice(0, 2);
+  if (TAGS[name]) return TAGS[name];
+  const found = [];
+  for (const part of layout) {
+    const tag = ROLE_TAGS[part.role];
+    if (tag && !found.includes(tag)) found.push(tag);
+  }
+  return found.slice(0, 2);
 };
 
 /**
@@ -144,27 +191,35 @@ const STILL_DRAWN_TWICE = {
  * placement of each state is the one shown, since they are the same component
  * and any of them would do.
  */
-const sheetFor = (id) => {
-  const [pw, ph] = REFERENCE_PIXELS[id];
-  const ground = GROUND[id] ?? {};
+export const sheetFromLayout = (layout, aspect, pixels, options = {}) => {
+  const { ground = {}, tags = {} } = options;
+  const [pw, ph] = pixels ?? [];
   const entries = new Map();
-  for (const found of componentsFromLayout(REFERENCE_LAYOUTS[id], REFERENCE_ASPECTS[id])) {
+  for (const found of componentsFromLayout(layout, aspect)) {
     const under = ground[found.name];
-    const layout = under === undefined ? found.layout : [b("배경", 0, 0, 1, 1, under), ...found.layout];
+    const drawn = under === undefined ? found.layout : [b("배경", 0, 0, 1, 1, under), ...found.layout];
     const entry = entries.get(found.name) ?? {
       name: found.name,
       aspect: found.aspect,
       states: [],
-      tags: TAGS[found.name] ?? [],
+      tags: tagsFor(found.name, found.layout, tags),
       // The size it is on the screen, worked out from the box it occupies
       // there — not a figure typed in beside it that nothing keeps true.
-      spec: `${Math.round(found.box.w * pw)} X ${Math.round(found.box.h * ph)}`,
+      // Blank when the screenshot’s own pixel size is not known, which is
+      // the case for uploads registered before that was recorded: a size is
+      // either measured or not stated.
+      spec: pw && ph ? `${Math.round(found.box.w * pw)} X ${Math.round(found.box.h * ph)}` : "",
     };
-    entry.states.push({ label: found.state, layout });
+    entry.states.push({ label: found.state, layout: drawn });
     entries.set(found.name, entry);
   }
-  return [...entries.values(), ...(STILL_DRAWN_TWICE[id] ?? [])];
+  return [...entries.values()];
 };
+
+const sheetFor = (id) => [
+  ...sheetFromLayout(REFERENCE_LAYOUTS[id], REFERENCE_ASPECTS[id], REFERENCE_PIXELS[id], { ground: GROUND[id] ?? {} }),
+  ...(STILL_DRAWN_TWICE[id] ?? []),
+];
 
 export const REFERENCE_COMPONENTS = Object.fromEntries(
   Object.keys(REFERENCE_LAYOUTS).map((id) => [id, sheetFor(id)]),

@@ -1,6 +1,8 @@
 import { useState } from "react";
 
 import { measureType, withMeasuredType } from "./measureType";
+import { withPlacedComponents } from "./snapkeepLayouts";
+import { sheetFromLayout } from "./snapkeepComponents";
 
 /**
  * Turning a dropped screenshot into a reference.
@@ -115,6 +117,11 @@ function analyzeImage(dataUrl) {
       resolve({
         image: canvas.toDataURL("image/jpeg", 0.82),
         ratio: image.width / image.height,
+        // The file’s own size, not the downscaled canvas’s. It is what lets
+        // a component report the pixels it really is, the way the built-in
+        // references do off REFERENCE_PIXELS — 960 is a working width, not
+        // a fact about the screen.
+        natural: [image.width, image.height],
         // Held for the type measuring, which needs the analysis's blocks and so
         // cannot run until the model has answered. Dropped before the reference
         // is stored — pixels do not belong in localStorage.
@@ -208,7 +215,13 @@ export async function scanReference({ fileName, dataUrl }) {
   if (!outcome) return { error: "이미지를 분석하지 못했어요. 다른 파일로 시도해 주세요." };
 
   const { measured, remote } = outcome;
-  const { basis, ...described } = remote.ok ? remote.analysis : describeUpload(fileName, measured);
+  // `componentTags` comes off here rather than being spread onto the reference:
+  // it is a legend for the marks in `layout` — what each named component is a
+  // kind of — and it is spent building the sheet a few lines below. It carries
+  // no geometry, which is what keeps it from being the second, separate answer
+  // about the screen that `parts` used to be.
+  const { basis, componentTags, ...described } = remote.ok ? remote.analysis : describeUpload(fileName, measured);
+  const statedTags = Object.fromEntries((componentTags ?? []).map(({ name, tags }) => [name, tags]));
 
   // The model said where the text is; the pixels say how big it is. Measured
   // here rather than asked for, and measured by the same code that measured
@@ -222,12 +235,39 @@ export async function scanReference({ fileName, dataUrl }) {
     );
   }
 
+  // The component sheet, read back out of the structure rather than assembled
+  // beside it. The model marked which blocks make up a component and which
+  // instance is which; `withPlacedComponents` takes one definition per
+  // component and puts it down at every instance, exactly as the built-in
+  // screens are built, and then the built-in screens’ own reader runs over the
+  // result.
+  //
+  // Which is the whole change. The two tabs had nothing in common before: 구조
+  // drew a wireframe off `layout` and 컴포넌트 showed crops of the screenshot
+  // off a separate `parts` list, so a component could be outlined in one view
+  // and absent from the other, and the sheet was a photograph of the thing the
+  // drawing was of. Now the sheet is made of the screen’s own blocks — if it
+  // is wrong, the screen is wrong in the same way.
+  //
+  // After the type measuring, which is keyed by block index: markers inserted
+  // first would shift every index after the first component.
+  if (described.layout?.length) {
+    described.layout = withPlacedComponents(described.layout);
+  }
+  const pieces = described.layout?.length
+    ? sheetFromLayout(described.layout, measured.ratio, measured.natural, { tags: statedTags })
+    : [];
+
   return {
     reference: {
       id: `upload-${Date.now()}`,
       title: fileName.replace(/\.[^/.]+$/, "") || "새 레퍼런스",
       image: measured.image,
       ...described,
+      pieces,
+      // The screenshot’s own pixel size, so the sheet can be rebuilt from the
+      // layout later and still report real sizes.
+      pixels: measured.natural,
       // After the spread, so the measured value always wins: this is the
       // screenshot's real shape, and it is what keeps the structure view's
       // wireframe in the original's proportions.

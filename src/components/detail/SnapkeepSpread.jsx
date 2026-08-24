@@ -446,8 +446,26 @@ function TextRun({ x, y, w, lineHeight, chars, fill, align, clipId, ink, inkPerE
  * full width it would run four panel widths down the page and the sheet would
  * be one component long. Anything clearly upright is held to a third of the
  * width and takes its height from its own proportions.
+ *
+ * A third is enough while nothing is much taller than that rail, and nothing
+ * shipped with the app is. An uploaded screen is not curated, though, and a
+ * side rail running the whole height of a phone comes out around 1:8.5 — a
+ * third of the width there is still nearly three card widths of height, which
+ * is a component card taller than the panel it sits in and a grid pulled out
+ * of shape by one entry. So below the point where a third stops being enough,
+ * the width comes off the proportion instead and holds the drawing to about
+ * one and a half card widths tall.
+ *
+ * The two rules meet at 0.236, just under the rail that set the third in the
+ * first place, so every built-in component is drawn at exactly the width it
+ * always was.
  */
-const stateWidth = (aspect) => (Number(aspect) < 0.9 ? "33%" : "100%");
+const stateWidth = (aspect) => {
+  const ratio = Number(aspect);
+  if (!(ratio > 0)) return "33%";
+  if (ratio >= 0.9) return "100%";
+  return `${Math.max(9, Math.min(33, 140 * ratio))}%`;
+};
 
 /**
  * One component card — Figma 211:3476.
@@ -917,8 +935,24 @@ function ComponentSheet({ reference, compact }) {
     );
   }
 
-  // An analysed upload: the components the model picked out, cut from the
-  // screenshot itself. Real pixels, so it can be checked against the original.
+  // Drawn components: the same notation as the structure tab, one element at a
+  // time, with whichever of its states the screen actually shows. Each state is
+  // a miniature layout, so it goes through the drawing code the screens use and
+  // there is nothing here that knows how to paint a chip.
+  if (reference.pieces?.length) {
+    return (
+      <div className={`grid h-full grid-cols-3 content-center gap-[8px] overflow-hidden bg-[#eff1f0] ${compact ? "p-[10px]" : "p-[14px]"}`}>
+        {reference.pieces.map((piece) => (
+          <PieceCard key={piece.name} piece={piece} compact={compact} />
+        ))}
+      </div>
+    );
+  }
+
+  // An upload analysed before components were marked on the layout: crops of
+  // its own screenshot at the boxes the model gave. Nothing produces these any
+  // more — they are what the drawn sheet above replaced, and they stay only
+  // because a reference already in the library is never re-analysed.
   if (reference.parts?.length && reference.image) {
     return (
       <div className={`flex h-full flex-col justify-center bg-[#eff1f0] ${compact ? "gap-[6px] p-[12px]" : "gap-[10px] p-[18px]"}`}>
@@ -942,20 +976,6 @@ function ComponentSheet({ reference, compact }) {
               <span className="shrink-0 text-[10px] text-[#7c847f]">{part.role}</span>
             )}
           </div>
-        ))}
-      </div>
-    );
-  }
-
-  // Drawn components: the same notation as the structure tab, one element at a
-  // time, with whichever of its states the screen actually shows. Each state is
-  // a miniature layout, so it goes through the drawing code the screens use and
-  // there is nothing here that knows how to paint a chip.
-  if (reference.pieces?.length) {
-    return (
-      <div className={`grid h-full grid-cols-3 content-center gap-[8px] overflow-hidden bg-[#eff1f0] ${compact ? "p-[10px]" : "p-[14px]"}`}>
-        {reference.pieces.map((piece) => (
-          <PieceCard key={piece.name} piece={piece} compact={compact} />
         ))}
       </div>
     );
@@ -1252,39 +1272,43 @@ function DetailPanel({ reference, groups, initialTab, onAddTag, onRemoveTag, onC
                   </div>
                 </div>
               ))
-            : reference.parts?.length && reference.image
-              ? reference.parts.map((part, index) => (
-                  /* Cut from this screenshot, at the box the analysis gave —
-                     so what is shown can be checked against the original
-                     rather than taken on trust. */
-                  <div key={`${part.label}-${index}`} className="rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
-                    <div className="flex items-baseline justify-between gap-[10px]">
-                      <p className="text-[13px] font-semibold">{part.label}</p>
-                      <span className="shrink-0 text-[11px] text-[#7c847f]">{part.role}</span>
+            : reference.pieces?.length
+              ? [
+                  /* Read out of the structure this screen was drawn as — the
+                     same blocks, lifted out and put back at their own size. */
+                  <div key="pieces" className="grid grid-cols-3 gap-[12px]">
+                    {reference.pieces.map((piece) => (
+                      <PieceCard key={piece.name} piece={piece} compact={false} />
+                    ))}
+                  </div>,
+                ]
+              : reference.parts?.length && reference.image
+                ? reference.parts.map((part, index) => (
+                    /* Crops of the screenshot, at the boxes the analysis gave.
+                       Only uploads registered before components were marked on
+                       the layout have these: the sheet above replaced them,
+                       and nothing re-analyses a reference already in the
+                       library. */
+                    <div key={`${part.label}-${index}`} className="rounded-[13px] border border-[#e2e6e3] bg-white p-[12px]">
+                      <div className="flex items-baseline justify-between gap-[10px]">
+                        <p className="text-[13px] font-semibold">{part.label}</p>
+                        <span className="shrink-0 text-[11px] text-[#7c847f]">{part.role}</span>
+                      </div>
+                      <div className="mt-[10px] flex justify-center rounded-[9px] bg-[#eff1f0] p-[10px]">
+                        <span
+                          className="max-w-full rounded-[6px] border border-black/10 bg-white"
+                          style={{
+                            ...cropStyle(reference.image, part),
+                            height: 84,
+                            width: 84 * cropAspect(part, reference.aspect),
+                          }}
+                        />
+                      </div>
+                      {part.spec && (
+                        <p className="mt-[8px] text-[11px] leading-[1.5] text-[#7c847f]">{part.spec}</p>
+                      )}
                     </div>
-                    <div className="mt-[10px] flex justify-center rounded-[9px] bg-[#eff1f0] p-[10px]">
-                      <span
-                        className="max-w-full rounded-[6px] border border-black/10 bg-white"
-                        style={{
-                          ...cropStyle(reference.image, part),
-                          height: 84,
-                          width: 84 * cropAspect(part, reference.aspect),
-                        }}
-                      />
-                    </div>
-                    {part.spec && (
-                      <p className="mt-[8px] text-[11px] leading-[1.5] text-[#7c847f]">{part.spec}</p>
-                    )}
-                  </div>
-                ))
-              : reference.pieces?.length
-                ? [
-                    <div key="pieces" className="grid grid-cols-3 gap-[12px]">
-                      {reference.pieces.map((piece) => (
-                        <PieceCard key={piece.name} piece={piece} compact={false} />
-                      ))}
-                    </div>,
-                  ]
+                  ))
                 : (
                     <p className="text-[12px] leading-[1.6] text-[#7c847f]">
                       이 레퍼런스는 아직 컴포넌트를 정리하지 않았어요.
@@ -1653,7 +1677,7 @@ export default function SnapkeepSpread() {
   };
 
   return (
-    <div className="relative min-h-[1030px] w-[1489px] overflow-hidden rounded-[24px] bg-[#f7f7f5] font-['Pretendard'] text-[#1d1c1c]">
+    <div className="relative flex min-h-[1030px] w-[1489px] flex-col overflow-hidden rounded-[24px] bg-[#f7f7f5] font-['Pretendard'] text-[#1d1c1c]">
       <header className="flex items-center justify-between px-[62px] pb-[28px] pt-[46px]">
         {/* The logo doubles as home, the way a site's wordmark does: it clears
             the search, the filters and any open panel, and puts the grid back
@@ -1830,8 +1854,20 @@ export default function SnapkeepSpread() {
           *content*, which slid out of reach as soon as the reference list grew
           past the window; sticky keeps it on the visible bottom edge, and
           degrades to sitting exactly where it used to wherever there is no
-          internal scrolling. */}
-      <div className="sticky bottom-0 z-20 flex h-0 items-end justify-end pr-[55px]">
+          internal scrolling.
+
+          `mt-auto` — with the shell a flex column — is the other half of
+          that, and the half that was missing. Sticky only ever pulls a box
+          *up* out of the way of its edge; it never pushes one down. So on a
+          short page — a search that matches nothing, a filter down to two
+          cards — the row stayed at the end of the content and the button
+          floated in the middle of a shell that is 900px tall whether or not
+          the content fills it. The auto margin eats that leftover, which puts
+          the row on the shell's bottom edge before sticky is consulted at
+          all; where the content does fill the shell there is no leftover and
+          this is worth nothing, which is why the full grid draws exactly as
+          it did. */}
+      <div className="sticky bottom-0 z-20 mt-auto flex h-0 items-end justify-end pr-[55px]">
         <button
           type="button"
           onClick={() => setScanOpen(true)}

@@ -102,30 +102,61 @@ const LAYOUT_BLOCK = {
         'role이 텍스트일 때 한 줄에 들어 있는 글자 수. 도면에는 이 개수만큼 알파벳이 찍히므로, 실제 글자 수를 세어 적어야 길이가 맞습니다. 한글은 한 글자를 두 자로 셉니다(한글이 알파벳보다 넓기 때문입니다). 여러 줄이면 한 줄 평균을 적습니다. 텍스트가 아니면 0.',
     },
     align: { type: 'string', enum: BLOCK_ALIGNS, description: 'role이 텍스트일 때 정렬. 아니면 왼쪽.' },
+    component: {
+      type: 'string',
+      description:
+        '이 블록이 재사용 가능한 컴포넌트의 일부라면 그 컴포넌트의 짧은 한국어 이름. 아니면 빈 문자열. 같은 컴포넌트는 나오는 자리마다 모두 같은 이름을 쓰고, 한 자리를 이루는 블록들은 목록에서 연달아 놓입니다.',
+    },
+    state: {
+      type: 'string',
+      description:
+        'component가 있을 때 그 컴포넌트가 지금 어떤 상태로 보이는지 — 기본, 선택, 비활성, 정답 같은 짧은 한국어 낱말. component가 비어 있으면 빈 문자열.',
+    },
   },
   required: [
     'role', 'x', 'y', 'w', 'h', 'tone', 'shape', 'radius', 'border',
-    'rotate', 'taper', 'bend', 'lines', 'chars', 'align',
+    'rotate', 'taper', 'bend', 'lines', 'chars', 'align', 'component', 'state',
   ],
   additionalProperties: false,
 }
 
-// One reusable component, located precisely enough that the client can crop it
-// straight out of the screenshot. Cropping is the whole point: it shows the
-// real thing rather than a redrawn approximation of it, which is what the
-// built-in references do with their own artwork.
-const COMPONENT_PART = {
+// There is no separate component list any more, and that is the point of the
+// two fields above. It used to ask for `parts`: a handful of crop boxes, which
+// the client cut straight out of the screenshot and showed as the component
+// sheet. Two answers about the same screen, arrived at separately — the
+// structure tab drew a wireframe from `layout` and the component tab showed
+// photographs of regions that need not correspond to anything in it. A
+// component could be outlined in one view and missing from the other.
+//
+// Now a component is a *part of the structure*: the blocks that make it up say
+// so, and the client lifts those same blocks out to build the sheet (see
+// withPlacedComponents and sheetFromLayout). One description of the screen,
+// read two ways.
+
+// What a named component is a kind of — the one thing about it that cannot be
+// read off its blocks, since the drawing knows a chip's shape but not that a
+// chip is what it is. The built-in references have this written down by hand
+// (TAGS in snapkeepComponents.js) and an uploaded one gets it here.
+//
+// This is a legend, not a second answer: it carries a name and a kind and no
+// geometry at all, so there is nothing in it that can disagree with the layout.
+// The vocabulary is FILTERS's "UI 요소" group exactly, so a tag shown on a
+// component is a tag the filter drawer can find it by. ELEMENTS is that group
+// less 아이콘 and 라벨, which are only ever components rather than whole
+// screens; both are added back here.
+const COMPONENT_TAGS = [...ELEMENTS, '아이콘', '라벨']
+
+const COMPONENT_TAG_ENTRY = {
   type: 'object',
   properties: {
-    role: { type: 'string', enum: ELEMENTS },
-    label: { type: 'string', description: '이 컴포넌트를 부르는 짧은 한국어 이름.' },
-    x: { type: 'number', description: '왼쪽 위치. 화면 너비 대비 0~1 비율.' },
-    y: { type: 'number', description: '위쪽 위치. 화면 높이 대비 0~1 비율.' },
-    w: { type: 'number', description: '너비. 화면 너비 대비 0~1 비율.' },
-    h: { type: 'number', description: '높이. 화면 높이 대비 0~1 비율.' },
-    spec: { type: 'string', description: '모서리, 채움, 상태 등 눈에 보이는 특징 한 줄.' },
+    name: { type: 'string', description: 'layout의 component에 적은 이름과 정확히 같은 이름.' },
+    tags: {
+      type: 'array',
+      items: { type: 'string', enum: COMPONENT_TAGS },
+      description: '이 컴포넌트가 어떤 종류의 UI 요소인지. 1~2개.',
+    },
   },
-  required: ['role', 'label', 'x', 'y', 'w', 'h', 'spec'],
+  required: ['name', 'tags'],
   additionalProperties: false,
 }
 
@@ -137,10 +168,11 @@ const TAG_SCHEMA = {
       description: '화면을 와이어프레임으로 다시 그리기 위한 블록 목록. 위에서 아래 순서.',
       items: LAYOUT_BLOCK,
     },
-    parts: {
+    componentTags: {
       type: 'array',
-      description: '화면에서 다시 쓸 만한 UI 컴포넌트 목록. 각각 잘라낼 수 있는 상자로 잡습니다.',
-      items: COMPONENT_PART,
+      description:
+        'layout에서 component에 이름을 적은 컴포넌트들의 목록. 이름과 그 종류만 적고, 위치와 크기는 적지 않습니다.',
+      items: COMPONENT_TAG_ENTRY,
     },
     platform: { type: 'string', enum: PLATFORMS },
     service: { type: 'string', enum: SERVICES },
@@ -151,7 +183,7 @@ const TAG_SCHEMA = {
     note: { type: 'string', description: '이 화면의 구성과 의도를 설명하는 한국어 2~3문장.' },
     basis: { type: 'string', description: '무엇을 근거로 이렇게 분류했는지 한국어 한 문장.' },
   },
-  required: ['platform', 'service', 'screen', 'elements', 'mood', 'accent', 'note', 'basis', 'layout', 'parts'],
+  required: ['platform', 'service', 'screen', 'elements', 'mood', 'accent', 'note', 'basis', 'layout', 'componentTags'],
   additionalProperties: false,
 }
 
@@ -217,13 +249,32 @@ const SYSTEM_PROMPT = `당신은 UI 레퍼런스를 정리하는 디자인 어�
     · 띠나 레일처럼 선 자체가 곡선인 것 → role을 곡선으로 하고 bend에 굽은 정도를
       적습니다. 둥근 모서리 상자로 대신하지 마세요. 상자는 곡선이 아닙니다.
     셋 다 해당하지 않으면 rotate, taper, bend는 모두 0입니다. 대부분은 0입니다.
-- parts: 이 화면에서 다시 쓸 만한 UI 컴포넌트를 3~6개 고릅니다.
-  - 상자를 그대로 잘라내어 보여줄 것이므로, 그 컴포넌트만 딱 감싸게 잡습니다.
-    여백을 크게 두거나 옆 요소를 함께 물면 잘린 그림이 무엇인지 알 수 없습니다.
-  - 화면 전체나 큰 영역은 컴포넌트가 아닙니다. 버튼 하나, 카드 한 장, 칩 하나처럼
-    떼어내서 다른 화면에 쓸 수 있는 단위만 고릅니다.
-  - 같은 컴포넌트가 여러 번 반복되면 그중 하나만 고르고, spec에 반복된다고 적습니다.
-  - label은 화면에 적힌 말이 아니라 그 컴포넌트의 역할로 짓습니다.
+- component / state: 이 화면에서 다시 쓸 만한 UI 컴포넌트를 3~6종 고르고,
+  그 컴포넌트를 이루는 layout 블록마다 component에 같은 이름을 적습니다.
+  컴포넌트 탭은 따로 그려지지 않습니다. 여기 표시된 블록을 그대로 들어내어
+  그리므로, 구조 도면에 있는 그 컴포넌트가 곧 컴포넌트 목록의 그 컴포넌트입니다.
+  - 버튼 한 개는 보통 버튼 블록 하나와 그 위의 글자 블록 하나, 둘로 이루어집니다.
+    둘 다 component에 같은 이름을 적어야 컴포넌트가 글자까지 갖춘 채로 그려집니다.
+    담는 블록을 먼저, 담기는 블록을 나중에 적습니다.
+  - 한 인스턴스를 이루는 블록들은 반드시 목록에서 연달아 놓습니다. 사이에 다른
+    블록이 끼면 거기서 끊긴 것으로 읽힙니다. 한 인스턴스를 끝까지 적은 다음
+    같은 컴포넌트의 다음 인스턴스를 적으세요.
+  - 같은 컴포넌트가 화면에 여러 번 나오면 나오는 자리마다 모두 표시합니다.
+    하나만 골라 표시하지 마세요. 그 반복이 이 화면의 구조입니다.
+  - 같은 이름이 붙은 것들은 하나의 컴포넌트로 취급되어, 그중 한 자리의 생김새가
+    나머지 자리에도 그대로 놓입니다. 모서리와 안쪽 여백과 글자 크기는 그렇게 한
+    번만 정해지고, 자리마다 남는 것은 상자의 크기와 글자 수뿐입니다. 그러니 생김새가
+    다른 것에는 다른 이름을 붙이세요.
+  - 눌린 것과 안 눌린 것처럼 상태가 눈에 띄게 다르면 state에 그 상태 이름을 적어
+    구분합니다. 구분할 상태가 없으면 기본입니다.
+  - 화면 전체, 배경, 큰 영역은 컴포넌트가 아닙니다. 버튼 하나, 카드 한 장, 칩
+    하나처럼 떼어내서 다른 화면에 쓸 수 있는 단위만 고릅니다.
+  - 이름은 화면에 적힌 말이 아니라 그 컴포넌트의 역할로 짓습니다.
+  - 나머지 블록은 component와 state를 모두 빈 문자열로 둡니다. 화면의 대부분이
+    여기에 해당합니다.
+- componentTags: 위에서 이름 붙인 컴포넌트마다 한 줄씩, 그 이름과 그것이 어떤 종류의
+  UI 요소인지를 1~2개 적습니다. 이름은 layout에 적은 것과 정확히 같아야 합니다.
+  위치와 크기는 적지 않습니다. 그것은 layout에만 있습니다.
 
 모든 한국어 문장은 존댓말로 씁니다. 확신이 없으면 가장 가까운 선택지를 고르고 basis에 그 불확실함을 적으세요.`
 
@@ -246,11 +297,15 @@ export function createAnalyzeHandler(apiKey) {
       const client = new Anthropic({ apiKey });
       const result = await client.messages.parse({
         model: "claude-opus-5",
-        // 20-40 layout blocks, each with a box and a tone, plus the parts list
-        // and the prose. 4096 fitted the old coarse block list and no longer
-        // does; a response cut off mid-array is a wireframe missing its bottom
-        // half.
-        max_tokens: 8192,
+        // 30-60 layout blocks, each with a box, a tone and whether it belongs to
+        // a component, plus the prose. 4096 fitted the old coarse block list and
+        // no longer does; a response cut off mid-array is a wireframe missing its
+        // bottom half.
+        //
+        // Up from 8192 when every block gained `component` and `state`. Two more
+        // fields on sixty blocks is not much, but the old ceiling was already the
+        // right size for the old record and the failure is not a graceful one.
+        max_tokens: 12288,
         // Was 'low', which suited tagging: pick six labels off a menu. The
         // layout pass is a different job — reading positions and relative
         // darkness off an image is measurement, and measurement done carelessly

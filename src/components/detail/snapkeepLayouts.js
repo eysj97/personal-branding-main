@@ -826,21 +826,31 @@ export const componentsFromLayout = (layout, screenAspect) => {
   layout.forEach((block, index) => {
     if (block.role !== "컴포넌트") return;
     const key = `${block.of} ${block.state}`;
-    // Any instance of a state would do, so the first is taken — except that a
-    // card thrown back at an angle on the page is still an upright card, and
-    // the sheet is where you go to see what the component is. An upright
-    // instance therefore replaces a tilted one.
-    const upright = !block.rotate && !block.taper && !block.bend;
-    if (found.has(key) && !(upright && found.get(key).tilted)) return;
     // The parts of this placement are the run of blocks that ends at its
     // marker — place() emits them together and nothing gets between them.
     const parts = [];
     for (let i = index - 1; i >= 0 && layout[i].of === block.of && layout[i].role !== "컴포넌트"; i -= 1)
       parts.unshift(layout[i]);
+    // Any instance of a state would do, so the first is taken — except for two
+    // things. A card thrown back at an angle on the page is still an upright
+    // card, and the sheet is where you go to see what the component is, so an
+    // upright instance replaces a tilted one. And an instance read in more
+    // detail replaces one read in less: on a built-in screen every instance of
+    // a component has the same parts, because they are all one `place()` call,
+    // but an analysed screen can hand back a card in four pieces here and in
+    // two there, and the sheet should show the card.
+    const upright = !block.rotate && !block.taper && !block.bend;
+    const held = found.get(key);
+    const better =
+      !held ||
+      (held.tilted && upright) ||
+      (held.tilted === !upright && parts.length > held.count);
+    if (!better) return;
     found.set(key, {
       name: block.of,
       state: block.state,
       tilted: !upright,
+      count: parts.length,
       aspect: (block.w / block.h) * screenAspect,
       box: { w: block.w, h: block.h },
       layout: parts.map((part) => ({
@@ -856,6 +866,266 @@ export const componentsFromLayout = (layout, screenAspect) => {
     });
   });
   return [...found.values()];
+};
+
+/**
+ * Assembles an analysed layout the way a built-in screen is assembled.
+ *
+ * The built-in screens are not described element by element — they are built:
+ * a component is defined once and `place()` puts that one definition down
+ * wherever it appears. Four instances of a chip cannot come out with four
+ * different corner radii or four different label insets, because there is only
+ * ever one chip. That is the property the component tab depends on, and the
+ * reason the sheet can be read straight back out of the screen.
+ *
+ * An uploaded screen arrives without it. It is read off a screenshot in one
+ * pass, so each instance of a component is measured separately and comes back
+ * separately — a chip 0.052 tall beside a chip 0.0518 tall, a label inset by
+ * 0.031 beside one inset by 0.028. Small enough to be noise, large enough to
+ * show as a wobble in a row that is not wobbly on the screen.
+ *
+ * So this does to an upload what the source files do to a built-in. It reads
+ * the marks the model left, takes *one* definition per component and state, and
+ * places that definition at every instance — through the same arithmetic
+ * `place()` uses, ending at the same markers `place()` emits. After it, an
+ * uploaded layout and a built-in one are the same kind of object, and
+ * `componentsFromLayout` cannot tell them apart.
+ *
+ * What stays per instance is what genuinely differs between instances: the box
+ * it occupies, and how many characters its text has. A folder tab is the same
+ * component at two widths and a word chip is the same chip around a longer
+ * word — the built-in definitions take both as parameters for that reason.
+ */
+
+// An instance is a *run*: consecutive blocks carrying the same component name
+// and state, container first. The run also breaks on a block whose centre
+// falls outside the one that opened it, which is what keeps a row of four
+// identical chips from collapsing into a single box four chips wide — the
+// second chip is not in the first, so it starts an instance of its own.
+const CONTAINS = 0.01; // slack on the belonging test, in screen fractions
+
+// How close two of a component's measurements have to be before they are taken
+// to be one measurement read twice. 0.6% of the screen: about 5px on an
+// 818-tall desktop capture, 11px on an 1826-tall phone one. Deliberately
+// narrow — it is there to absorb reading noise, not to tidy up a layout that
+// really is uneven, and a screen whose rows genuinely do not line up should go
+// on not lining up.
+const SNAP = 0.006;
+
+/** Collapses values already within SNAP of one another onto their mean.
+ *  Grouped against the lowest member rather than the previous one, so a long
+ *  chain of near-misses cannot drag a group wider than SNAP. */
+const snapValues = (values) => {
+  const out = new Array(values.length);
+  let group = [];
+  const flush = () => {
+    if (group.length === 0) return;
+    const mean = group.reduce((sum, [value]) => sum + value, 0) / group.length;
+    group.forEach(([, index]) => { out[index] = mean; });
+    group = [];
+  };
+  values
+    .map((value, index) => [value, index])
+    .sort((a, b) => a[0] - b[0])
+    .forEach((entry) => {
+      if (group.length && entry[0] - group[0][0] > SNAP) flush();
+      group.push(entry);
+    });
+  flush();
+  return out;
+};
+
+const boxAround = (parts) => {
+  const x = Math.min(...parts.map((part) => part.x));
+  const y = Math.min(...parts.map((part) => part.y));
+  return {
+    x,
+    y,
+    w: Math.max(...parts.map((part) => part.x + part.w)) - x,
+    h: Math.max(...parts.map((part) => part.y + part.h)) - y,
+  };
+};
+
+// Into the component's own frame and back out of it — the two halves of the one
+// crossing, written next to each other so they stay each other's inverse. Same
+// rule as `place()`: radius and border scale by width and ink by height,
+// because that is the axis each is a fraction of.
+const intoBox = (parts, box) =>
+  parts.map((part) => ({
+    ...part,
+    x: (part.x - box.x) / box.w,
+    y: (part.y - box.y) / box.h,
+    w: part.w / box.w,
+    h: part.h / box.h,
+    radius: (part.radius ?? 0) / box.w,
+    border: (part.border ?? 0) / box.w,
+    ...(part.ink === undefined ? {} : { ink: part.ink / box.h }),
+  }));
+
+const outOfBox = (parts, box, of) =>
+  parts.map((part) => ({
+    ...part,
+    of,
+    x: box.x + part.x * box.w,
+    y: box.y + part.y * box.h,
+    w: part.w * box.w,
+    h: part.h * box.h,
+    radius: (part.radius ?? 0) * box.w,
+    border: (part.border ?? 0) * box.w,
+    ...(part.ink === undefined ? {} : { ink: part.ink * box.h }),
+  }));
+
+// Field for field what `place()` writes, because componentsFromLayout reads one
+// shape and this has to be it.
+const markerFor = (of, state, box, outer) => ({
+  role: "컴포넌트",
+  of,
+  state,
+  x: box.x,
+  y: box.y,
+  w: box.w,
+  h: box.h,
+  tone: 0.5,
+  shape: outer?.shape ?? "사각형",
+  radius: outer?.radius ?? 0,
+  border: 0,
+  rotate: outer?.rotate ?? 0,
+  taper: outer?.taper ?? 0,
+  bend: outer?.bend ?? 0,
+  icon: null,
+  lines: 0,
+  chars: 0,
+  align: "왼쪽",
+});
+
+const instanceKey = (parts) => `${parts[0].component} ${parts[0].state || "기본"}`;
+
+export const withPlacedComponents = (layout) => {
+  // 1. Cut the layout into instances and the blocks between them, keeping the
+  //    order, since the order is the drawing order.
+  //
+  //    Belonging is decided on the block's centre rather than its whole box.
+  //    Full containment was the first rule and it was too strict: a product
+  //    photo that bleeds over the top of its card, a caption that hangs a
+  //    thousandth below one, and the card is cut into three components. The
+  //    centre still lands outside the moment the next card starts, which is
+  //    the split this has to keep making.
+  const belongsTo = (part, outer) => {
+    const x = part.x + part.w / 2;
+    const y = part.y + part.h / 2;
+    return (
+      x >= outer.x - CONTAINS &&
+      y >= outer.y - CONTAINS &&
+      x <= outer.x + outer.w + CONTAINS &&
+      y <= outer.y + outer.h + CONTAINS
+    );
+  };
+
+  const items = [];
+  let run = [];
+  const close = () => {
+    if (run.length) items.push({ parts: run });
+    run = [];
+  };
+  for (const block of layout) {
+    if (!block.component) {
+      close();
+      items.push({ block });
+      continue;
+    }
+    const sameRun =
+      run.length > 0 &&
+      run[0].component === block.component &&
+      (run[0].state || "기본") === (block.state || "기본") &&
+      belongsTo(block, run[0]);
+    if (run.length && !sameRun) close();
+    run.push(block);
+  }
+  close();
+
+  const instances = items.filter((item) => item.parts);
+  if (instances.length === 0) return layout;
+
+  // 2. Each instance's box, with a component's near-equal measurements read as
+  //    equal. Per name rather than per state, because a chip is the same chip
+  //    whether it is selected or not and should sit on the line one sits on.
+  //
+  //    Two boxes per instance: the one it was read at, and the one it is
+  //    drawn at. A definition is lifted out through the box it was read at,
+  //    so its parts land exactly in 0..1, and put back through the snapped
+  //    one. Lift and place through the same box and the snap would show up
+  //    as a component poking a thousandth outside its own marker.
+  const read = instances.map((item) => boxAround(item.parts));
+  const boxes = read.map((box) => ({ ...box }));
+  const byName = new Map();
+  instances.forEach((item, index) => {
+    const name = item.parts[0].component;
+    byName.set(name, [...(byName.get(name) ?? []), index]);
+  });
+  for (const indices of byName.values()) {
+    for (const field of ["x", "y", "w", "h"]) {
+      const values = snapValues(indices.map((index) => boxes[index][field]));
+      indices.forEach((index, at) => { boxes[index][field] = values[at]; });
+    }
+  }
+
+  // 3. One definition per component and state. Upright beats tilted — a card
+  //    thrown back at an angle is still an upright card, and the sheet is where
+  //    you go to see what the component is — and among equals the one read in
+  //    most detail wins, since a part missed on the instance chosen here is a
+  //    part missing from every instance once it is placed.
+  const definitions = new Map();
+  instances.forEach((item, index) => {
+    const outer = item.parts[0];
+    const tilted = Boolean(outer.rotate || outer.taper || outer.bend);
+    const held = definitions.get(instanceKey(item.parts));
+    const better =
+      !held ||
+      (held.tilted && !tilted) ||
+      (held.tilted === tilted && item.parts.length > held.parts.length);
+    if (better) {
+      definitions.set(instanceKey(item.parts), { tilted, parts: intoBox(item.parts, read[index]) });
+    }
+  });
+
+  // 4. Put that definition down at every instance. The instance keeps its own
+  //    box and its own text lengths; everything else — insets, radii, tones,
+  //    the measured type size — comes from the one definition.
+  //
+  //    Only where the instance was read the same way, though. Two instances
+  //    with different numbers of parts are not one shape read twice: the model
+  //    saw a card with a photo and a title here and a bare card there, and
+  //    pouring the four-part definition into the bare one would draw a card
+  //    the screen does not have. Those keep exactly what was read of them,
+  //    which is where this started and no worse than it.
+  const out = [];
+  let at = 0;
+  for (const item of items) {
+    if (item.block) {
+      out.push(item.block);
+      continue;
+    }
+    const index = at;
+    at += 1;
+    const definition = definitions.get(instanceKey(item.parts));
+    const name = item.parts[0].component;
+    const state = item.parts[0].state || "기본";
+    const alike = definition.parts.length === item.parts.length;
+    const box = alike ? boxes[index] : read[index];
+    const placed = alike
+      ? outOfBox(definition.parts, box, name).map((part, part_index) => ({
+        // Text lengths are the instance's own. The definition fixes where the
+        // words sit and how big they are; it cannot fix how many there are,
+        // and a row of chips all captioned to the same length is a drawing of
+        // a screen nobody uploaded.
+        ...part,
+        lines: item.parts[part_index].lines,
+        chars: item.parts[part_index].chars,
+      }))
+      : item.parts.map((part) => ({ ...part, of: name }));
+    out.push(...placed, markerFor(name, state, box, placed[0]));
+  }
+  return out;
 };
 
 /** Pixel size of each reference's screenshot, so a component can report the
