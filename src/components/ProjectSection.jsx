@@ -87,20 +87,47 @@ const OPEN_FADE = 0.12; // per-frame chase for the fade-out when a card opens
 // bolted upright, not as a deck of cards thrown down.
 const CARD_LEAN = 8;
 
+// The drum's own design canvas, and everything below is a measurement off it:
+// the same 1920 x 1080 frame the skills, career and experience compositions are
+// drawn on. See `drumFit` for what makes the numbers land at other sizes.
+const DESIGN_WIDTH = 1920;
+const DESIGN_HEIGHT = 1080;
+
+/** How big the drum is drawn, as a fraction of its design size.
+ *
+ *  The folder is not laid out — it is projected. A 229px card standing at a
+ *  312.6px radius under an 820px camera comes out about 370 x 558 on screen,
+ *  which is half the height of the 1080 frame it was drawn in and three
+ *  quarters of a 742px laptop window. So at the design size those numbers are
+ *  the design; a window shorter than 1080 with the same numbers is a folder
+ *  that no longer fits in it, and the first thing to go over the top edge is
+ *  the tab and the title printed on it.
+ *
+ *  So the whole rig is fitted rather than the card alone: card, radius and
+ *  camera all take this one factor, which leaves every ratio between them
+ *  untouched — the bend, the perspective enlargement and the hover cluster's
+ *  span are all quotients of the three and come out identical at every size.
+ *  The drum simply gets smaller with the window instead of being cropped by it.
+ *
+ *  `min` of the two axes for the reason every other fitted section takes it:
+ *  whichever of width and height is tighter is the one that would clip.
+ *  `clientWidth`, so the scrollbar is not counted as room.
+ */
+function drumFit() {
+  return Math.min(
+    document.documentElement.clientWidth / DESIGN_WIDTH,
+    window.innerHeight / DESIGN_HEIGHT,
+  );
+}
+
+// The card's own box on the 1920 x 1080 canvas. Two thirds of the size it was
+// (18vw/27vw -> 12vw/18vw), which at the design width is this.
+const CARD_WIDTH = 229;
+const CARD_HEIGHT = 345.6;
+
 // How far each card sits from the drum's axis, as a multiple of the card's own
 // width — the two must agree, since the bend below is computed from the ratio
-// rather than measured in px. The cube's width clamp is 92.16/12vw/229, so this
-// is that times RADIUS_RATIO.
-//
-// The floors are 12vw and 18vw evaluated at 768px, which is not a taste choice:
-// 768 is where the mobile layout takes over (see lib/viewport), so the desktop
-// composition only ever has to reach that far. They used to be the values at
-// 1000px, which meant the drum stopped shrinking a third of the way down the
-// range and sat marooned in the middle of a window that kept getting narrower.
-// (It has to be written out as a literal: Tailwind
-// reads class names out of the source text, so a built string would generate no
-// CSS. This one is only used in inline styles, but keeping the pair adjacent is
-// what stops them drifting apart.)
+// rather than measured in px.
 //
 // Up from 1.15, sized so the *gap* between neighbouring folders doubles — which
 // is not the same as doubling the radius. The folders sit 60deg apart whatever
@@ -110,7 +137,9 @@ const CARD_LEAN = 8;
 // radius to 2.3 leaves 35.6deg — 1.43 card widths, six times the gap, not twice.
 // 1.365 is the ratio that lands the leftover on 0.45 card widths instead.
 const RADIUS_RATIO = 1.365;
-const CARD_RADIUS = "312.6px";
+// CARD_WIDTH * RADIUS_RATIO, written out rather than computed so the pair can
+// be read against each other. Both are design px and both are fitted together.
+const CARD_RADIUS = 312.6;
 // How far in front of the screen the eye sits. A near camera on purpose: the
 // front folder projecting much larger than the ones behind it *is* the effect —
 // it is what makes the ring read as coming towards you and turning away rather
@@ -119,7 +148,10 @@ const CARD_RADIUS = "312.6px";
 // on top of one another.
 //
 // The shader reads this too, so the drawn cards and the DOM plates over them
-// are projected by the same number.
+// are projected by the same number. Design px like the rest of the rig: what
+// reaches the shader is this times the fit, because a camera left at its design
+// distance while the drum shrank would flatten the perspective as the window
+// got smaller.
 const CAMERA = 820;
 // The hover cluster is fitted to the folder and then carried up by the same
 // perspective that enlarges the folder — see --folder-span, worked out each
@@ -399,7 +431,11 @@ const FOLDER_STOP_AT = 0.6;
 const SECTION_HEIGHT_VH = 280;
 const TEXT_FROM_TOP = SECTION_HEIGHT_VH / 2;
 const START_OFFSET_VH = -12.5; // folder's base starting position, vh from center
-const EXTRA_GAP_PX = 75; // additional gap pushed in on top of the base starting position
+// Additional gap pushed in on top of the base starting position. Design px, and
+// fitted with the drum: the vh term above already shrinks with the window, so
+// leaving this one fixed would have the folder's travel grow as a share of the
+// screen exactly where there is least room for it.
+const EXTRA_GAP_PX = 75;
 
 // Signed distance from `deg` to a head-on 0deg, folded into [-180, 180].
 const angleFromFront = (deg) => {
@@ -422,6 +458,13 @@ export default function ProjectSection() {
   // loop having to be torn down and rebuilt on every hover.
   const hoveredRef = useRef(false);
   const openedRef = useRef(false);
+  // How big the drum is drawn at this window size — see drumFit. State, because
+  // the card's box and the camera in front of it are rendered attributes; a ref
+  // alongside it, because the frame loop reads the same number and is set up
+  // once, so it cannot see a later render's value.
+  const [fit, setFit] = useState(drumFit);
+  const fitRef = useRef(fit);
+  fitRef.current = fit;
   const [frontIndex, setFrontIndex] = useState(0);
   const [hovered, setHovered] = useState(false);
   // { card, rect } — rect is where the card sat on screen when it was clicked,
@@ -429,6 +472,16 @@ export default function ProjectSection() {
   const [opened, setOpened] = useState(null);
   // Cards that open as a plain window rather than a folder spread.
   const [standalone, setStandalone] = useState(null);
+
+  // The one thing a resize changes here. The frame loop below reads the window
+  // live for everything else it needs — the stage's size, the folder's travel —
+  // so this is the whole of the section's response to being resized.
+  useEffect(() => {
+    const update = () => setFit(drumFit());
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -482,7 +535,8 @@ export default function ProjectSection() {
       // scroll position. "PROJECT" isn't part of this at all — see the
       // plain, non-sticky <p> below.
       const startOffsetPx =
-        (START_OFFSET_VH / 100) * window.innerHeight + EXTRA_GAP_PX;
+        (START_OFFSET_VH / 100) * window.innerHeight +
+        EXTRA_GAP_PX * fitRef.current;
       const folderT = clamp01(raw / FOLDER_STOP_AT);
       folderY = startOffsetPx * (1 - 2 * folderT);
 
@@ -572,17 +626,23 @@ export default function ProjectSection() {
         // scale to the whole cluster, so sizes and gaps come down together and
         // the arrangement inside it stays exactly as drawn.
         //
-        // Computed per frame rather than written down: the card's clamp() gives
-        // a different width at different viewports and this ratio moves with it
-        // (0.59 at 1920, 0.77 at the clamp's floor).
+        // Computed per frame rather than written down: it is read off the card's
+        // rendered width, which moves with the window (see drumFit). The value
+        // itself does not — card, radius and camera are fitted by the one
+        // factor, so every quotient below is the same at every viewport (0.59)
+        // and this is a measurement rather than a variable.
         const cardW = spin.offsetWidth;
         const radius = cardW * RADIUS_RATIO;
+        // The eye is as far in front of the drum as the drum is big. Fitted
+        // alongside the radius it is compared against, so d/(d-R) — the whole of
+        // the perspective — is scale-free.
+        const camera = CAMERA * fitRef.current;
         const halfArc = cardW / radius / 2;
-        const flatHalf = (cardW / 2) * (CAMERA / (CAMERA - radius));
+        const flatHalf = (cardW / 2) * (camera / (camera - radius));
         const bentHalf =
           radius *
           Math.sin(halfArc) *
-          (CAMERA / (CAMERA - (radius * Math.cos(halfArc) - radius)));
+          (camera / (camera - (radius * Math.cos(halfArc) - radius)));
 
         // ...and then opened back up by however much the perspective enlarges
         // the folder in the first place.
@@ -596,8 +656,8 @@ export default function ProjectSection() {
         //
         // The two nearly cancel — bending pulls the edges back about as far as
         // the near camera pushes them forward — so this lands a little under 1
-        // (0.95 at 1920, 0.96 at 1024) and stays put across viewports.
-        const perspective = CAMERA / (CAMERA - radius);
+        // (0.95) and stays put across viewports.
+        const perspective = camera / (camera - radius);
         const span = (bentHalf / flatHalf) * perspective * HOVER_CLUSTER_ZOOM;
         spin.style.setProperty("--folder-span", span.toFixed(4));
 
@@ -605,7 +665,7 @@ export default function ProjectSection() {
         drum.draw({
           // offsetWidth, not a bounding rect: the element carries the spin's
           // rotateY, so its *rendered* box is the turned one. This is the card
-          // size the clamp resolved to, read off the same element the plates
+          // size the fit resolved to, read off the same element the plates
           // are laid out in — so the drawn cards and the plates over them
           // cannot disagree about how big a card is at this viewport.
           cardWidth: spin.offsetWidth,
@@ -615,7 +675,10 @@ export default function ProjectSection() {
           // vertical travel — so this is the middle, moved by that.
           centre: [stageW / 2, stageH / 2 + folderY],
           spin: currentDeg,
-          camera: CAMERA,
+          // The fitted camera, which is what the CSS `perspective` on the stage
+          // is set to as well. The shader and the DOM plates project through the
+          // same eye or the plates slide off the cards they are laid on.
+          camera,
           leans,
           alpha: openMix,
         });
@@ -758,7 +821,7 @@ export default function ProjectSection() {
         {/* The same camera the shader uses, so the plates land on the cards. */}
         <div
           className="absolute inset-0 z-20 flex items-center justify-center"
-          style={{ perspective: `${CAMERA}px` }}
+          style={{ perspective: `${CAMERA * fit}px` }}
         >
           {/* preserve-3d, or this element's own transform flattens everything
               under it: the plates would be laid out by their 3D positions but
@@ -769,11 +832,16 @@ export default function ProjectSection() {
           >
             <div
               ref={spinRef}
-              // Two thirds of the size it was (18vw/27vw -> 12vw/18vw). The
-              // radius below has to come down with it or the cards fly apart:
-              // it is stated as a multiple of the width for exactly that
+              // The design's card box, fitted to the window — see drumFit. An
+              // inline style rather than a Tailwind class because the number is
+              // no longer a constant, and Tailwind reads class names out of the
+              // source text, so a built one would generate no CSS at all.
+              //
+              // The radius below has to come down with it or the cards fly
+              // apart: it is stated as a multiple of the width for exactly that
               // reason, and the bend is derived from the same ratio.
-              className="relative w-[229px] h-[345.6px] [transform-style:preserve-3d] will-change-transform"
+              className="relative [transform-style:preserve-3d] will-change-transform"
+              style={{ width: CARD_WIDTH * fit, height: CARD_HEIGHT * fit }}
             >
               {CARDS.map((card, i) => {
                 const { angle, hover, mockup } = card;
@@ -805,7 +873,7 @@ export default function ProjectSection() {
                       }}
                       className={`absolute inset-0 ${card.detail && isFront ? "cursor-pointer" : ""}`}
                       style={{
-                        transform: `rotateY(${angle}deg) translateZ(${CARD_RADIUS}) rotateZ(var(--card-lean, 0deg))`,
+                        transform: `rotateY(${angle}deg) translateZ(${CARD_RADIUS * fit}px) rotateZ(var(--card-lean, 0deg))`,
                         opacity: "var(--card-op, 1)",
                         // Cards behind the front one are still on screen, so
                         // they have to be muted at the pointer level.

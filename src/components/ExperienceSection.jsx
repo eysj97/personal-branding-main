@@ -199,22 +199,33 @@ const SCREEN = 1920;
 
 /** How big the strip is drawn, and where it sits vertically in its stage.
  *
- *  It is drawn at 1:1 and not fitted to anything. The scale it used to carry is
- *  gone by request — the design's px are the px on screen now.
+ *  Fitted, not 1:1. A panel is a 1920 x 1080 frame with everything on it placed
+ *  in absolute design px, so it is one picture rather than a layout — nothing on
+ *  it reflows, and a window that is not 1920 x 1080 either shows the picture
+ *  whole or shows part of it. Drawn at 1:1 it was the second: on a 1366 x 768
+ *  laptop the right 554px and the bottom 312px of every panel were simply cut
+ *  off by the stage's `overflow-hidden`, which is where the headlines and the
+ *  captions under them live.
  *
- *  The cost is real and worth knowing: the stage is one viewport tall with
- *  `overflow-hidden`, so on any window shorter than 1080 the bottom of every
- *  panel is cut off rather than shrunk to fit. A laptop's viewport is usually
- *  800–900 after browser chrome, which is 180–280px of each panel gone. Nothing
- *  reflows to compensate — the panels are absolute positions on a fixed canvas.
+ *  `contain`, so the whole frame is inside the stage on both axes and the
+ *  leftover is split evenly — the picture is centred at every window size
+ *  instead of anchored to a corner. On a 16:9 window the two terms are equal and
+ *  it fills the screen exactly, which is the design's own case; anywhere else
+ *  the slack shows as ground either side, and the ground is the panels' own
+ *  #336bec, so it is not visible as a band.
  *
- *  Kept as a function returning the same shape rather than deleted outright:
- *  `metrics()` and `measureStops()` both divide measured screen px by this
- *  scale to get design px, and a 1 there is the identity they need. It is also
- *  the one place to put a scale back if the clipping turns out to matter.
+ *  Uncapped on purpose. Past 1920 the picture grows with the window rather than
+ *  sitting at its design size in the middle of a bigger screen — the same deal
+ *  the skills and career canvases already take (see DESIGN_WIDTH in both).
+ *
+ *  `clientWidth`, not `innerWidth`, for the reason `metrics()` gives below: the
+ *  scrollbar is not part of what can be seen.
  */
 function fitStrip() {
-  return { scale: 1, offsetY: 0 };
+  const viewportWidth = document.documentElement.clientWidth;
+  const viewportHeight = window.innerHeight;
+  const scale = Math.min(viewportWidth / SCREEN, viewportHeight / DESIGN_HEIGHT);
+  return { scale, offsetY: (viewportHeight - DESIGN_HEIGHT * scale) / 2 };
 }
 // `stops` defaults to how many screens wide the panel is, which is the fewest
 // that can frame all of it. A panel whose content sits in more groups than
@@ -1902,6 +1913,12 @@ const FLY_FALLBACK = { size: 90, inset: 44, drop: 20 };
 export default function ExperienceSection() {
   const sectionRef = useRef(null);
   const trackRef = useRef(null);
+  // The 1920 x 1080 design canvas the six panels are laid out on, and the thing
+  // fitStrip's scale is worn by. Separate from the track, which carries the
+  // sideways travel: one transform per job, so the fit does not have to be
+  // rewritten on every frame of the pan and the pan does not have to know what
+  // the fit currently is.
+  const canvasRef = useRef(null);
   // The travelling copy of the word. A copy, and portalled out to the end of
   // `body`, for the reason Hero's glasses is: it has to be `fixed` to outlive
   // its section, and the strip's stage is `sticky` — which makes a stacking
@@ -1922,15 +1939,34 @@ export default function ExperienceSection() {
   // lives here and not in the panel that launches it.
   const [appOpen, setAppOpen] = useState(false);
 
-  // There was a `fit` state here, and a resize listener that recomputed it. Both
-  // are gone with the scale: the state's only consumer was the strip's
-  // transform, and re-rendering on resize to write a transform that no longer
-  // exists is work for nothing.
+  // The strip's fit to the window, written straight onto the canvas.
   //
-  // Nothing else needed the re-render. The strip's horizontal position is
-  // recomputed from `metrics()` inside the scroll driver's own loop, which reads
-  // the viewport width live on every frame — so a resize still re-centres the
-  // stop it is parked on without React being told anything.
+  // Not React state, and deliberately. It was state once, and that is exactly
+  // where the stop-centring bug came from: the strip's own effect measures every
+  // stop off the canvas as it stands, so a scale that is only *scheduled* at
+  // that point has it measuring an unscaled canvas and dividing by a scale it is
+  // about to have — every centre inflated by 1/scale, and the strip parked well
+  // off to one side. A layout effect declared before that one has the transform
+  // on the element in the same commit, before anything measures it and before
+  // the browser paints, so there is no frame at the wrong size to catch.
+  //
+  // A resize needs no re-measure: the stops are held in design px, and the
+  // canvas's own layout is fixed design px that no window size touches. All that
+  // changes is the fit — and the horizontal parking, which the scroll driver
+  // already recomputes from `metrics()` on its own resize listener.
+  useLayoutEffect(() => {
+    function applyFit() {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const { scale, offsetY } = fitStrip();
+      // Translate written first so it is applied *after* the scale — the offset
+      // is screen px of stage, not design px of canvas.
+      canvas.style.transform = `translate3d(0, ${offsetY}px, 0) scale(${scale})`;
+    }
+    applyFit();
+    window.addEventListener("resize", applyFit);
+    return () => window.removeEventListener("resize", applyFit);
+  }, []);
 
   // The word's travel out of the last panel and onto the chat character.
   //
@@ -2609,11 +2645,16 @@ export default function ExperienceSection() {
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         <div ref={trackRef} className="h-full will-change-transform">
-          {/* No transform. The strip is laid out at its design size and drawn at
-              it — see fitStrip, which is the identity now. A `scale(1)` here
-              would be a no-op that still promotes this to its own compositing
-              layer, so it is left off entirely rather than written out. */}
+          {/* The strip is laid out at its design size and fitted to the window
+              here — see fitStrip. The transform is written by the layout effect
+              above rather than rendered from state: it has to be on the element
+              before the strip's own effect measures the stops off it, and a
+              state update would only land a commit later. `origin-top-left` is
+              what makes both terms of that fit mean what they say — the scale
+              multiplies design px straight into screen px, and the translate is
+              screen px on top of it. */}
           <div
+            ref={canvasRef}
             className="origin-top-left"
             style={{ width: TOTAL_WIDTH, height: DESIGN_HEIGHT }}
           >

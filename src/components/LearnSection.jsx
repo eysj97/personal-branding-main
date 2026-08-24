@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 // The deck itself — the six files, their artwork and where each one opens —
 // lives in data/learn, because the phone deals the same six a different way
 // (see mobile/MobileLearn). Everything below is this layout's business: the
@@ -22,10 +22,57 @@ const smoothstep = (from, to, x) => {
 // the front (leftmost) of the stack. See data/learn for why it is written that
 // way round and for what each entry means.
 
+// The design canvas everything below is measured on, as everywhere else on the
+// site — see ProjectSection's drumFit and ExperienceSection's fitStrip.
+const DESIGN_WIDTH = 1920;
+const DESIGN_HEIGHT = 1080;
+
+// Where the fit was set by eye, and what it was set to: at a 1180 x 820 window
+// this composition reads right at 80% of its design size.
+//
+// It is the anchor rather than the rule because the rule the other sections take
+// — shrink with whichever axis is tighter — puts this one at 61% in that same
+// window, which is smaller than it wants to be. A deck of files is not a picture
+// that has to fit inside a frame: it is type and artwork that only has to stay
+// clear of the edges, and it can afford to lose room more slowly than the window
+// does.
+const ANCHOR = { width: 1180, height: 820, scale: 0.8 };
+const ANCHOR_FIT = Math.min(
+  ANCHOR.width / DESIGN_WIDTH,
+  ANCHOR.height / DESIGN_HEIGHT,
+);
+// How much of the window's own shrinking the composition takes: the fraction
+// that puts the anchor above exactly on its 80%. It lands near a half, so the
+// deck loses about a pixel for every two the window does.
+const FIT_DAMP = (1 - ANCHOR.scale) / (1 - ANCHOR_FIT);
+
+/** How big the deck and its title are drawn, as a fraction of design size.
+ *
+ *  1 at the 1920 x 1080 design size, ANCHOR.scale at the anchor window, and a
+ *  straight line through the two — so it keeps shrinking past the anchor rather
+ *  than stopping there, and keeps growing past the design size for the same
+ *  reason. `clientWidth`, so a scrollbar is not counted as room.
+ */
+function learnFit() {
+  const contain = Math.min(
+    document.documentElement.clientWidth / DESIGN_WIDTH,
+    window.innerHeight / DESIGN_HEIGHT,
+  );
+  return 1 - (1 - contain) * FIT_DAMP;
+}
+
 // 0.8x what it was (29vw -> 23.2vw). Smaller cards also mean the fanned-out
 // row takes up less of the screen, which is what stops the far ones running off
-// the edges.
-const CARD_WIDTH = "443px";
+// the edges. Design px, fitted by learnFit like everything else here.
+const CARD_WIDTH = 443;
+// The title block: the word, the gap under it, and the two lines below that.
+// All design px off the same canvas.
+const TITLE_SIZE = 120;
+const TITLE_TRACKING = -4;
+const TITLE_GAP = 24;
+const BODY_SIZE = 15.99;
+// The block's inset from the left edge — Tailwind's `left-5`, which is 20.
+const SIDE_INSET = 20;
 // Gap between each stacked card, as a fraction of the card width. One number,
 // held for the whole run: the deck keeps the spacing it starts with and simply
 // travels.
@@ -73,6 +120,17 @@ export default function LearnSection() {
   const stageRef = useRef(null);
   const cardRefs = useRef([]);
   const textRef = useRef(null);
+  // How big this section is drawn at this window size — see learnFit. The
+  // scroll loop needs nothing from it: it measures the card and the stage off
+  // the DOM every frame, so a new size is simply what it reads next.
+  const [fit, setFit] = useState(learnFit);
+
+  useEffect(() => {
+    const update = () => setFit(learnFit());
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
 
   useEffect(() => {
     const section = sectionRef.current;
@@ -151,14 +209,31 @@ export default function LearnSection() {
       className="section-learn relative h-[240vh] bg-white"
     >
       <div className="sticky top-0 h-screen w-full overflow-hidden">
+        {/* Sizes are inline rather than Tailwind classes because they are no
+            longer constants — they are the design's px times the window's fit,
+            and Tailwind reads class names out of the source text, so a built one
+            would generate no CSS at all. The tracking rides the font size for
+            the same reason it does in the design: it is a px value drawn against
+            120px type, so at 80% it has to be 80% too. The body copy's is in
+            `em` already and needs no help. */}
         <div
           ref={textRef}
-          className="absolute top-1/2 -translate-y-1/2 left-5 flex flex-col gap-[24px]"
+          className="absolute top-1/2 -translate-y-1/2 flex flex-col"
+          style={{ left: SIDE_INSET * fit, gap: TITLE_GAP * fit }}
         >
-          <p className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-[#336bec] whitespace-nowrap text-[120px] tracking-[-4px]">
+          <p
+            className="font-['Plus_Jakarta_Sans'] font-semibold leading-none text-[#336bec] whitespace-nowrap"
+            style={{
+              fontSize: TITLE_SIZE * fit,
+              letterSpacing: TITLE_TRACKING * fit,
+            }}
+          >
             LEARN
           </p>
-          <p className="font-['Pretendard'] text-black text-[15.99px] tracking-[-0.05em] leading-[1.2]">
+          <p
+            className="font-['Pretendard'] text-black tracking-[-0.05em] leading-[1.2]"
+            style={{ fontSize: BODY_SIZE * fit }}
+          >
             이 결과물들이 나오기까지,
             <br />
             계속 배우고 만들어봤습니다
@@ -193,7 +268,10 @@ export default function LearnSection() {
                 }}
                 {...linkProps}
                 className={`group absolute top-1/2 -translate-y-1/2 left-0 will-change-transform ${slug ? "cursor-pointer" : ""}`}
-                style={{ width: CARD_WIDTH, aspectRatio: `1 / ${CARD_ASPECT}` }}
+                style={{
+                  width: CARD_WIDTH * fit,
+                  aspectRatio: `1 / ${CARD_ASPECT}`,
+                }}
               >
                 {/* Drawn out of the row on hover, a third of the card's width
                     to the right — the direction the stack files backwards in,
