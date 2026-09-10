@@ -34,15 +34,7 @@ import duolingoQuiz from "../../assets/snapkeep/duolingo-quiz.avif";
 import duolingoResult from "../../assets/snapkeep/duolingo-result.avif";
 import zeroJelly from "../../assets/snapkeep/zero-jelly.avif";
 import groceryHome from "../../assets/snapkeep/grocery-home.avif";
-// A fully documented reference: the screen itself, its wireframe, and each
-// component in both states. `structure` and `components` are optional — an
-// entry without them falls back to the drawn wireframe and colour swatches.
 import activityOriginal from "../../assets/snapkeep/activity-original.avif";
-import activityStructure from "../../assets/snapkeep/activity-structure.avif";
-import activityChipDefault from "../../assets/snapkeep/activity-chip-default.avif";
-import activityChipSelected from "../../assets/snapkeep/activity-chip-selected.avif";
-import activityLabelDefault from "../../assets/snapkeep/activity-label-default.avif";
-import activityLabelSelected from "../../assets/snapkeep/activity-label-selected.avif";
 
 import { REFERENCE_ASPECTS, REFERENCE_LAYOUTS } from "./snapkeepLayouts";
 import { REFERENCE_COMPONENTS } from "./snapkeepComponents";
@@ -52,15 +44,11 @@ export const REFERENCES = [
     id: "ref-activity",
     title: "Activity picker",
     image: activityOriginal,
-    structure: activityStructure,
-    // Each component carries both of its states; the labels come baked into
-    // the artwork, so nothing is captioned again here.
-    components: [
-      // 태그는 FILTERS의 "UI 요소" 값만 씁니다 — 여기 붙은 태그도 필터로
-      // 그대로 되찾을 수 있어야 하므로, 자유 문구를 두지 않습니다.
-      { name: "활동 칩", tags: ["칩", "아이콘"], default: activityChipDefault, selected: activityChipSelected },
-      { name: "라벨", tags: ["라벨"], default: activityLabelDefault, selected: activityLabelSelected },
-    ],
+    // Used to carry its own hand-drawn `structure` and `components` artwork —
+    // from before the 아이콘 fallback existed, so the icons in it were drawn
+    // crossed the older way. Dropped in favour of the same drawn wireframe
+    // every other reference here uses (see ACTIVITY_CHIP in snapkeepLayouts),
+    // which is where `layout`, `aspect` and `pieces` below now come from.
     platform: "모바일 앱",
     service: "헬스케어",
     screen: "홈",

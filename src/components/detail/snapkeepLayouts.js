@@ -776,7 +776,82 @@ const groceryHome = [
   ...groceryItem(0.8453, 7, 4),
 ];
 
+/**
+ * The Activity picker's own icon — a soft pill with a glyph at its centre.
+ * The seven rows on this screen are all the same shape at two sizes: six
+ * quiet ones and the one under the reader's thumb, wider, taller and ringed.
+ *
+ * There is no glyph set for what each activity actually is (sleep, skipping,
+ * cycling…), and there does not need to be: the mark inside is the same
+ * plain tinted circle every icon on an unrecognised glyph already falls back
+ * to (see the 아이콘 case in SnapkeepSpread's WireBlock) — a picture, not a
+ * cross. This reference used to carry its own hand-drawn artwork instead,
+ * from before that fallback existed, and that artwork crossed the circle the
+ * older way. Moving it onto this component is what drops the cross, not a
+ * special case here.
+ */
+export const ACTIVITY_CHIP = {
+  name: "활동 칩",
+  aspect: 100 / 66,
+  build: ({ tone = 0.91, border = 0, iconTone = 0.55, aspect = 100 / 66 } = {}) => [
+    b("칩", 0, 0, 1, 1, tone, 0.5 / aspect, border),
+    b("아이콘", 0.22, 0.17, 0.56, 0.66, iconTone, 0, 0, "원"),
+  ],
+};
+
+const ACTIVITY_ASPECT = 840 / 1515;
+
+/** One quiet row: a label ending just ahead of its pill, both tilted a few
+ *  degrees to sit on the rail's own curve. */
+const activityChip = (x, y, opts) => place(ACTIVITY_CHIP, ACTIVITY_ASPECT, x - 0.06, y - 0.033, 0.12, 0.066, opts);
+const activityLabel = (rightEdge, y, chars, tone, rotate) => {
+  const w = chars * 0.021 + 0.02;
+  return t(rightEdge - w, y - 0.011, w, 0.022, tone, chars, 1, "왼쪽", tilt(rotate));
+};
+
+// A vertical carousel of activities, strung along a rail that bows out to
+// the right — six quiet rows and the seventh, "Cycling", pulled towards the
+// reader with its own label chip and a dark tick marking its place on the
+// rail. Read off the screenshot at a tenths grid, the same as every other
+// reference here.
+const activityPicker = [
+  // Status bar.
+  t(0.2, 0.05, 0.12, 0.016, 0.15, 4),
+  b("아이콘", 0.62, 0.052, 0.045, 0.012, 0.2, 0, 0, "사각형", ic("signal")),
+  b("아이콘", 0.685, 0.052, 0.04, 0.012, 0.2, 0, 0, "사각형", ic("wifi")),
+  b("아이콘", 0.74, 0.05, 0.055, 0.014, 0.2, 0, 0, "사각형", ic("battery")),
+
+  // The rail. One bow from top to bottom, not seven separate arcs.
+  b("곡선", 0.815, 0.14, 0.1, 0.76, 0.75, 0, 0, "사각형", tilt(0, 0, 0.5)),
+
+  activityLabel(0.63, 0.182, 5, 0.35, -4),
+  ...activityChip(0.655, 0.182, { state: "기본" }),
+  activityLabel(0.61, 0.272, 8, 0.35, -3),
+  ...activityChip(0.635, 0.272, { state: "기본" }),
+  activityLabel(0.58, 0.362, 14, 0.35, -2),
+  ...activityChip(0.605, 0.362, { state: "기본" }),
+
+  // The selected row, broken out of the rhythm: its label stands off to the
+  // side in its own chip, the pill is bigger and ringed, and a dark tick
+  // sits on the rail where it lands.
+  b("칩", 0.315, 0.472, 0.155, 0.032, 0.97, 0.5, 0.006),
+  t(0.335, 0.4775, 0.11, 0.02, 0.15, 7, 1, "가운데"),
+  ...place(ACTIVITY_CHIP, ACTIVITY_ASPECT, 0.528, 0.448, 0.14, 0.078, {
+    tone: 0.93, border: 0.006, iconTone: 0.45, state: "선택",
+  }),
+  b("칩", 0.7, 0.5, 0.055, 0.016, 0.2, 0.5),
+
+  activityLabel(0.58, 0.585, 8, 0.35, 2),
+  ...activityChip(0.605, 0.585, { state: "기본" }),
+  activityLabel(0.61, 0.675, 6, 0.35, 4),
+  ...activityChip(0.635, 0.675, { state: "기본" }),
+  // Faded — the row scrolling out of view at the bottom edge.
+  activityLabel(0.63, 0.765, 10, 0.75, 5),
+  ...activityChip(0.655, 0.765, { tone: 0.95, iconTone: 0.85, state: "기본" }),
+];
+
 const LAYOUTS = {
+  "ref-activity": activityPicker,
   "ref-aqua": aquaplanet,
   "ref-followart-hero": followArtHero,
   "ref-followart-voices": followArtVoices,
@@ -1131,6 +1206,7 @@ export const withPlacedComponents = (layout) => {
 /** Pixel size of each reference's screenshot, so a component can report the
  *  size it actually is rather than a figure typed in beside it. */
 export const REFERENCE_PIXELS = {
+  "ref-activity": [840, 1515],
   "ref-aqua": [1400, 818],
   "ref-followart-hero": [1400, 669],
   "ref-followart-voices": [1400, 670],
@@ -1142,6 +1218,7 @@ export const REFERENCE_PIXELS = {
 };
 
 export const REFERENCE_ASPECTS = {
+  "ref-activity": 840 / 1515,
   "ref-aqua": 1400 / 818,
   "ref-followart-hero": 1400 / 669,
   "ref-followart-voices": 1400 / 670,

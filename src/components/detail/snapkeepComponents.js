@@ -31,6 +31,7 @@ import { b, t, componentsFromLayout, REFERENCE_LAYOUTS, REFERENCE_ASPECTS, REFER
 /** What kind of thing it is. A judgement, so it is stated rather than derived —
  *  the drawing knows a chip's shape but not that a chip is what it is. */
 const TAGS = {
+  "활동 칩": ["칩", "아이콘"],
   "내비게이션 바": ["헤더", "버튼"],
   "폴더 탭": ["칩"],
   "단어 칩": ["칩"],
