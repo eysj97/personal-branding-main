@@ -823,15 +823,9 @@ const activityPicker = [
   b("아이콘", 0.685, 0.052, 0.04, 0.012, 0.2, 0, 0, "사각형", ic("wifi")),
   b("아이콘", 0.74, 0.05, 0.055, 0.014, 0.2, 0, 0, "사각형", ic("battery")),
 
-  // The rail: one smooth sweep bowing right, the way the screenshot's own
-  // line reads at a glance. Two straight segments were tried here to chase
-  // the exact top/bottom pixel positions — which are not quite symmetric on
-  // the real screenshot — and that was the wrong trade: a 곡선's two ends
-  // have to share an x, but stitching straight pieces to dodge that produced
-  // a visible kink where they met, which reads far worse than the small
-  // asymmetry it was solving for. Smooth and slightly off the exact
-  // endpoints beats sharp and exact.
-  b("곡선", 0.815, 0.15, 0.12, 0.72, 0.7, 0, 0, "사각형", tilt(0, 0, 1)),
+  // The rail: one smooth sweep bowing left, in toward the icons, rather than
+  // out toward the edge.
+  b("곡선", 0.875, 0.15, 0.12, 0.72, 0.7, 0, 0, "사각형", tilt(0, 0, -1)),
 
   activityLabel(0.63, 0.182, 5, 0.35, -4),
   ...activityChip(0.655, 0.182, { state: "기본" }),
