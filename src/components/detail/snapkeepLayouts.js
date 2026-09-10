@@ -777,25 +777,27 @@ const groceryHome = [
 ];
 
 /**
- * The Activity picker's own icon — a soft pill with a glyph at its centre.
- * The seven rows on this screen are all the same shape at two sizes: six
- * quiet ones and the one under the reader's thumb, wider, taller and ringed.
+ * The Activity picker's own icon — one round picture, the same notation
+ * every other picture in this drawing uses. The seven rows on this screen
+ * are all the same shape at two sizes: six quiet ones and the one under the
+ * reader's thumb, wider, taller and ringed.
  *
- * There is no glyph set for what each activity actually is (sleep, skipping,
- * cycling…), and there does not need to be: the mark inside is the same
- * plain tinted circle every icon on an unrecognised glyph already falls back
- * to (see the 아이콘 case in SnapkeepSpread's WireBlock) — a picture, not a
- * cross. This reference used to carry its own hand-drawn artwork instead,
- * from before that fallback existed, and that artwork crossed the circle the
- * older way. Moving it onto this component is what drops the cross, not a
- * special case here.
+ * It used to be two shapes — a pill behind a smaller icon circle — which is
+ * what put a circle inside a circle here. There is only one glyph per row on
+ * the real screen, not a container and a mark, so this is one 이미지 block:
+ * the tint says "a picture is here" exactly the way it already does for
+ * every other picture in this notation (see the 이미지 case in
+ * SnapkeepSpread's WireBlock), and it is round because the real icon sits in
+ * a round crop. This reference used to carry its own hand-drawn artwork
+ * instead, from before that no-cross rule existed, and that artwork crossed
+ * the circle the older way. Moving it onto this component is what drops the
+ * cross, not a special case here.
  */
 export const ACTIVITY_CHIP = {
   name: "활동 칩",
-  aspect: 100 / 66,
-  build: ({ tone = 0.91, border = 0, iconTone = 0.55, aspect = 100 / 66 } = {}) => [
-    b("칩", 0, 0, 1, 1, tone, 0.5 / aspect, border),
-    b("아이콘", 0.22, 0.17, 0.56, 0.66, iconTone, 0, 0, "원"),
+  aspect: 100 / 78,
+  build: ({ tone = 0.6, border = 0 } = {}) => [
+    b("이미지", 0, 0, 1, 1, tone, 0, border, "원"),
   ],
 };
 
@@ -803,7 +805,7 @@ const ACTIVITY_ASPECT = 840 / 1515;
 
 /** One quiet row: a label ending just ahead of its pill, both tilted a few
  *  degrees to sit on the rail's own curve. */
-const activityChip = (x, y, opts) => place(ACTIVITY_CHIP, ACTIVITY_ASPECT, x - 0.06, y - 0.033, 0.12, 0.066, opts);
+const activityChip = (x, y, opts) => place(ACTIVITY_CHIP, ACTIVITY_ASPECT, x - 0.06, y - 0.026, 0.12, 0.052, opts);
 const activityLabel = (rightEdge, y, chars, tone, rotate) => {
   const w = chars * 0.021 + 0.02;
   return t(rightEdge - w, y - 0.011, w, 0.022, tone, chars, 1, "왼쪽", tilt(rotate));
@@ -821,8 +823,10 @@ const activityPicker = [
   b("아이콘", 0.685, 0.052, 0.04, 0.012, 0.2, 0, 0, "사각형", ic("wifi")),
   b("아이콘", 0.74, 0.05, 0.055, 0.014, 0.2, 0, 0, "사각형", ic("battery")),
 
-  // The rail. One bow from top to bottom, not seven separate arcs.
-  b("곡선", 0.815, 0.14, 0.1, 0.76, 0.75, 0, 0, "사각형", tilt(0, 0, 0.5)),
+  // The rail. One bow from top to bottom, not seven separate arcs — read
+  // off the screenshot it swings from about 0.91 at the top, out to 0.94
+  // beside "Cycling", back to about 0.84 at the bottom.
+  b("곡선", 0.82, 0.13, 0.11, 0.77, 0.75, 0, 0, "사각형", tilt(0, 0, 0.85)),
 
   activityLabel(0.63, 0.182, 5, 0.35, -4),
   ...activityChip(0.655, 0.182, { state: "기본" }),
@@ -836,8 +840,8 @@ const activityPicker = [
   // sits on the rail where it lands.
   b("칩", 0.315, 0.472, 0.155, 0.032, 0.97, 0.5, 0.006),
   t(0.335, 0.4775, 0.11, 0.02, 0.15, 7, 1, "가운데"),
-  ...place(ACTIVITY_CHIP, ACTIVITY_ASPECT, 0.528, 0.448, 0.14, 0.078, {
-    tone: 0.93, border: 0.006, iconTone: 0.45, state: "선택",
+  ...place(ACTIVITY_CHIP, ACTIVITY_ASPECT, 0.528, 0.462, 0.14, 0.049, {
+    tone: 0.75, border: 0.006, state: "선택",
   }),
   b("칩", 0.7, 0.5, 0.055, 0.016, 0.2, 0.5),
 
@@ -847,7 +851,7 @@ const activityPicker = [
   ...activityChip(0.635, 0.675, { state: "기본" }),
   // Faded — the row scrolling out of view at the bottom edge.
   activityLabel(0.63, 0.765, 10, 0.75, 5),
-  ...activityChip(0.655, 0.765, { tone: 0.95, iconTone: 0.85, state: "기본" }),
+  ...activityChip(0.655, 0.765, { tone: 0.85, state: "기본" }),
 ];
 
 const LAYOUTS = {
