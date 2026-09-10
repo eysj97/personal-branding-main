@@ -157,7 +157,7 @@ function Mark({ src, raw, left, top, width, height, turn, flipY, centre }) {
   };
   if (raw) {
     return (
-      <div
+      <span
         aria-hidden
         className="pointer-events-none absolute [&>svg]:size-full"
         style={box}
@@ -166,9 +166,9 @@ function Mark({ src, raw, left, top, width, height, turn, flipY, centre }) {
     );
   }
   return (
-    <div aria-hidden className="pointer-events-none absolute" style={box}>
+    <span aria-hidden className="pointer-events-none absolute" style={box}>
       <img src={src} alt="" className="block size-full max-w-none" />
-    </div>
+    </span>
   );
 }
 
