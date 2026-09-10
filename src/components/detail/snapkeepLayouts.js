@@ -823,14 +823,17 @@ const activityPicker = [
   b("아이콘", 0.685, 0.052, 0.04, 0.012, 0.2, 0, 0, "사각형", ic("wifi")),
   b("아이콘", 0.74, 0.05, 0.055, 0.014, 0.2, 0, 0, "사각형", ic("battery")),
 
-  // The rail. One bow from top to bottom, not seven separate arcs — read
-  // off the screenshot it runs about 762px in from the left edge at the top
-  // and 705 at the bottom (840-wide canvas), bowing out to about 790 beside
-  // "Cycling". A quadratic curve's own midpoint only reaches half of its
-  // control point's offset, so the box is widened and the bend maxed out at
-  // 1 to actually reach that swing rather than the barely-there wobble a
-  // smaller box left on screen.
-  b("곡선", 0.808, 0.16, 0.13, 0.7, 0.75, 0, 0, "사각형", tilt(0, 0, 1)),
+  // The rail. Not a symmetric bow — read off the screenshot it is 762px in
+  // from the left edge at the top, swings out to 790 beside "Cycling", and
+  // keeps going past that to 705 by the bottom (840-wide canvas): the top
+  // half rises a little, the bottom half falls a lot further, and a single
+  // 곡선 element can't draw that, because its own two ends are always the
+  // same x. Two straight, tilted segments meeting at the swing instead —
+  // shallow above it, leaning hard below it — which is what the screenshot
+  // actually shows once the two halves are measured separately rather than
+  // read as one shape.
+  b("구분선", 0.9213, 0.16, 0.006, 0.33, 0.7, 0, 0, "사각형", tilt(-3.2)),
+  b("구분선", 0.8873, 0.49, 0.006, 0.37, 0.7, 0, 0, "사각형", tilt(8.6)),
 
   activityLabel(0.63, 0.182, 5, 0.35, -4),
   ...activityChip(0.655, 0.182, { state: "기본" }),
