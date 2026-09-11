@@ -9,14 +9,13 @@
 // scale turns a trapezoid into a rectangle, so nothing tries. A card simply
 // shows the file, and the transparent corners around the mockup are part of how
 // it is drawn.
-// All six re-captured together as png. The avif and webp exports they replace
-// are still on disk and nothing imports them.
-import card1 from "../assets/learn/card-1.png";
-import card2 from "../assets/learn/card-2.png";
-import card3 from "../assets/learn/card-3.png";
-import card4 from "../assets/learn/card-4.png";
-import card5 from "../assets/learn/card-5.png";
-import card6 from "../assets/learn/card-6.png";
+// All six re-captured together, then re-encoded to avif.
+import card1 from "../assets/learn/card-1.avif";
+import card2 from "../assets/learn/card-2.avif";
+import card3 from "../assets/learn/card-3.avif";
+import card4 from "../assets/learn/card-4.avif";
+import card5 from "../assets/learn/card-5.avif";
+import card6 from "../assets/learn/card-6.avif";
 // The tab that hangs off each card's right edge, exported from Figma
 // (node 283:206). Not a plain rounded rectangle: its top edge slants up
 // slightly to the right, matching the perspective the mockups are drawn in.

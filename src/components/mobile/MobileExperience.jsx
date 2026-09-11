@@ -53,7 +53,7 @@ import savedScreen from "../../assets/experience/saved-screen.avif";
 // they are the same capture, and archive-capture.png is the 8304px still that
 // backs the desktop's video — sixty-one megapixels for something shown 385
 // wide here. snapkeep-grid is the same picture already downscaled to 1420.
-import snapkeepGrid from "../../assets/experience/snapkeep-grid.png";
+import snapkeepGrid from "../../assets/experience/snapkeep-grid.avif";
 
 // The drawn-on marks.
 //

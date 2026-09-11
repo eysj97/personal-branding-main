@@ -7,28 +7,17 @@ import { driveWithScroll } from "../lib/scrollDriver";
 import { isLightUnder } from "../lib/ground";
 import { MOBILE_MAX } from "../lib/viewport";
 
-// A png where its neighbours are avif, and deliberately so. The floppy is pink
-// now rather than the teal Figma exported, and there is no avif encoder in this
-// project to re-export it through — so the recolour was done on the png and the
-// avif, which no longer showed the right colour, is gone. It is a flat two-tone
-// shape at 420px for a 140px box, which is 33kB: the avif's own 12kB is not
-// worth a second copy of the drawing to keep in step.
-import noteMark from "../assets/experience/note-mark.png";
+import noteMark from "../assets/experience/note-mark.avif";
 import boxBase from "../assets/experience/box-base.svg";
 import boxLid from "../assets/experience/box-lid.svg";
 import savedScreen from "../assets/experience/saved-screen.avif";
 import savedFigma from "../assets/experience/saved-figma.avif";
 import savedSiteMenu from "../assets/experience/saved-site-menu.avif";
-// The still behind the recording, for a build with no video file. A png rather
-// than the avif the rest of these are, because that is the format it arrives in
-// and there is no avif encoder in this project to put it back through.
-import archiveCapture from "../assets/experience/archive-capture.png";
-// The library as it actually looks, re-captured. A png rather than the avif it
-// replaces, for the reason the archive still is one: it arrived as a png and
-// there is no avif encoder here to put it back through. Downscaled to 1420 —
-// twice the 710 it is shown at — from the 8304 it was exported at, which was
-// eleven megabytes for a picture a tenth that wide on screen.
-import snapkeepGrid from "../assets/experience/snapkeep-grid.png";
+// The still behind the recording, for a build with no video file.
+import archiveCapture from "../assets/experience/archive-capture.avif";
+// The library as it actually looks, re-captured. Downscaled to 1420 — twice
+// the 710 it is shown at — from the 8304 it was exported at.
+import snapkeepGrid from "../assets/experience/snapkeep-grid.avif";
 
 // The drawn-on layer: lime and pink marks scribbled over the panels, and the
 // blue swashes that run under the headlines. All of it is exported straight
