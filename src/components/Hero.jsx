@@ -427,12 +427,10 @@ export default function Hero() {
     // over exactly that screen, which is the whole journey.
     // How wide the glasses is against the circle it lands on.
     //
-    // The design's own 64 on a 56 circle. The artwork carries its own margin — the
-    // frame sits inside about three quarters of the file's width — so this lands
-    // the lenses across the circle with the temple tips just inside its edge,
-    // which is a face wearing glasses. Pushed past this the temples hang off both
-    // sides and it stops being worn and starts being held.
-    const DOCK_OVERHANG = 64 / 56;
+    // Two thirds of the circle, so the character lands inside it rather than
+    // worn across it — the glasses sits centred and smaller than the pink
+    // disc instead of overhanging its edge.
+    const DOCK_OVERHANG = 2 / 3;
     const DOCK_SIZE = 126; // the fallback, for a page with no chat on it
     // Where it parks, as the distance from the viewport's corner to the
     // glasses' middle. It has to be the middle of the chat circle in Chatbot,
@@ -495,9 +493,38 @@ export default function Hero() {
       const endSize = circle
         ? circle.getBoundingClientRect().width * DOCK_OVERHANG
         : DOCK_SIZE;
-      const scale = 1 + (endSize / (el.offsetWidth || endSize) - 1) * e;
-      const x = from.x + (to.x - from.x) * e;
-      const y = from.y + (to.y - from.y) * e;
+      let scale = 1 + (endSize / (el.offsetWidth || endSize) - 1) * e;
+      let x = from.x + (to.x - from.x) * e;
+      let y = from.y + (to.y - from.y) * e;
+
+      // A second leg, once the first one has landed: the survivor blob
+      // CareerSection's outro leaves centred on the page (see
+      // career-outro-blob there) pulls the character on again, off the same
+      // `contactShown` that fades the blob's own white fill out — so the
+      // plain circle dissolving and the character growing into its place
+      // are one crossfade, not two animations that happen to overlap.
+      //
+      // Gated on `t >= 1` rather than run unconditionally: this section's own
+      // bottom edge has long since gone negative by the time the reader is
+      // anywhere near CareerSection's outro, so nothing is skipped by
+      // waiting for it. `t`, not the `landed` closure var below, which is
+      // this same frame's answer a beat early — `landed` still holds last
+      // frame's.
+      const finale = t >= 1 ? document.getElementById("career-outro-blob") : null;
+      const finaleT = finale ? Number(finale.dataset.finale) || 0 : 0;
+      if (finaleT > 0) {
+        const fr = finale.getBoundingClientRect();
+        const finalX = fr.left + fr.width / 2 - vw / 2;
+        const finalY = fr.top + fr.height / 2 - vh / 2;
+        // The blob's own live width, unmodified — it is drawn at exactly the
+        // size the character should fill, not a circle to sit inside with
+        // room to spare the way the corner launcher is (see DOCK_OVERHANG).
+        const finalScale = fr.width / (el.offsetWidth || fr.width);
+        x += (finalX - x) * finaleT;
+        y += (finalY - y) * finaleT;
+        scale += (finalScale - scale) * finaleT;
+      }
+
       // translate first, scale second: written this way the scale happens about
       // the element's middle and the travel is *not* multiplied by it, so the
       // corner it arrives at is the corner asked for.
@@ -532,7 +559,15 @@ export default function Hero() {
     const driver = driveWithScroll(section, render);
     // The copy is the widest thing on the stage and the eyes are SVG, so both
     // settle late enough to move the section's own height on a cold load.
-    document.fonts?.ready.then(driver.refresh);
+    //
+    // Guarded: `fonts.ready` can resolve after this effect has cleaned up (a
+    // fast route change unmounts the section while a webfont is still
+    // downloading), and `render` dereferences refs directly — React has
+    // already nulled them out by then.
+    let cancelled = false;
+    document.fonts?.ready.then(() => {
+      if (!cancelled) driver.refresh();
+    });
     window.addEventListener("load", driver.refresh);
     // Nothing gets past the hero until the hero has finished. After the driver,
     // so `render` has already run once and `timelineDone` is right for wherever
@@ -546,6 +581,7 @@ export default function Hero() {
     window.addEventListener("pointermove", onPointerMove, gazeListener);
 
     return () => {
+      cancelled = true;
       window.removeEventListener("scroll", dock);
       window.removeEventListener("resize", dock);
       window.removeEventListener("load", driver.refresh);

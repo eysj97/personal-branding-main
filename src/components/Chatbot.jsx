@@ -328,7 +328,14 @@ export default function Chatbot() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, close]);
 
-  useEffect(() => () => clearTimeout(timerRef.current), []);
+  // Not `clearTimeout` on unmount: the timer's own promise is what lets `ask`
+  // finish (see below), and cancelling it left that await hanging forever —
+  // the timer is left to fire on its own short fuse, and `mountedRef` below is
+  // what keeps its resolution from touching state that is no longer there.
+  const mountedRef = useRef(true);
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   // Ask, then answer. The wait used to be REPLY_MS of theatre over an instant
   // lookup; it is a real request now, so the delay is only a floor — enough for
@@ -353,6 +360,11 @@ export default function Chatbot() {
       }),
     ]);
 
+    // The panel can close, or the route can change out from under it, while
+    // this is in flight — it is a real request now, not an instant lookup, so
+    // there is time for that to happen. An unmounted instance has nothing to
+    // show the reply on, so it is dropped rather than set.
+    if (!mountedRef.current) return;
     setThread((t) => [...t, { id: nextId(), from: "bot", text: answer }]);
     setPending(false);
   }
@@ -370,7 +382,16 @@ export default function Chatbot() {
           Hover is a brightness change rather than a scale on purpose. Once the
           glasses has landed the two are meant to read as one character, and a
           scale here would move the circle out from under a pair of glasses that
-          knows nothing about it. Only the shared idle transforms this. */}
+          knows nothing about it. Only the shared idle transforms this.
+
+          Faded out once landed and shut: the glasses is smaller than this
+          circle now (see DOCK_OVERHANG in Hero), so a full-strength pink disc
+          would show as a ring around it. The button stays in the DOM and
+          clickable — only its own fill goes to nothing — so the glasses alone
+          reads as the resting character and the click target is unchanged.
+          Brought back at full strength while open: beside the conversation
+          there is no glasses riding on it, so the circle is the only avatar
+          there is. */}
       <button
         id="chatbot-launcher"
         type="button"
@@ -406,7 +427,11 @@ export default function Chatbot() {
         // the character would be behind it — the one element that must stay
         // visible while the chat is open, since it is the chat.
         className={`fixed ${isMobile ? "z-[62]" : "z-[58]"} rounded-full bg-[#f460c0] shadow-lg hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ffd527] ${
-          docked ? "opacity-100" : "pointer-events-none opacity-0"
+          docked
+            ? landed && !open
+              ? "opacity-0"
+              : "opacity-100"
+            : "pointer-events-none opacity-0"
         }`}
       />
 

@@ -912,9 +912,16 @@ export default function CareerSection() {
   const scaleRef = useRef(1);
 
   useEffect(() => {
+    // `clientWidth`, not `innerWidth` — the scrollbar is not part of what can
+    // be seen. ExperienceSection, ProjectSection and LearnSection all fit
+    // themselves against the same measurement; this one used `innerWidth`
+    // instead, so on a platform with a reserving scrollbar (Windows, most
+    // Linux) this canvas sat at a slightly larger scale than the sections
+    // either side of it, and the seam between them drifted as the window was
+    // resized.
     function updateScale() {
       const next = Math.min(
-        window.innerWidth / DESIGN_WIDTH,
+        document.documentElement.clientWidth / DESIGN_WIDTH,
         window.innerHeight / DESIGN_HEIGHT,
       );
       scaleRef.current = next;
@@ -1199,6 +1206,14 @@ export default function CareerSection() {
       // position rather than the nearest step. See settleGlasses.
       lastStepPos = stepPos;
 
+      // How settled the outro contact card is, 0 to 1. Computed once, up
+      // here, rather than beside the card itself below: the survivor blob
+      // needs the same number to fade itself out by — see the `stepPos > 6`
+      // branch just below — and a second copy of this formula next to the
+      // card would be one more place for the two to drift apart.
+      const contactDist = Math.abs(stepPos - 10);
+      const contactShown = 1 - smoothstep(clamp01(contactDist / REVEAL_WINDOW));
+
       // Act 1, phase A: the wheel — 0 (START at center) to 5 (role 5).
       // Already eased per leg by stepPos above, so it is taken straight.
       const centerValue = Math.min(5, stepPos);
@@ -1213,7 +1228,10 @@ export default function CareerSection() {
       const circleScale = lerp(1, GROWN_SIZE / CIRCLE_SIZE, growT);
 
       const s = scaleRef.current;
-      const canvasOffsetX = (window.innerWidth - DESIGN_WIDTH * s) / 2;
+      // Same `clientWidth` as `updateScale` above — this has to agree with the
+      // width that scale was fitted against, or the canvas centres itself
+      // against a different number than the one that sized it.
+      const canvasOffsetX = (document.documentElement.clientWidth - DESIGN_WIDTH * s) / 2;
       const canvasOffsetY = (window.innerHeight - DESIGN_HEIGHT * s) / 2;
       // START is always the focused circle, so it is always the large one.
       const startSize = CIRCLE_SIZE * s;
@@ -1377,7 +1395,19 @@ export default function CareerSection() {
           survivor.style.top = `${canvasOffsetY + by * s}px`;
           survivor.style.width = `${bsize * s}px`;
           survivor.style.height = `${bsize * s}px`;
-          survivor.style.opacity = "1";
+          // Faded out by the same `contactShown` the card itself fades in
+          // on, rather than left a flat white disc under it — Hero's dock
+          // loop grows the chat character into this exact spot over the
+          // same band (see career-outro-blob there), so the plain circle
+          // dissolving is what reads as it becoming the character rather
+          // than the character merely appearing in front of it.
+          survivor.style.opacity = String(1 - contactShown);
+          // Read by Hero's dock loop, which has no way in here otherwise —
+          // it is a different component entirely and only ever finds this
+          // element by id. A data attribute rather than a global: the two
+          // already talk this way everywhere else (`#chatbot-launcher`,
+          // `data-chat-idle`), and it needs no cleanup on unmount.
+          survivor.dataset.finale = contactShown.toFixed(3);
         }
         // Kept for the wipe below, which has to place a copy of itself inside
         // this box and therefore needs the box's own origin. Read from here
@@ -1664,8 +1694,6 @@ export default function CareerSection() {
         applyChapterTyping(changeIndex, 0);
       }
 
-      const contactDist = Math.abs(stepPos - 10);
-      const contactShown = 1 - smoothstep(clamp01(contactDist / REVEAL_WINDOW));
       contactRef.current.style.opacity = String(contactShown);
       // The card holds the resume link, and a faded-out element is still a
       // click target. Without this it would sit invisibly over the section for
@@ -1689,10 +1717,17 @@ export default function CareerSection() {
     const driver = driveWithScroll(section, render);
     // The chapter copy sets the section's own height on a cold load, and a
     // webfont landing late moves where every step sits.
-    document.fonts?.ready.then(driver.refresh);
+    //
+    // Guarded: `fonts.ready` can resolve after this effect has cleaned up, and
+    // `render` dereferences refs directly once React has nulled them out.
+    let cancelled = false;
+    document.fonts?.ready.then(() => {
+      if (!cancelled) driver.refresh();
+    });
     window.addEventListener("load", driver.refresh);
 
     return () => {
+      cancelled = true;
       window.removeEventListener("load", driver.refresh);
       driver.stop();
       if (sharpenRaf) cancelAnimationFrame(sharpenRaf);
@@ -1886,6 +1921,13 @@ export default function CareerSection() {
               ref={(el) => {
                 circleRefs.current[r - 1] = el;
               }}
+              // Role 5 is the survivor — the one circle that outlives the
+              // wheel and becomes the outro blob (see the `stepPos > 6`
+              // branch in applyRaw). Named so Hero's dock loop can find it
+              // and grow the chat character into it at the very end of the
+              // page, the same way it finds `#chatbot-launcher` in the
+              // corner — see career-outro-blob in Hero.jsx.
+              id={r === 5 ? "career-outro-blob" : undefined}
               // overflow-hidden for the blob's own half of the wipe below —
               // rounded-full plus a clipped overflow is what turns a rectangle
               // laid across this box into a half-disc.

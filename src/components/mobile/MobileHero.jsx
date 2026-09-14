@@ -63,12 +63,11 @@ const TIMELINE_END = 0.9;
 const DOCK_SIZE = 126;
 // How wide the glasses is against the circle it lands on.
 //
-// The design's own 64 on a 56 circle. The artwork carries its own margin — the
-// frame sits inside about three quarters of the file's width — so this lands
-// the lenses across the circle with the temple tips just inside its edge,
-// which is a face wearing glasses. Pushed past this the temples hang off both
-// sides and it stops being worn and starts being held.
-const DOCK_OVERHANG = 64 / 56;
+// Two thirds of the circle, so the character lands inside it rather than
+// worn across it — the glasses sits centred and smaller than the pink disc
+// instead of overhanging its edge. The desktop's — see the dock loop in
+// Hero.jsx, which the two are meant to match.
+const DOCK_OVERHANG = 2 / 3;
 
 // Where the eye stops being shut and starts being open, as a fraction of the
 // eye timeline. Two numbers for one crossing — see the note at the cut.
@@ -186,20 +185,39 @@ export default function MobileHero({ menuRef }) {
 
       const size = from.width || DOCK_SIZE;
       const endSize = to ? to.width * DOCK_OVERHANG : DOCK_SIZE;
-      const width = size + (endSize - size) * e;
+      let width = size + (endSize - size) * e;
       const fromX = from.left + from.width / 2;
       const fromY = from.top + from.height / 2;
       const toX = to ? to.left + to.width / 2 : window.innerWidth - 72;
       const toY = to ? to.top + to.height / 2 : vh - 48;
+      let artX = fromX + (toX - fromX) * e;
+      let artY = fromY + (toY - fromY) * e;
+
+      // A second leg, once the first has landed: the survivor blob
+      // CareerSection's outro leaves centred on the page pulls the
+      // character on again, off the same `contactShown` that fades the
+      // blob's own white fill out. The desktop's — see the dock loop in
+      // Hero.jsx, which this is the phone's half of.
+      const landed = t >= 1;
+      const finale = document.getElementById("career-outro-blob");
+      const finaleT = landed && finale ? Number(finale.dataset.finale) || 0 : 0;
+      if (finaleT > 0) {
+        const fr = finale.getBoundingClientRect();
+        const finalX = fr.left + fr.width / 2;
+        const finalY = fr.top + fr.height / 2;
+        artX += (finalX - artX) * finaleT;
+        artY += (finalY - artY) * finaleT;
+        width += (fr.width - width) * finaleT;
+      }
 
       art.style.width = `${width}px`;
-      art.style.left = `${fromX + (toX - fromX) * e}px`;
-      art.style.top = `${fromY + (toY - fromY) * e}px`;
+      art.style.left = `${artX}px`;
+      art.style.top = `${artY}px`;
 
       // Once it has arrived, the character breathes — the same shared animation
       // the chat circle underneath runs, started off the same edge so the two
       // are in step. See `chatbot-idle` in index.css.
-      idleRef.current?.toggleAttribute("data-chat-idle", t >= 1);
+      idleRef.current?.toggleAttribute("data-chat-idle", landed);
     }
 
     // Every frame, not just on scroll. The circle it follows moves without the
