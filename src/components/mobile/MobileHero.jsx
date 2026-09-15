@@ -67,9 +67,6 @@ const DOCK_SIZE = 126;
 // to match exactly rather than leaving a gap: the pink disc stays visible
 // for the whole page now, so any gap reads as a permanent ring.
 const DOCK_OVERHANG = 1;
-// How big the circle it lands on grows at the very end of the page — the
-// desktop's, see FINALE_SCALE in Hero.jsx.
-const FINALE_SCALE = 2 / 3;
 
 // Where the eye stops being shut and starts being open, as a fraction of the
 // eye timeline. Two numbers for one crossing — see the note at the cut.
@@ -168,6 +165,16 @@ export default function MobileHero({ menuRef }) {
     // travel belongs to the screen after that, where the hero is scrolling
     // away. The bottom goes from a full viewport down to zero over exactly that
     // screen, which is the whole journey.
+    //
+    // `to` below is read off the chat circle itself, every frame — not just
+    // for the corner it starts in, but wherever it currently is, size
+    // included now that DOCK_OVERHANG is 1. At the very end of the page that
+    // circle grows onto CareerSection's outro blob on its own (see syncFade
+    // in Chatbot.jsx), so this keeps tracking it there for free with no
+    // second leg of its own to add — a second one was tried and it read the
+    // circle's rect too, which by then was itself mid-blend, so the two
+    // blends stacked and the glasses drifted off the circle for the whole
+    // transition instead of riding it.
     function dock() {
       const art = artRef.current;
       const slot = slotRef.current;
@@ -187,39 +194,20 @@ export default function MobileHero({ menuRef }) {
 
       const size = from.width || DOCK_SIZE;
       const endSize = to ? to.width * DOCK_OVERHANG : DOCK_SIZE;
-      let width = size + (endSize - size) * e;
+      const width = size + (endSize - size) * e;
       const fromX = from.left + from.width / 2;
       const fromY = from.top + from.height / 2;
       const toX = to ? to.left + to.width / 2 : window.innerWidth - 72;
       const toY = to ? to.top + to.height / 2 : vh - 48;
-      let artX = fromX + (toX - fromX) * e;
-      let artY = fromY + (toY - fromY) * e;
-
-      // A second leg, once the first has landed: the survivor blob
-      // CareerSection's outro leaves centred on the page pulls the
-      // character on again, off the same `contactShown` that fades the
-      // blob's own white fill out. The desktop's — see the dock loop in
-      // Hero.jsx, which this is the phone's half of.
-      const landed = t >= 1;
-      const finale = document.getElementById("career-outro-blob");
-      const finaleT = landed && finale ? Number(finale.dataset.finale) || 0 : 0;
-      if (finaleT > 0) {
-        const fr = finale.getBoundingClientRect();
-        const finalX = fr.left + fr.width / 2;
-        const finalY = fr.top + fr.height / 2;
-        artX += (finalX - artX) * finaleT;
-        artY += (finalY - artY) * finaleT;
-        width += (fr.width * FINALE_SCALE - width) * finaleT;
-      }
 
       art.style.width = `${width}px`;
-      art.style.left = `${artX}px`;
-      art.style.top = `${artY}px`;
+      art.style.left = `${fromX + (toX - fromX) * e}px`;
+      art.style.top = `${fromY + (toY - fromY) * e}px`;
 
       // Once it has arrived, the character breathes — the same shared animation
       // the chat circle underneath runs, started off the same edge so the two
       // are in step. See `chatbot-idle` in index.css.
-      idleRef.current?.toggleAttribute("data-chat-idle", landed);
+      idleRef.current?.toggleAttribute("data-chat-idle", t >= 1);
     }
 
     // Every frame, not just on scroll. The circle it follows moves without the

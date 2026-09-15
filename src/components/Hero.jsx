@@ -434,12 +434,6 @@ export default function Hero() {
     // glasses fills the circle it is landing on exactly.
     const DOCK_OVERHANG = 1;
     const DOCK_SIZE = 126; // the fallback, for a page with no chat on it
-    // How big the circle it lands on grows at the very end of the page —
-    // two thirds of the outro blob rather than the whole of it, matching
-    // Chatbot's own FINALE_SCALE, which the launcher's actual size follows.
-    // Kept in step with DOCK_OVERHANG above: at both stops the glasses is
-    // sized 1:1 with the circle it is landing on, never bigger or smaller.
-    const FINALE_SCALE = 2 / 3;
     // Where it parks, as the distance from the viewport's corner to the
     // glasses' middle. It has to be the middle of the chat circle in Chatbot,
     // which is 56px across and sits `right-11` / `bottom-5` — so 44 + 28 across
@@ -465,11 +459,21 @@ export default function Hero() {
     //
     // Read off the chat circle itself rather than computed from the insets
     // above. The circle does not stay in the corner any more: opening the chat
-    // sends it up beside the conversation (see Chatbot), and the glasses has to
-    // be wherever it is, not wherever it started. Measuring it every frame is
-    // the only version of this that cannot drift — there is no second copy of
-    // the position to keep in step, and it does not matter how the circle got
-    // there or how long it took.
+    // sends it up beside the conversation (see Chatbot), and at the very end
+    // of the page it grows onto CareerSection's outro blob (see syncFade
+    // there) — the glasses has to be wherever it is and whatever size it is,
+    // not wherever it started. Measuring it every frame is the only version
+    // of this that cannot drift — there is no second copy of the position
+    // (or, with DOCK_OVERHANG at 1, the size) to keep in step, and it does
+    // not matter how the circle got there or how long it took. A second leg
+    // computed here independently, reaching for career-outro-blob on its own
+    // once tried, and it was wrong the instant it existed: this element's
+    // own `to`/`endSize` already read the circle's *current* rect, which by
+    // then was itself mid-blend toward the blob, so the two blends stacked
+    // and the glasses raced ahead of or lagged the circle it is supposed to
+    // be worn on for the whole transition. There is exactly one thing here
+    // that needs to track the blob, and it is the circle; everything else
+    // just has to keep tracking the circle, the way it always has.
     //
     // The insets stay as the fallback for a page with no chat on it at all.
     function dockTarget(vw, vh) {
@@ -501,38 +505,9 @@ export default function Hero() {
       const endSize = circle
         ? circle.getBoundingClientRect().width * DOCK_OVERHANG
         : DOCK_SIZE;
-      let scale = 1 + (endSize / (el.offsetWidth || endSize) - 1) * e;
-      let x = from.x + (to.x - from.x) * e;
-      let y = from.y + (to.y - from.y) * e;
-
-      // A second leg, once the first one has landed: the survivor blob
-      // CareerSection's outro leaves centred on the page (see
-      // career-outro-blob there) pulls the character on again, off the same
-      // `contactShown` that fades the blob's own white fill out — so the
-      // plain circle dissolving and the character growing into its place
-      // are one crossfade, not two animations that happen to overlap.
-      //
-      // Gated on `t >= 1` rather than run unconditionally: this section's own
-      // bottom edge has long since gone negative by the time the reader is
-      // anywhere near CareerSection's outro, so nothing is skipped by
-      // waiting for it. `t`, not the `landed` closure var below, which is
-      // this same frame's answer a beat early — `landed` still holds last
-      // frame's.
-      const finale = t >= 1 ? document.getElementById("career-outro-blob") : null;
-      const finaleT = finale ? Number(finale.dataset.finale) || 0 : 0;
-      if (finaleT > 0) {
-        const fr = finale.getBoundingClientRect();
-        const finalX = fr.left + fr.width / 2 - vw / 2;
-        const finalY = fr.top + fr.height / 2 - vh / 2;
-        // The blob's own width scaled by the same FINALE_SCALE the launcher
-        // itself grows to (see Chatbot's syncFade) — matched exactly, so the
-        // frame sits on the circle rather than running past its edge.
-        const finalScale =
-          (fr.width * FINALE_SCALE) / (el.offsetWidth || fr.width);
-        x += (finalX - x) * finaleT;
-        y += (finalY - y) * finaleT;
-        scale += (finalScale - scale) * finaleT;
-      }
+      const scale = 1 + (endSize / (el.offsetWidth || endSize) - 1) * e;
+      const x = from.x + (to.x - from.x) * e;
+      const y = from.y + (to.y - from.y) * e;
 
       // translate first, scale second: written this way the scale happens about
       // the element's middle and the travel is *not* multiplied by it, so the
