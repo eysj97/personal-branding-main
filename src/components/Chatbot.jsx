@@ -235,6 +235,12 @@ export default function Chatbot() {
   // Hero measures this element every frame and puts the glasses on top of
   // whatever it finds, so nothing there needs telling about any of this.
   const [spot, setSpot] = useState(() => corner());
+  // Read by the finale blend below without making it a dependency of that
+  // effect — see the note on openRef just under this for why.
+  const spotRef = useRef(spot);
+  useEffect(() => {
+    spotRef.current = spot;
+  }, [spot]);
   useLayoutEffect(() => {
     function place() {
       const panel = panelRef.current;
@@ -295,31 +301,69 @@ export default function Chatbot() {
     openRef.current = open;
   }, [open]);
   const dockedRef = useRef(false);
-  // The launcher's own fill, independent of the `docked`/`open` classes
-  // below: it fades only over the narrow band at the very end of the page
-  // where CareerSection's outro blob is handing the character off (see
-  // career-outro-blob there and the dock loops in Hero/MobileHero that grow
-  // into it), not for the whole rest of the page the way `landed` would —
-  // `landed` is true from the moment the hero is behind you, so gating the
-  // fade on it hid the launcher for nearly the entire scroll instead of just
-  // its last screen.
+  // The launcher's own fill and position, independent of the `docked`/`open`
+  // classes and the `spot` state below: over the narrow band at the very end
+  // of the page where CareerSection's outro blob is handing the character
+  // off (see career-outro-blob there and the dock loops in Hero/MobileHero
+  // that grow the glasses into it), the actual button — not just the
+  // decorative glasses riding on top of it — travels there too and its own
+  // fill fades out.
+  //
+  // The button moving, and not only fading, is what carries everything that
+  // tracks it along for free: ExperienceSection's Snapkeep word reads this
+  // element's own `getBoundingClientRect()` every frame it is on screen (see
+  // the flight loop there), so it settles wherever this button actually is
+  // rather than the corner it started at. Fading it in place would have left
+  // that word stranded beside an empty corner while the glasses grew into
+  // the blob on its own.
+  //
+  // Gated the same way the fade always was: `landed` is true from the
+  // moment the hero is behind you, so tying either of these to it would move
+  // the button for nearly the whole page instead of just its last screen.
   //
   // Written straight to the element rather than through React state: this
   // runs on every scroll tick, and a re-render of the whole panel subtree
-  // for a number nobody but this one style property reads would be wasted
-  // work. Cleared (not just left at 1) whenever the fade does not apply, so
-  // an inline value never outlives the moment it was written for and sits
-  // there overriding the class once the reason for it is gone.
+  // for values nobody but these two style properties read would be wasted
+  // work. Cleared (not just left at their base values) whenever the blend
+  // does not apply, so an inline value never outlives the moment it was
+  // written for and sits there overriding `spot` once the reason for it is
+  // gone.
   const syncFade = useCallback(() => {
     const el = launcherRef.current;
     if (!el) return;
+    // `left`/`top` are also what React's own `style` prop sets `spot` onto
+    // (see the button below) — so clearing them to `""` on the way out does
+    // not hand control back to React the way clearing `opacity` does two
+    // lines down (which React never touches). React only rewrites a DOM
+    // style property when its own new value differs from what *it* last
+    // wrote, and from its side nothing has changed; it has no idea this loop
+    // reached in and moved the element, so an emptied property just stays
+    // empty. The base value is written explicitly instead, every frame,
+    // whether or not the blend is active — the one thing that can never go
+    // stale, because `spotRef` is read fresh each time too.
+    const base = spotRef.current;
     if (dockedRef.current && !openRef.current) {
-      const finale =
-        Number(document.getElementById("career-outro-blob")?.dataset.finale) ||
-        0;
+      const blob = document.getElementById("career-outro-blob");
+      const finale = blob ? Number(blob.dataset.finale) || 0 : 0;
       el.style.opacity = String(1 - finale);
+      if (finale > 0 && blob) {
+        const br = blob.getBoundingClientRect();
+        // The blob's own centre, converted back to the top-left corner this
+        // element is positioned from — its size does not grow to match the
+        // blob (only the decorative glasses does), so it is centred on the
+        // blob rather than resized to fill it.
+        const targetLeft = br.left + br.width / 2 - el.offsetWidth / 2;
+        const targetTop = br.top + br.height / 2 - el.offsetHeight / 2;
+        el.style.left = `${base.left + (targetLeft - base.left) * finale}px`;
+        el.style.top = `${base.top + (targetTop - base.top) * finale}px`;
+      } else {
+        el.style.left = `${base.left}px`;
+        el.style.top = `${base.top}px`;
+      }
     } else {
       el.style.opacity = "";
+      el.style.left = `${base.left}px`;
+      el.style.top = `${base.top}px`;
     }
   }, []);
   // Run every frame, not just on scroll or when `open` changes. `finale`
