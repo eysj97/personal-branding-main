@@ -284,6 +284,61 @@ export default function Chatbot() {
   // motion it belongs to.
   const [docked, setDocked] = useState(false);
   const [landed, setLanded] = useState(false);
+  const launcherRef = useRef(null);
+  // Read inside the scroll handler and the effect below without making
+  // either a dependency of the listener-owning effect — that one is
+  // attached once and stays attached for the page's whole life, and
+  // re-running it every time the chat opens or the launcher docks would
+  // tear the listeners down and rebuild them for no reason.
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+  const dockedRef = useRef(false);
+  // The launcher's own fill, independent of the `docked`/`open` classes
+  // below: it fades only over the narrow band at the very end of the page
+  // where CareerSection's outro blob is handing the character off (see
+  // career-outro-blob there and the dock loops in Hero/MobileHero that grow
+  // into it), not for the whole rest of the page the way `landed` would —
+  // `landed` is true from the moment the hero is behind you, so gating the
+  // fade on it hid the launcher for nearly the entire scroll instead of just
+  // its last screen.
+  //
+  // Written straight to the element rather than through React state: this
+  // runs on every scroll tick, and a re-render of the whole panel subtree
+  // for a number nobody but this one style property reads would be wasted
+  // work. Cleared (not just left at 1) whenever the fade does not apply, so
+  // an inline value never outlives the moment it was written for and sits
+  // there overriding the class once the reason for it is gone.
+  const syncFade = useCallback(() => {
+    const el = launcherRef.current;
+    if (!el) return;
+    if (dockedRef.current && !openRef.current) {
+      const finale =
+        Number(document.getElementById("career-outro-blob")?.dataset.finale) ||
+        0;
+      el.style.opacity = String(1 - finale);
+    } else {
+      el.style.opacity = "";
+    }
+  }, []);
+  // Run every frame, not just on scroll or when `open` changes. `finale`
+  // comes from CareerSection's own scroll driver, which smooths its input —
+  // see the note on driveWithScroll in Hero.jsx — so the number behind
+  // career-outro-blob's dataset one frame lags a raw scroll event by a beat.
+  // Reading it inside the scroll listener caught the value the *previous*
+  // frame had settled on, which is stale by exactly the amount that matters:
+  // the fade landed on "docked, so opacity 1" one tick before finale actually
+  // reached 1, and nothing ever came along afterwards to correct it, because
+  // the scroll had already stopped. Same reasoning as the dock loops' own
+  // rAF ticks, and just as cheap — this writes one style property.
+  useEffect(() => {
+    let id = requestAnimationFrame(function tick() {
+      syncFade();
+      id = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [syncFade]);
   useEffect(() => {
     // Either hero — the desktop's or the phone's. They are two components with
     // two class names but one job, and the circle's timing is the same for
@@ -293,13 +348,16 @@ export default function Chatbot() {
     if (!hero) {
       setDocked(true);
       setLanded(true);
+      dockedRef.current = true;
       return undefined;
     }
     const check = () => {
       const { bottom } = hero.getBoundingClientRect();
-      setDocked(bottom <= window.innerHeight);
+      const isDocked = bottom <= window.innerHeight;
+      setDocked(isDocked);
       // The hero fully gone, which is where the travel ends.
       setLanded(bottom <= 0);
+      dockedRef.current = isDocked;
     };
     window.addEventListener("scroll", check, { passive: true });
     window.addEventListener("resize", check);
@@ -384,16 +442,16 @@ export default function Chatbot() {
           scale here would move the circle out from under a pair of glasses that
           knows nothing about it. Only the shared idle transforms this.
 
-          Faded out once landed and shut: the glasses is smaller than this
-          circle now (see DOCK_OVERHANG in Hero), so a full-strength pink disc
-          would show as a ring around it. The button stays in the DOM and
-          clickable — only its own fill goes to nothing — so the glasses alone
-          reads as the resting character and the click target is unchanged.
-          Brought back at full strength while open: beside the conversation
-          there is no glasses riding on it, so the circle is the only avatar
-          there is. */}
+          Its own fill fades only right at the very end of the page, where
+          CareerSection's outro hands the character off onto its own blob (see
+          career-outro-blob there and syncFade above) — everywhere else on the
+          page this stays a plain, fully opaque pink circle, docked or not.
+          The button stays clickable through the fade; only the fill goes to
+          nothing, so the glasses alone reads as the resting character there
+          without a ring of pink showing round it. */}
       <button
         id="chatbot-launcher"
+        ref={launcherRef}
         type="button"
         data-chat-idle={landed ? "" : undefined}
         onClick={() => setOpen((v) => !v)}
@@ -427,11 +485,7 @@ export default function Chatbot() {
         // the character would be behind it — the one element that must stay
         // visible while the chat is open, since it is the chat.
         className={`fixed ${isMobile ? "z-[62]" : "z-[58]"} rounded-full bg-[#f460c0] shadow-lg hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ffd527] ${
-          docked
-            ? landed && !open
-              ? "opacity-0"
-              : "opacity-100"
-            : "pointer-events-none opacity-0"
+          docked ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
       />
 
