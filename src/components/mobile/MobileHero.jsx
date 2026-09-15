@@ -63,11 +63,10 @@ const TIMELINE_END = 0.9;
 const DOCK_SIZE = 126;
 // How wide the glasses is against the circle it lands on.
 //
-// Two thirds of the circle, so the character lands inside it rather than
-// worn across it — the glasses sits centred and smaller than the pink disc
-// instead of overhanging its edge. The desktop's — see the dock loop in
-// Hero.jsx, which the two are meant to match.
-const DOCK_OVERHANG = 2 / 3;
+// 1:1 — the desktop's, see the dock loop in Hero.jsx for why the two have
+// to match exactly rather than leaving a gap: the pink disc stays visible
+// for the whole page now, so any gap reads as a permanent ring.
+const DOCK_OVERHANG = 1;
 
 // Where the eye stops being shut and starts being open, as a fraction of the
 // eye timeline. Two numbers for one crossing — see the note at the cut.

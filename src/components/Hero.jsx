@@ -427,10 +427,12 @@ export default function Hero() {
     // over exactly that screen, which is the whole journey.
     // How wide the glasses is against the circle it lands on.
     //
-    // Two thirds of the circle, so the character lands inside it rather than
-    // worn across it — the glasses sits centred and smaller than the pink
-    // disc instead of overhanging its edge.
-    const DOCK_OVERHANG = 2 / 3;
+    // 1:1. The pink disc stays fully visible for the whole page now (see
+    // Chatbot's syncFade), not just a moment before it fades — so any gap
+    // between the two reads as a permanent ring round the glasses rather
+    // than something a quick fade covers for. Matched, there is no ring: the
+    // glasses fills the circle it is landing on exactly.
+    const DOCK_OVERHANG = 1;
     const DOCK_SIZE = 126; // the fallback, for a page with no chat on it
     // Where it parks, as the distance from the viewport's corner to the
     // glasses' middle. It has to be the middle of the chat circle in Chatbot,
