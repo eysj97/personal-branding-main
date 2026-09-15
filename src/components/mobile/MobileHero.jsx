@@ -67,6 +67,9 @@ const DOCK_SIZE = 126;
 // to match exactly rather than leaving a gap: the pink disc stays visible
 // for the whole page now, so any gap reads as a permanent ring.
 const DOCK_OVERHANG = 1;
+// How big the circle it lands on grows at the very end of the page — the
+// desktop's, see FINALE_SCALE in Hero.jsx.
+const FINALE_SCALE = 2 / 3;
 
 // Where the eye stops being shut and starts being open, as a fraction of the
 // eye timeline. Two numbers for one crossing — see the note at the cut.
@@ -206,7 +209,7 @@ export default function MobileHero({ menuRef }) {
         const finalY = fr.top + fr.height / 2;
         artX += (finalX - artX) * finaleT;
         artY += (finalY - artY) * finaleT;
-        width += (fr.width - width) * finaleT;
+        width += (fr.width * FINALE_SCALE - width) * finaleT;
       }
 
       art.style.width = `${width}px`;

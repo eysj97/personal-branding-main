@@ -434,6 +434,12 @@ export default function Hero() {
     // glasses fills the circle it is landing on exactly.
     const DOCK_OVERHANG = 1;
     const DOCK_SIZE = 126; // the fallback, for a page with no chat on it
+    // How big the circle it lands on grows at the very end of the page —
+    // two thirds of the outro blob rather than the whole of it, matching
+    // Chatbot's own FINALE_SCALE, which the launcher's actual size follows.
+    // Kept in step with DOCK_OVERHANG above: at both stops the glasses is
+    // sized 1:1 with the circle it is landing on, never bigger or smaller.
+    const FINALE_SCALE = 2 / 3;
     // Where it parks, as the distance from the viewport's corner to the
     // glasses' middle. It has to be the middle of the chat circle in Chatbot,
     // which is 56px across and sits `right-11` / `bottom-5` — so 44 + 28 across
@@ -518,10 +524,11 @@ export default function Hero() {
         const fr = finale.getBoundingClientRect();
         const finalX = fr.left + fr.width / 2 - vw / 2;
         const finalY = fr.top + fr.height / 2 - vh / 2;
-        // The blob's own live width, unmodified — it is drawn at exactly the
-        // size the character should fill, not a circle to sit inside with
-        // room to spare the way the corner launcher is (see DOCK_OVERHANG).
-        const finalScale = fr.width / (el.offsetWidth || fr.width);
+        // The blob's own width scaled by the same FINALE_SCALE the launcher
+        // itself grows to (see Chatbot's syncFade) — matched exactly, so the
+        // frame sits on the circle rather than running past its edge.
+        const finalScale =
+          (fr.width * FINALE_SCALE) / (el.offsetWidth || fr.width);
         x += (finalX - x) * finaleT;
         y += (finalY - y) * finaleT;
         scale += (finalScale - scale) * finaleT;

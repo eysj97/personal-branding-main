@@ -38,6 +38,15 @@ const CHIPS_MS = 520;
 // mobile/MobileHero), so changing it here moves both.
 const CHAR_SIZE = 90;
 const CHAR_GAP = 30;
+// How big the launcher grows at the very end of the page, against the outro
+// blob it lands on — two thirds of the blob rather than the whole of it, so
+// the settled circle (and the Snapkeep word riding its width, see the flight
+// loop in ExperienceSection) reads as sized to sit *in* that space rather
+// than as having swallowed it whole. The dock loops in Hero and
+// mobile/MobileHero shrink the glasses to match this same fraction of the
+// blob, or the frame would land bigger than the circle it is supposed to be
+// worn on — see FINALE_SCALE there.
+const FINALE_SCALE = 2 / 3;
 // Two thirds of it on a phone. 90 is a fifth of a 430px screen's width and it
 // reads as a mascot standing in front of the page rather than waiting beside
 // it; on a laptop, where it is a fifteenth of the width, the same 90 is right.
@@ -241,6 +250,10 @@ export default function Chatbot() {
   useEffect(() => {
     spotRef.current = spot;
   }, [spot]);
+  const charRef = useRef(char);
+  useEffect(() => {
+    charRef.current = char;
+  }, [char]);
   useLayoutEffect(() => {
     function place() {
       const panel = panelRef.current;
@@ -301,67 +314,75 @@ export default function Chatbot() {
     openRef.current = open;
   }, [open]);
   const dockedRef = useRef(false);
-  // The launcher's own fill and position, independent of the `docked`/`open`
+  // The launcher's own position and size, independent of the `docked`/`open`
   // classes and the `spot` state below: over the narrow band at the very end
   // of the page where CareerSection's outro blob is handing the character
   // off (see career-outro-blob there and the dock loops in Hero/MobileHero
   // that grow the glasses into it), the actual button — not just the
-  // decorative glasses riding on top of it — travels there too and its own
-  // fill fades out.
+  // decorative glasses riding on top of it — grows into that exact spot too,
+  // staying the fully opaque pink circle it always is rather than fading
+  // out. The white blob is the thing that disappears (see its own opacity in
+  // CareerSection); the pink one is what takes its place, not a second thing
+  // vanishing alongside it.
   //
-  // The button moving, and not only fading, is what carries everything that
-  // tracks it along for free: ExperienceSection's Snapkeep word reads this
-  // element's own `getBoundingClientRect()` every frame it is on screen (see
-  // the flight loop there), so it settles wherever this button actually is
-  // rather than the corner it started at. Fading it in place would have left
-  // that word stranded beside an empty corner while the glasses grew into
-  // the blob on its own.
+  // The button moving and growing, not just the glasses on top of it, is
+  // what carries everything that tracks it along for free: ExperienceSection's
+  // Snapkeep word reads this element's own `getBoundingClientRect()` every
+  // frame it is on screen (see the flight loop there), so it settles
+  // wherever this button actually is and at whatever size, rather than the
+  // 90px corner it started at.
   //
-  // Gated the same way the fade always was: `landed` is true from the
-  // moment the hero is behind you, so tying either of these to it would move
-  // the button for nearly the whole page instead of just its last screen.
+  // Gated the same way the corner sizing always was: `landed` is true from
+  // the moment the hero is behind you, so tying this to it would grow the
+  // button for nearly the whole page instead of just its last screen.
   //
   // Written straight to the element rather than through React state: this
-  // runs on every scroll tick, and a re-render of the whole panel subtree
-  // for values nobody but these two style properties read would be wasted
-  // work. Cleared (not just left at their base values) whenever the blend
-  // does not apply, so an inline value never outlives the moment it was
-  // written for and sits there overriding `spot` once the reason for it is
-  // gone.
+  // runs every frame, and a re-render of the whole panel subtree for values
+  // nobody but these style properties read would be wasted work.
   const syncFade = useCallback(() => {
     const el = launcherRef.current;
     if (!el) return;
-    // `left`/`top` are also what React's own `style` prop sets `spot` onto
-    // (see the button below) — so clearing them to `""` on the way out does
-    // not hand control back to React the way clearing `opacity` does two
-    // lines down (which React never touches). React only rewrites a DOM
-    // style property when its own new value differs from what *it* last
-    // wrote, and from its side nothing has changed; it has no idea this loop
-    // reached in and moved the element, so an emptied property just stays
-    // empty. The base value is written explicitly instead, every frame,
-    // whether or not the blend is active — the one thing that can never go
-    // stale, because `spotRef` is read fresh each time too.
+    // `left`/`top`/`width`/`height` are also what React's own `style` prop
+    // sets `spot` and `char` onto (see the button below) — so clearing them
+    // to `""` on the way out does not hand control back to React. React only
+    // rewrites a DOM style property when its own new value differs from
+    // what *it* last wrote, and from its side nothing has changed; it has no
+    // idea this loop reached in and moved the element, so an emptied
+    // property just stays empty. The base values are written explicitly
+    // instead, every frame, whether or not the blend is active — the one
+    // thing that can never go stale, because `spotRef`/`charRef` are read
+    // fresh each time too.
     const base = spotRef.current;
+    const baseSize = charRef.current;
     if (dockedRef.current && !openRef.current) {
       const blob = document.getElementById("career-outro-blob");
       const finale = blob ? Number(blob.dataset.finale) || 0 : 0;
-      el.style.opacity = String(1 - finale);
       if (finale > 0 && blob) {
         const br = blob.getBoundingClientRect();
-        // The blob's own centre, converted back to the top-left corner this
-        // element is positioned from — its size does not grow to match the
-        // blob (only the decorative glasses does), so it is centred on the
-        // blob rather than resized to fill it.
-        const targetLeft = br.left + br.width / 2 - el.offsetWidth / 2;
-        const targetTop = br.top + br.height / 2 - el.offsetHeight / 2;
-        el.style.left = `${base.left + (targetLeft - base.left) * finale}px`;
-        el.style.top = `${base.top + (targetTop - base.top) * finale}px`;
+        const targetSize = br.width * FINALE_SCALE;
+        const size = baseSize + (targetSize - baseSize) * finale;
+        // The blob's own centre, at whatever size this element has grown to
+        // this frame — not the blob's own width, since the size itself is
+        // still easing towards it.
+        const baseCenterX = base.left + baseSize / 2;
+        const baseCenterY = base.top + baseSize / 2;
+        const blobCenterX = br.left + br.width / 2;
+        const blobCenterY = br.top + br.height / 2;
+        const centerX = baseCenterX + (blobCenterX - baseCenterX) * finale;
+        const centerY = baseCenterY + (blobCenterY - baseCenterY) * finale;
+        el.style.width = `${size}px`;
+        el.style.height = `${size}px`;
+        el.style.left = `${centerX - size / 2}px`;
+        el.style.top = `${centerY - size / 2}px`;
       } else {
+        el.style.width = `${baseSize}px`;
+        el.style.height = `${baseSize}px`;
         el.style.left = `${base.left}px`;
         el.style.top = `${base.top}px`;
       }
     } else {
-      el.style.opacity = "";
+      el.style.width = `${baseSize}px`;
+      el.style.height = `${baseSize}px`;
       el.style.left = `${base.left}px`;
       el.style.top = `${base.top}px`;
     }
@@ -486,13 +507,13 @@ export default function Chatbot() {
           scale here would move the circle out from under a pair of glasses that
           knows nothing about it. Only the shared idle transforms this.
 
-          Its own fill fades only right at the very end of the page, where
-          CareerSection's outro hands the character off onto its own blob (see
-          career-outro-blob there and syncFade above) — everywhere else on the
-          page this stays a plain, fully opaque pink circle, docked or not.
-          The button stays clickable through the fade; only the fill goes to
-          nothing, so the glasses alone reads as the resting character there
-          without a ring of pink showing round it. */}
+          Right at the very end of the page this grows and moves onto
+          CareerSection's outro blob instead of staying a small circle in the
+          corner (see career-outro-blob there and syncFade above) — the white
+          blob is what disappears there, not this. It stays the same fully
+          opaque pink circle the whole way, just a much bigger one sitting
+          where the blob was, with the glasses landing on it exactly as they
+          always do. */}
       <button
         id="chatbot-launcher"
         ref={launcherRef}
